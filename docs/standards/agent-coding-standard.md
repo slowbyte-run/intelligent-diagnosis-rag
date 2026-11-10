@@ -37,6 +37,7 @@
 - 动手前查看当前分支、工作区状态和最近提交。
 - 不得丢弃用户未提交的修改。不执行 `git reset --hard`、`git clean -fd`、`git push --force`，除非用户明确要求。
 - 不提交临时文件、构建产物、密钥、本地环境配置。
+- 未经同意不要擅自对临时分支外的分支进行提交和推送。
 - 提交信息用 Conventional Commits（`feat:` `fix:` `docs:` `refactor:` `test:` `build:` `ci:` `chore:`）；项目已有格式则从项目。
 - 分支命名沿用项目约定；没有约定时用 `feature/`、`fix/`、`docs/`、`refactor/`、`chore/`。
 - 一个 PR 只做一件事，不混入无关改动。
