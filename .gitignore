@@ -39,3 +39,6 @@ neo4j/import/
 
 # 临时草稿
 .scratch/
+
+# 本机环境事实（换机器即失效，见 docs/standards/agent-coding-standard.md 的说明）
+.agent/

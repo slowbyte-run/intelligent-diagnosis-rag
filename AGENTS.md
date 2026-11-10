@@ -1,16 +1,12 @@
-## Agent skills
+# intelligent-diagnosis-rag
 
-### Issue tracker
+## 优先级
 
-Issues live as GitHub issues on `slowbyte-run/intelligent-diagnosis-rag`, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+用户当轮指令 > 本文件 > [`docs/standards/agent-coding-standard.md`](docs/standards/agent-coding-standard.md)。
 
-### Triage labels
+通用工程规范（总则、何时停下问人、安全、Git、Docker、依赖管理、CI）全部在那份标准里，**本文件不重复**。它逐字复制自 `slowbyte-run/agent-coding-standards`，改动请回上游改。
 
-Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Multi-context: `GLOSSARY-MAP.md` at the root points at `src/core`, `src/rotating`, `src/pulmonary`. See `docs/agents/domain.md`.
+本机环境事实（代理、GPU、端口占用、资源上限）在 `.agent/local.md`，**不入库**，换机器不适用。
 
 ## 项目
 
@@ -29,9 +25,32 @@ Multi-context: `GLOSSARY-MAP.md` at the root points at `src/core`, `src/rotating
 5. **抽取结果必须通过本体校验才入库。** 校验失败是数据错误，不是警告，不得静默丢弃。
 6. **答案必须带引用。** 没有证据段支撑的结论不允许出现在回答里；证据不足时走拒答，不给低置信度答案。
 
+改动图谱 schema、本体类型清单、评估指标定义之前先停下问人——按标准 §2，这些是本项目的数据模型。
+
+## 本仓库与通用标准不同的地方
+
+- **本仓库要写测试。** `all-in-rag` 里「不写测试／lint／CI，不要自己发明」是教程仓库的家规，**不适用于这里**：`src/core` 被两个领域共用，一旦错了同时污染两边；评估框架本身也是代码。
+- **镜像不用 `latest`。** `cook-rag` 现在用 `localhost/postgres-age:latest`，本项目不跟：Neo4j、pgvector 从第一天就钉明确版本，否则 ADR-0003 承诺的私有化交付不可复现。
+- **抽取与评估必须可复现**：固定语料快照、固定提示词版本、记录模型名与参数。同一份语料跑两次要能给出可比的结果。
+- **端口避开 8000 与 8080**（被 `cook-rag` 占用），默认 API 8010、Web 8081。
+
 ## 约定
 
 - 中文写文档、注释、提交信息。
 - 密钥只走环境变量，`.env` 不入库；`data/` 下的原始语料不入库。
 - 依赖用 `uv` 管理，提交 `uv.lock`。
 - 验证脚本时使用显式解释器路径，不依赖隐式激活。
+
+## Agent skills
+
+### Issue tracker
+
+Issues live as GitHub issues on `slowbyte-run/intelligent-diagnosis-rag`, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Multi-context: `GLOSSARY-MAP.md` at the root points at `src/core`, `src/rotating`, `src/pulmonary`. See `docs/agents/domain.md`.
