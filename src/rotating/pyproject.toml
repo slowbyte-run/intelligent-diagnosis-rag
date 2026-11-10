@@ -3,7 +3,7 @@ name = "idr-rotating"
 version = "0.1.0"
 description = "设备领域包：旋转设备故障诊断的本体、抽取与检索编排"
 requires-python = ">=3.12,<3.14"
-dependencies = ["idr-core"]
+dependencies = ["idr-core", "pyyaml>=6.0"]
 
 [build-system]
 requires = ["hatchling"]
