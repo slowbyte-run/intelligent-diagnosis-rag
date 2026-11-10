@@ -9,6 +9,7 @@ from idr_core.embedding import EMBEDDING_DIM
 from idr_core.graph import GraphBatch
 from idr_core.models import BBox, CharSpan
 from idr_core.parsing import ParsedDocument, ParsedLine, ParsedPage
+from idr_core.state import DocumentProcessingState
 
 DEFAULT_PAGE_BBOX = BBox(0.0, 0.0, 595.0, 842.0)
 
@@ -68,12 +69,14 @@ def stacked_boxes(
 
 
 class FakeParser:
-    """按页码顺序返回固定页面，不读取真实 PDF。"""
+    """按页码顺序返回固定页面，不读取真实 PDF，并记录被解析的路径。"""
 
     def __init__(self, pages: Sequence[ParsedPage]) -> None:
         self._pages = tuple(pages)
+        self.calls: list[Path] = []
 
     def parse(self, path: Path) -> ParsedDocument:
+        self.calls.append(path)
         return ParsedDocument(pages=self._pages)
 
 
@@ -87,6 +90,21 @@ class FakeLLM:
     def complete(self, prompt: str) -> str:
         self.prompts.append(prompt)
         return self._response
+
+
+class ScriptedLLM:
+    """按调用顺序返回脚本化响应；元素是异常时抛出，用来模拟中断或单篇失败。"""
+
+    def __init__(self, steps: Sequence[str | BaseException]) -> None:
+        self._steps = tuple(steps)
+        self.prompts: list[str] = []
+
+    def complete(self, prompt: str) -> str:
+        self.prompts.append(prompt)
+        step = self._steps[len(self.prompts) - 1]
+        if isinstance(step, BaseException):
+            raise step
+        return step
 
 
 class FakeEmbedder:
@@ -140,3 +158,16 @@ class FakeGraphStore:
 
     def write_document(self, batch: GraphBatch) -> None:
         self.batches.append(batch)
+
+
+class FakeStateStore:
+    """内存版处理状态：按 doc_id 覆盖写入，模拟真实适配器的 upsert 语义。"""
+
+    def __init__(self) -> None:
+        self.states: dict[str, DocumentProcessingState] = {}
+
+    def get(self, doc_id: str) -> DocumentProcessingState | None:
+        return self.states.get(doc_id)
+
+    def record(self, state: DocumentProcessingState) -> None:
+        self.states[state.doc_id] = state
