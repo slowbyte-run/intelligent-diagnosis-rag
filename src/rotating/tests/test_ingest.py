@@ -33,7 +33,7 @@ def test_single_document_ingest_writes_traceable_concepts(tmp_path: Path) -> Non
     content = b"%PDF-1.4 fake paper"
     write_pdf(tmp_path, "paper.pdf", content)
     doc_id = content_doc_id(content)
-    text = "外圈剥落表现为 BPFO 倍频振动。"
+    text = "外圈剥落表现为 BPFO 倍频振动，能量集中在高频段。"
     segment_id = evidence_id(doc_id, 1, text)
 
     response = json.dumps(
@@ -232,7 +232,7 @@ def test_reprocessing_same_document_yields_same_identifiers(tmp_path: Path) -> N
     content = b"%PDF-1.4 stable identifiers"
     write_pdf(tmp_path, "stable.pdf", content)
     doc_id = content_doc_id(content)
-    text = "内圈剥落表现为 BPFI 倍频。"
+    text = "内圈剥落表现为 BPFI 倍频，并伴随转频边带。"
     segment_id = evidence_id(doc_id, 1, text)
     response = json.dumps(
         {

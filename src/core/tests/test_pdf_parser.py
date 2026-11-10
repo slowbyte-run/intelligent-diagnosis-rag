@@ -10,7 +10,20 @@ from idr_core.parsing.pdf import PdfTextParser
 def one_page_pdf(text: str) -> bytes:
     """生成一页、一段文字的合法最小 PDF，避免为测试引入写 PDF 的依赖。"""
 
-    stream = f"BT /F1 12 Tf 72 720 Td ({text}) Tj ET".encode("ascii")
+    return one_page_pdf_with_lines([text])
+
+
+def one_page_pdf_with_lines(lines: list[str]) -> bytes:
+    """生成一页多行文字的合法最小 PDF，行距固定 14 点。"""
+
+    parts = ["BT /F1 12 Tf 72 720 Td"]
+    for index, line in enumerate(lines):
+        escaped = line.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+        if index:
+            parts.append("0 -14 Td")
+        parts.append(f"({escaped}) Tj")
+    parts.append("ET")
+    stream = " ".join(parts).encode("ascii")
     objects = [
         b"<< /Type /Catalog /Pages 2 0 R >>",
         b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
@@ -60,3 +73,33 @@ def test_parser_returns_text_page_with_bbox(tmp_path: Path) -> None:
         612.0,
         792.0,
     )
+
+
+def test_parser_exposes_line_geometry_for_segment_localization(
+    tmp_path: Path,
+) -> None:
+    """证据段的版面坐标要靠行级坐标算出，不能退化成整页坐标。"""
+
+    path = tmp_path / "lines.pdf"
+    path.write_bytes(
+        one_page_pdf_with_lines(
+            ["Outer race spalling occurs", "at the BPFO frequency."]
+        )
+    )
+
+    parsed = PdfTextParser().parse(path)
+
+    page = parsed.pages[0]
+    assert page.text == "Outer race spalling occurs\nat the BPFO frequency."
+    assert [line.text for line in page.lines] == [
+        "Outer race spalling occurs",
+        "at the BPFO frequency.",
+    ]
+
+    first, second = page.lines
+    assert page.text[first.charspan.start : first.charspan.end] == first.text
+    assert page.text[second.charspan.start : second.charspan.end] == second.text
+    assert first.charspan.end < second.charspan.start
+    assert first.bbox.y1 < second.bbox.y0  # 按阅读顺序自上而下
+    assert page.bbox.x0 <= first.bbox.x0 < first.bbox.x1 <= page.bbox.x1
+    assert page.bbox.y0 <= first.bbox.y0 < first.bbox.y1 <= page.bbox.y1

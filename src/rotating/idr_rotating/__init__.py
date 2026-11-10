@@ -1,5 +1,6 @@
-"""设备领域包：本体、抽取与入库门面。"""
+"""设备领域包：本体、抽取、切分与入库门面。"""
 
+from idr_rotating.document import DocumentType
 from idr_rotating.ingest import (
     DocumentReport,
     IngestDeps,
@@ -10,6 +11,7 @@ from idr_rotating.ingest import (
 
 __all__ = [
     "DocumentReport",
+    "DocumentType",
     "IngestDeps",
     "IngestError",
     "IngestReport",

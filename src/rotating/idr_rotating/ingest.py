@@ -22,6 +22,11 @@ from idr_core.llm import LLMClient
 from idr_core.models import EvidenceSegment
 from idr_core.parsing import Parser
 from idr_core.vector_store import VectorStore
+from idr_rotating.document import (
+    DocumentType,
+    detect_document_type,
+    scanned_document_reason,
+)
 from idr_rotating.extraction import (
     ExtractedEntity,
     ExtractedRelation,
@@ -58,6 +63,8 @@ class DocumentReport:
     rejected_entities: int = 0
     rejected_relations: int = 0
     error: str | None = None
+    document_type: DocumentType | None = None
+    quarantine_reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +86,12 @@ class IngestReport:
     @property
     def failed(self) -> int:
         return sum(1 for document in self.documents if document.error is not None)
+
+    @property
+    def quarantined(self) -> int:
+        return sum(
+            1 for document in self.documents if document.quarantine_reason is not None
+        )
 
 
 def ingest(
@@ -115,9 +128,22 @@ def _ingest_document(
     try:
         doc_id = _doc_id(path.read_bytes())
         parsed = deps.parser.parse(path)
-        segments = build_evidence_segments(doc_id, parsed)
+        quarantine_reason = scanned_document_reason(parsed)
+        if quarantine_reason is not None:
+            # 扫描件隔离在抽取之前：不调模型、不写图，也不产出空证据段。
+            return DocumentReport(
+                path=path,
+                doc_id=doc_id,
+                evidence_segments=0,
+                entities=0,
+                relations=0,
+                quarantine_reason=quarantine_reason,
+            )
+
+        document_type = detect_document_type(parsed)
+        segments = build_evidence_segments(doc_id, parsed, document_type)
         if not segments:
-            raise IngestError("未解析出文字层，无法产出证据段")
+            raise IngestError("未解析出可切分的文字，无法产出证据段")
 
         extraction = parse_extraction(
             deps.llm.complete(build_extraction_prompt(ontology, segments))
@@ -148,6 +174,7 @@ def _ingest_document(
         relations=len(validated.relations),
         rejected_entities=validated.rejected_entities,
         rejected_relations=validated.rejected_relations,
+        document_type=document_type,
     )
 
 
