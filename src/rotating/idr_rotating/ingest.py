@@ -49,8 +49,8 @@ class IngestDeps:
     llm: LLMClient
     parser: Parser
     graph_store: GraphStore
-    embedder: Embedder | None = None
-    vector_store: VectorStore | None = None
+    embedder: Embedder
+    vector_store: VectorStore
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,6 +152,12 @@ def _ingest_document(
             extraction,
             ontology,
             available_evidence_ids={segment.id for segment in segments},
+        )
+        # 先写向量、再写图：向量失败时这篇文献的图谱数据一行都不会落库。
+        # 两个存储跨不了服务事务，图存储自身按文档事务写入，因此不会半完成。
+        deps.vector_store.upsert_evidence_vectors(
+            evidence_ids=[segment.id for segment in segments],
+            vectors=deps.embedder.embed([segment.text for segment in segments]),
         )
         deps.graph_store.write_document(
             _build_batch(doc_id, segments, validated.entities, validated.relations)

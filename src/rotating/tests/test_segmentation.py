@@ -11,9 +11,11 @@ from idr_rotating import DocumentType, IngestDeps, IngestReport, ingest
 
 from fakes import (
     EMPTY_EXTRACTION,
+    FakeEmbedder,
     FakeGraphStore,
     FakeLLM,
     FakeParser,
+    FakeVectorStore,
     parsed_page,
     stacked_boxes,
 )
@@ -40,6 +42,8 @@ def ingest_pages(
             llm=llm,
             parser=FakeParser(pages),
             graph_store=graph_store,
+            embedder=FakeEmbedder(),
+            vector_store=FakeVectorStore(),
         ),
     )
     return report, graph_store, llm

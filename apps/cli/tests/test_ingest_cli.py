@@ -9,12 +9,16 @@ from pathlib import Path
 
 import pytest
 
+from idr_core.config import Config
+from idr_core.embedding import EMBEDDING_DIM
 from idr_core.graph import GraphBatch
+from idr_core.llm.embedding import OpenAICompatibleEmbedder
 from idr_core.models import BBox
 from idr_core.parsing import ParsedDocument, ParsedPage
+from idr_core.vector_store.pgvector import PgVectorStore
 from idr_rotating import IngestDeps
 
-from idr_cli.ingest import run_ingest
+from idr_cli.ingest import build_deps, run_ingest
 from idr_cli.main import main
 
 
@@ -40,6 +44,21 @@ class FakeGraphStore:
 
     def write_document(self, batch: GraphBatch) -> None:
         self.batches.append(batch)
+
+
+class FakeEmbedder:
+    def embed(self, texts: Sequence[str]) -> list[list[float]]:
+        return [[0.0] * EMBEDDING_DIM for _ in texts]
+
+
+class FakeVectorStore:
+    def upsert_evidence_vectors(
+        self, *, evidence_ids: Sequence[str], vectors: Sequence[Sequence[float]]
+    ) -> None:
+        pass
+
+    def get_evidence_vector(self, evidence_id: str) -> list[float] | None:
+        return None
 
 
 def test_ingest_prints_per_document_and_total_counts(
@@ -84,6 +103,8 @@ def test_ingest_prints_per_document_and_total_counts(
             [ParsedPage(number=1, text=text, bbox=BBox(0.0, 0.0, 595.0, 842.0))]
         ),
         graph_store=FakeGraphStore(),
+        embedder=FakeEmbedder(),
+        vector_store=FakeVectorStore(),
     )
 
     exit_code = run_ingest(tmp_path, deps=deps)
@@ -104,6 +125,8 @@ def test_ingest_reports_quarantined_scanned_documents(
             [ParsedPage(number=1, text="", bbox=BBox(0.0, 0.0, 595.0, 842.0))]
         ),
         graph_store=FakeGraphStore(),
+        embedder=FakeEmbedder(),
+        vector_store=FakeVectorStore(),
     )
 
     exit_code = run_ingest(tmp_path, deps=deps)
@@ -144,6 +167,8 @@ def test_main_dispatches_ingest_subcommand(
             [ParsedPage(number=1, text=text, bbox=BBox(0.0, 0.0, 595.0, 842.0))]
         ),
         graph_store=FakeGraphStore(),
+        embedder=FakeEmbedder(),
+        vector_store=FakeVectorStore(),
     )
     for name, value in {
         "DEEPSEEK_BASE_URL": "https://example.invalid",
@@ -165,3 +190,26 @@ def test_main_dispatches_ingest_subcommand(
     captured = capsys.readouterr()
     assert exit_code == 0
     assert "paper.pdf：证据段 1，实体 1，关系 0" in captured.out
+
+
+def test_build_deps_wires_the_embedder_and_vector_store() -> None:
+    config = Config.model_validate(
+        {
+            "DEEPSEEK_BASE_URL": "https://example.invalid",
+            "DEEPSEEK_API_KEY": "sk-test",
+            "DEEPSEEK_MODEL": "test-model",
+            "SILICONFLOW_BASE_URL": "https://example.invalid/v1",
+            "SILICONFLOW_API_KEY": "sk-test",
+            "EMBEDDING_MODEL": "test-embedding",
+            "EMBEDDING_DIM": "1024",
+            "NEO4J_URI": "bolt://127.0.0.1:1",
+            "NEO4J_USER": "neo4j",
+            "NEO4J_PASSWORD": "secret",
+            "DATABASE_URL": "postgresql://idr:secret@127.0.0.1:1/idr",
+        }
+    )
+
+    deps = build_deps(config)
+
+    assert isinstance(deps.embedder, OpenAICompatibleEmbedder)
+    assert isinstance(deps.vector_store, PgVectorStore)
