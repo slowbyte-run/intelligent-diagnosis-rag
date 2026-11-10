@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import hashlib
+from datetime import date
 from pathlib import Path
 
 import yaml
@@ -19,6 +20,17 @@ DEFAULT_ONTOLOGY_PATH = (
 
 class OntologyError(RuntimeError):
     """本体文件缺失、不是合法 YAML，或结构不符合约定。"""
+
+
+class StandardDef(BaseModel):
+    """本体所锚定的外部标准；只记录标识与用途，不复制标准正文。"""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    id: str
+    title: str
+    usage: str = ""
+    modeling: str = ""
 
 
 class EntityTypeDef(BaseModel):
@@ -53,15 +65,19 @@ class InstanceDef(BaseModel):
 
 
 class Ontology(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="ignore")
+    # 顶层只允许已知段落：拼错的键必须让本体在启动时失败，而不是被静默忽略。
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     version: str
     domain: str
+    updated: date | None = None
+    standards: list[StandardDef] = Field(default_factory=list)
     entity_types: dict[str, EntityTypeDef]
     relation_types: dict[str, RelationTypeDef]
     locations: dict[str | None, str] = Field(default_factory=dict)
     damage_forms: dict[str, str] = Field(default_factory=dict)
     instances: dict[str, list[InstanceDef]] = Field(default_factory=dict)
+    edge_properties: dict[str, str] = Field(default_factory=dict)
     pending: list[str] = Field(default_factory=list)
 
     def attribute_values(self, attribute: str) -> dict[str | None, str]:
