@@ -22,6 +22,12 @@ def build_parser() -> argparse.ArgumentParser:
         "ingest", help="把目录中的 PDF 入库，输出证据段、实体与关系计数"
     )
     ingest_command.add_argument("source_dir", help="存放 PDF 的目录")
+    ingest_command.add_argument(
+        "--reports-dir",
+        type=Path,
+        default=None,
+        help="批次报告输出目录，默认 data/output/reports",
+    )
     return parser
 
 
@@ -47,7 +53,11 @@ def main(
         except ConfigError as error:
             print(f"配置错误：{error}", file=sys.stderr)
             return 1
-        return run_ingest(Path(arguments.source_dir), deps=deps)
+        return run_ingest(
+            Path(arguments.source_dir),
+            deps=deps,
+            reports_dir=arguments.reports_dir,
+        )
 
     raise AssertionError(f"未实现的命令：{arguments.command}")
 

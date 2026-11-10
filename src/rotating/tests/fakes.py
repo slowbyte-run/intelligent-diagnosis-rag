@@ -7,6 +7,7 @@ from pathlib import Path
 
 from idr_core.embedding import EMBEDDING_DIM
 from idr_core.graph import GraphBatch
+from idr_core.llm import LLMResponse, ModelDescriptor
 from idr_core.parsing import ParsedDocument, ParsedPage
 
 
@@ -30,6 +31,38 @@ class FakeLLM:
     def complete(self, prompt: str) -> str:
         self.prompts.append(prompt)
         return self._response
+
+
+class InstrumentedFakeLLM(FakeLLM):
+    """同时报告用量与调用参数的假模型，让报告能记录成本。"""
+
+    def __init__(
+        self,
+        response: str,
+        *,
+        model: str = "fake-model",
+        input_tokens: int = 100,
+        output_tokens: int = 20,
+        parameters: dict[str, str | int | float | bool] | None = None,
+    ) -> None:
+        super().__init__(response)
+        self._model = model
+        self._input_tokens = input_tokens
+        self._output_tokens = output_tokens
+        self._parameters = {} if parameters is None else parameters
+
+    def complete_with_usage(self, prompt: str) -> LLMResponse:
+        self.prompts.append(prompt)
+        return LLMResponse(
+            text=self._response,
+            model=self._model,
+            input_tokens=self._input_tokens,
+            output_tokens=self._output_tokens,
+        )
+
+    def describe(self) -> ModelDescriptor:
+        return ModelDescriptor(model=self._model, parameters=self._parameters)
+
 
 
 class FakeEmbedder:

@@ -107,7 +107,7 @@ def test_ingest_prints_per_document_and_total_counts(
         vector_store=FakeVectorStore(),
     )
 
-    exit_code = run_ingest(tmp_path, deps=deps)
+    exit_code = run_ingest(tmp_path, deps=deps, reports_dir=tmp_path / "reports")
 
     captured = capsys.readouterr()
     assert exit_code == 0
@@ -163,7 +163,10 @@ def test_main_dispatches_ingest_subcommand(
     }.items():
         monkeypatch.setenv(name, value)
 
-    exit_code = main(["ingest", str(tmp_path)], deps_factory=lambda config: deps)
+    exit_code = main(
+        ["ingest", str(tmp_path), "--reports-dir", str(tmp_path / "reports")],
+        deps_factory=lambda config: deps,
+    )
 
     captured = capsys.readouterr()
     assert exit_code == 0
@@ -191,3 +194,94 @@ def test_build_deps_wires_the_embedder_and_vector_store() -> None:
 
     assert isinstance(deps.embedder, OpenAICompatibleEmbedder)
     assert isinstance(deps.vector_store, PgVectorStore)
+
+
+def test_ingest_writes_a_batch_report_for_the_run(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    content = b"%PDF-1.4 fake paper"
+    (tmp_path / "paper.pdf").write_bytes(content)
+    doc_id = hashlib.sha256(content).hexdigest()[:16]
+    text = "外圈剥落表现为 BPFO 倍频。"
+    segment_id = f"ev:{doc_id}:1:0-{len(text)}"
+    response = json.dumps(
+        {
+            "entities": [
+                {
+                    "name": "外圈剥落",
+                    "type": "fault_mode",
+                    "evidence_ids": [segment_id],
+                    "confidence": 0.9,
+                },
+                {
+                    "name": "BPFO 倍频",
+                    "type": "symptom",
+                    "evidence_ids": [segment_id],
+                    "confidence": 0.9,
+                },
+            ],
+            "relations": [
+                {
+                    "head": "外圈剥落",
+                    "type": "indicated_by",
+                    "tail": "BPFO 倍频",
+                    "evidence_ids": [segment_id],
+                    "confidence": 0.8,
+                }
+            ],
+        },
+        ensure_ascii=False,
+    )
+    deps = IngestDeps(
+        llm=FakeLLM(response),
+        parser=FakeParser(
+            [ParsedPage(number=1, text=text, bbox=BBox(0.0, 0.0, 595.0, 842.0))]
+        ),
+        graph_store=FakeGraphStore(),
+        embedder=FakeEmbedder(),
+        vector_store=FakeVectorStore(),
+    )
+    reports_dir = tmp_path / "reports"
+
+    exit_code = run_ingest(tmp_path, deps=deps, reports_dir=reports_dir)
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    (report_file,) = list(reports_dir.glob("ingest-*.json"))
+    payload = json.loads(report_file.read_text(encoding="utf-8"))
+    assert payload["summary"]["documents"] == {
+        "total": 1,
+        "succeeded": 1,
+        "failed": 0,
+        "quarantined": 0,
+    }
+    assert (
+        payload["documents"][0]["evidence_segments"],
+        payload["documents"][0]["entities"],
+        payload["documents"][0]["relations"],
+    ) == (1, 2, 1)
+    assert str(report_file) in captured.out
+
+
+def test_empty_input_directory_still_writes_a_report(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    empty_dir = tmp_path / "input"
+    empty_dir.mkdir()
+    deps = IngestDeps(
+        llm=FakeLLM("{}"),
+        parser=FakeParser([]),
+        graph_store=FakeGraphStore(),
+        embedder=FakeEmbedder(),
+        vector_store=FakeVectorStore(),
+    )
+    reports_dir = tmp_path / "reports"
+
+    exit_code = run_ingest(empty_dir, deps=deps, reports_dir=reports_dir)
+
+    assert exit_code == 0
+    (report_file,) = list(reports_dir.glob("ingest-*.json"))
+    payload = json.loads(report_file.read_text(encoding="utf-8"))
+    assert payload["summary"]["documents"]["total"] == 0
+    assert payload["documents"] == []
+    assert not capsys.readouterr().err

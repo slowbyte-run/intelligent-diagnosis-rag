@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Literal
 
 from idr_core.embedding import Embedder
 from idr_core.graph import (
@@ -18,23 +20,32 @@ from idr_core.graph import (
     GraphBatch,
     GraphStore,
 )
-from idr_core.llm import LLMClient
+from idr_core.llm import LLMClient, ModelDescriptor, call_model, describe_model
 from idr_core.models import EvidenceSegment
 from idr_core.parsing import Parser
 from idr_core.vector_store import VectorStore
 from idr_rotating.extraction import (
     ExtractedEntity,
     ExtractedRelation,
+    RejectedExtraction,
     build_extraction_prompt,
     parse_extraction,
     validate_extraction,
 )
-from idr_rotating.ontology import Ontology, load_ontology
+from idr_rotating.ontology import (
+    Ontology,
+    load_ontology,
+    ontology_fingerprint,
+)
 from idr_rotating.segments import build_evidence_segments
 
 
 class IngestError(RuntimeError):
     """入库过程中可以直接展示给人的错误。"""
+
+
+class QuarantineError(IngestError):
+    """文档被隔离：不进图谱，但仍要在报告里记下原因。"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +60,18 @@ class IngestDeps:
 
 
 @dataclass(frozen=True, slots=True)
+class PendingReviewItem:
+    """一条等待人工审计的越界抽取；同名同因合并计频次。"""
+
+    kind: str
+    label: str
+    type: str
+    reason: str
+    occurrences: int
+    evidence_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class DocumentReport:
     path: Path
     doc_id: str
@@ -58,11 +81,49 @@ class DocumentReport:
     rejected_entities: int = 0
     rejected_relations: int = 0
     error: str | None = None
+    quarantined: bool = False
+    quarantine_reason: str | None = None
+    pending_review: tuple[PendingReviewItem, ...] = ()
+
+    @property
+    def status(self) -> Literal["succeeded", "failed", "quarantined"]:
+        if self.quarantined:
+            return "quarantined"
+        if self.error is not None:
+            return "failed"
+        return "succeeded"
+
+
+@dataclass(frozen=True, slots=True)
+class RunMetadata:
+    """一次入库运行的元数据，足以复现当次的模型与参数组合。"""
+
+    source_dir: Path
+    limit: int | None
+    started_at: datetime
+    finished_at: datetime
+    model: ModelDescriptor | None
+    ontology_version: str
+    ontology_sha256: str
+
+
+@dataclass(frozen=True, slots=True)
+class ModelCallRecord:
+    """一次模型调用的成本记录，挂在发起它的文献上。"""
+
+    document_id: str
+    purpose: str
+    model: str
+    input_tokens: int | None
+    output_tokens: int | None
+    elapsed_seconds: float
 
 
 @dataclass(frozen=True, slots=True)
 class IngestReport:
     documents: tuple[DocumentReport, ...]
+    model_calls: tuple[ModelCallRecord, ...] = ()
+    run: RunMetadata | None = None
 
     @property
     def evidence_segments(self) -> int:
@@ -78,7 +139,21 @@ class IngestReport:
 
     @property
     def failed(self) -> int:
-        return sum(1 for document in self.documents if document.error is not None)
+        return sum(1 for document in self.documents if document.status == "failed")
+
+    @property
+    def succeeded(self) -> int:
+        return sum(1 for document in self.documents if document.status == "succeeded")
+
+    @property
+    def quarantined(self) -> int:
+        return sum(
+            1 for document in self.documents if document.status == "quarantined"
+        )
+
+    @property
+    def pending_review(self) -> int:
+        return sum(len(document.pending_review) for document in self.documents)
 
 
 def ingest(
@@ -87,6 +162,7 @@ def ingest(
     deps: IngestDeps,
     limit: int | None = None,
 ) -> IngestReport:
+    started_at = datetime.now(UTC)
     root = Path(source_dir)
     if not root.is_dir():
         raise IngestError(f"语料目录不存在或不是目录：{root}")
@@ -103,13 +179,30 @@ def ingest(
     if limit is not None:
         paths = paths[:limit]
 
+    model_calls: list[ModelCallRecord] = []
+    documents = tuple(
+        _ingest_document(path, deps, ontology, model_calls) for path in paths
+    )
     return IngestReport(
-        documents=tuple(_ingest_document(path, deps, ontology) for path in paths)
+        documents=documents,
+        model_calls=tuple(model_calls),
+        run=RunMetadata(
+            source_dir=root.resolve(),
+            limit=limit,
+            started_at=started_at,
+            finished_at=datetime.now(UTC),
+            model=describe_model(deps.llm),
+            ontology_version=ontology.version,
+            ontology_sha256=ontology_fingerprint(),
+        ),
     )
 
 
 def _ingest_document(
-    path: Path, deps: IngestDeps, ontology: Ontology
+    path: Path,
+    deps: IngestDeps,
+    ontology: Ontology,
+    model_calls: list[ModelCallRecord],
 ) -> DocumentReport:
     doc_id = ""
     try:
@@ -117,11 +210,21 @@ def _ingest_document(
         parsed = deps.parser.parse(path)
         segments = build_evidence_segments(doc_id, parsed)
         if not segments:
-            raise IngestError("未解析出文字层，无法产出证据段")
+            raise QuarantineError("未解析出文字层，可能是扫描件或空文档，未产出证据段")
 
-        extraction = parse_extraction(
-            deps.llm.complete(build_extraction_prompt(ontology, segments))
+        prompt = build_extraction_prompt(ontology, segments)
+        text, call = call_model(deps.llm, prompt)
+        model_calls.append(
+            ModelCallRecord(
+                document_id=doc_id,
+                purpose="extraction",
+                model=call.model,
+                input_tokens=call.input_tokens,
+                output_tokens=call.output_tokens,
+                elapsed_seconds=call.elapsed_seconds,
+            )
         )
+        extraction = parse_extraction(text)
         validated = validate_extraction(
             extraction,
             ontology,
@@ -135,6 +238,16 @@ def _ingest_document(
         )
         deps.graph_store.write_document(
             _build_batch(doc_id, segments, validated.entities, validated.relations)
+        )
+    except QuarantineError as error:
+        return DocumentReport(
+            path=path,
+            doc_id=doc_id,
+            evidence_segments=0,
+            entities=0,
+            relations=0,
+            quarantined=True,
+            quarantine_reason=str(error),
         )
     except Exception as error:  # noqa: BLE001 - 单篇失败要记录原因，不能中断整批
         return DocumentReport(
@@ -154,6 +267,34 @@ def _ingest_document(
         relations=len(validated.relations),
         rejected_entities=validated.rejected_entities,
         rejected_relations=validated.rejected_relations,
+        pending_review=_pending_review(validated.rejected),
+    )
+
+
+def _pending_review(
+    rejected: tuple[RejectedExtraction, ...],
+) -> tuple[PendingReviewItem, ...]:
+    """按「类型 + 名称 + 原因」合并被拒抽取，保留首次出现顺序。"""
+    occurrences: dict[tuple[str, str, str, str], int] = {}
+    evidence_ids: dict[tuple[str, str, str, str], list[str]] = {}
+    for item in rejected:
+        key = (item.kind, item.label, item.type, item.reason)
+        occurrences[key] = occurrences.get(key, 0) + 1
+        known = evidence_ids.setdefault(key, [])
+        for evidence_id in item.evidence_ids:
+            if evidence_id not in known:
+                known.append(evidence_id)
+
+    return tuple(
+        PendingReviewItem(
+            kind=kind,
+            label=label,
+            type=type_id,
+            reason=reason,
+            occurrences=count,
+            evidence_ids=tuple(evidence_ids[(kind, label, type_id, reason)]),
+        )
+        for (kind, label, type_id, reason), count in occurrences.items()
     )
 
 
