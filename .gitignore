@@ -1,0 +1,41 @@
+# 密钥
+.env
+.env.*
+!.env.example
+
+# 原始语料与模型产物（不入库，见 AGENTS.md）
+data/
+models/
+*.sqlite
+*.db
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# uv / 构建产物
+dist/
+build/
+
+# 前端
+node_modules/
+frontend/dist/
+
+# 数据库落盘卷
+pgdata/
+neo4j/data/
+neo4j/logs/
+neo4j/import/
+
+# 编辑器与系统
+.idea/
+.DS_Store
+
+# 临时草稿
+.scratch/
