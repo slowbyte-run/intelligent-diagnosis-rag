@@ -10,6 +10,7 @@ from idr_core.graph.neo4j import Neo4jGraphStore
 from idr_core.llm.embedding import OpenAICompatibleEmbedder
 from idr_core.llm.openai_compat import OpenAICompatibleLLM
 from idr_core.parsing.pdf import PdfTextParser
+from idr_core.state.postgres import PostgresStateStore
 from idr_core.vector_store.pgvector import PgVectorStore
 from idr_rotating import IngestDeps, IngestError, ingest, write_report
 
@@ -30,10 +31,18 @@ def run_ingest(
         return 1
 
     for document in report.documents:
-        if document.quarantined:
-            print(f"{document.path.name}：隔离（{document.quarantine_reason}）")
+        if document.skipped:
+            if document.quarantine_reason is not None:
+                print(
+                    f"{document.path.name}：已跳过"
+                    f"（此前已隔离：{document.quarantine_reason}）"
+                )
+            else:
+                print(f"{document.path.name}：已跳过（此前已入库）")
         elif document.error is not None:
             print(f"{document.path.name}：失败（{document.error}）")
+        elif document.quarantine_reason is not None:
+            print(f"{document.path.name}：已隔离（{document.quarantine_reason}）")
         else:
             rejected = ""
             if document.rejected_entities or document.rejected_relations:
@@ -50,7 +59,8 @@ def run_ingest(
 
     print(
         f"分类：成功 {report.succeeded}，失败 {report.failed}，"
-        f"隔离 {report.quarantined}，待审计 {report.pending_review}"
+        f"隔离 {report.quarantined}，跳过 {report.skipped}，"
+        f"待审计 {report.pending_review}"
     )
     print(
         f"合计：证据段 {report.evidence_segments}，"
@@ -89,4 +99,5 @@ def build_deps(config: Config) -> IngestDeps:
             dimensions=config.embedding_dim,
         ),
         vector_store=PgVectorStore(config.database_url),
+        state_store=PostgresStateStore(config.database_url),
     )

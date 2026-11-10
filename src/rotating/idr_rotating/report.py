@@ -4,7 +4,7 @@
 调用方传入。文件名带运行开始时间与随机后缀，因此同一目录里的多次运行不会
 互相覆盖，光看文件名就能区分批次。
 
-报告除了四类计数与明细，还记录每次模型调用的模型名、输入输出 token 数与
+报告除了各状态计数与明细，还记录每次模型调用的模型名、输入输出 token 数与
 耗时，以及模型参数与本体指纹——足够复现一次运行的模型与参数组合。
 """
 
@@ -61,6 +61,7 @@ def _payload(report: IngestReport, run_id: str) -> dict[str, object]:
                 "succeeded": report.succeeded,
                 "failed": report.failed,
                 "quarantined": report.quarantined,
+                "skipped": report.skipped,
             },
             "pending_review": {
                 "items": len(pending_review),
@@ -127,6 +128,9 @@ def _document_payload(document: DocumentReport) -> dict[str, object]:
         "path": str(document.path),
         "doc_id": document.doc_id,
         "status": document.status,
+        "document_type": (
+            None if document.document_type is None else str(document.document_type)
+        ),
         "error": document.error,
         "quarantine_reason": document.quarantine_reason,
         "evidence_segments": document.evidence_segments,

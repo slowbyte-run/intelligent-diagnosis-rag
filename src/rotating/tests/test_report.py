@@ -13,6 +13,7 @@ from pathlib import Path
 from idr_core.llm import ModelDescriptor
 from idr_rotating import (
     DocumentReport,
+    DocumentType,
     IngestDeps,
     IngestReport,
     ModelCallRecord,
@@ -46,6 +47,7 @@ def sample_report(source_dir: Path) -> IngestReport:
                 entities=5,
                 relations=2,
                 rejected_entities=2,
+                document_type=DocumentType.PAPER,
                 pending_review=(pending,),
             ),
             DocumentReport(
@@ -62,8 +64,15 @@ def sample_report(source_dir: Path) -> IngestReport:
                 evidence_segments=0,
                 entities=0,
                 relations=0,
-                quarantined=True,
-                quarantine_reason="未解析出文字层，可能是扫描件或空文档，未产出证据段",
+                quarantine_reason="扫描件：未检测到可用的文字层",
+            ),
+            DocumentReport(
+                path=source_dir / "done.pdf",
+                doc_id="doc4",
+                evidence_segments=0,
+                entities=0,
+                relations=0,
+                skipped=True,
             ),
         ),
         model_calls=(
@@ -112,10 +121,11 @@ def test_report_file_has_counts_and_details_for_all_four_categories(
 
     summary = payload["summary"]
     assert summary["documents"] == {
-        "total": 3,
+        "total": 4,
         "succeeded": 1,
         "failed": 1,
         "quarantined": 1,
+        "skipped": 1,
     }
     assert summary["pending_review"] == {"items": 1, "occurrences": 2}
     assert (
@@ -136,17 +146,18 @@ def test_report_file_has_counts_and_details_for_all_four_categories(
         "succeeded",
         "failed",
         "quarantined",
+        "skipped",
     ]
     assert [document["file_name"] for document in documents] == [
         "paper.pdf",
         "broken.pdf",
         "scan.pdf",
+        "done.pdf",
     ]
+    assert documents[0]["document_type"] == "paper"
     assert (documents[0]["evidence_segments"], documents[0]["entities"]) == (3, 5)
     assert documents[1]["error"] == "ExtractionError: 模型输出不符合抽取契约"
-    assert documents[2]["quarantine_reason"] == (
-        "未解析出文字层，可能是扫描件或空文档，未产出证据段"
-    )
+    assert documents[2]["quarantine_reason"] == "扫描件：未检测到可用的文字层"
 
     assert payload["pending_review"] == [
         {
@@ -212,6 +223,7 @@ def test_empty_batch_still_writes_a_report_with_zero_counts(tmp_path: Path) -> N
         "succeeded": 0,
         "failed": 0,
         "quarantined": 0,
+        "skipped": 0,
     }
     assert payload["summary"]["pending_review"] == {"items": 0, "occurrences": 0}
     empty = []

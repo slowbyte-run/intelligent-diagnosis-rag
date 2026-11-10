@@ -51,7 +51,7 @@ def test_report_records_each_model_call_with_model_tokens_and_elapsed_time(
 ) -> None:
     content = b"%PDF-1.4 fake paper"
     (tmp_path / "paper.pdf").write_bytes(content)
-    text = "外圈剥落表现为 BPFO 倍频。"
+    text = "外圈剥落表现为 BPFO 倍频，且能量集中在高频段。"
     doc_id = content_doc_id(content)
     llm = InstrumentedFakeLLM(
         extraction_response(evidence_id(doc_id, 1, text)),
@@ -89,7 +89,7 @@ def test_report_records_enough_to_reproduce_the_model_and_parameter_combination(
 ) -> None:
     content = b"%PDF-1.4 fake paper"
     (tmp_path / "paper.pdf").write_bytes(content)
-    text = "外圈剥落。"
+    text = "外圈剥落会在振动频谱上留下明显的特征频率。"
     doc_id = content_doc_id(content)
     parameters: dict[str, str | int | float | bool] = {
         "temperature": 0.0,
@@ -126,7 +126,7 @@ def test_report_records_enough_to_reproduce_the_model_and_parameter_combination(
 def test_run_metadata_records_the_limit_that_was_applied(tmp_path: Path) -> None:
     (tmp_path / "a.pdf").write_bytes(b"%PDF-1.4 first")
     (tmp_path / "b.pdf").write_bytes(b"%PDF-1.4 second")
-    text = "外圈剥落。"
+    text = "外圈剥落会在振动频谱上留下明显的特征频率。"
     doc_id = content_doc_id(b"%PDF-1.4 first")
     llm = InstrumentedFakeLLM(extraction_response(evidence_id(doc_id, 1, text)))
 
@@ -165,7 +165,7 @@ def test_document_without_text_layer_is_quarantined_instead_of_failed(
     )
 
     document = report.documents[0]
-    assert document.quarantined is True
+    assert document.status == "quarantined"
     assert document.quarantine_reason is not None
     assert "文字层" in document.quarantine_reason
     assert document.error is None
@@ -180,7 +180,7 @@ def test_ontology_rejected_extractions_become_pending_review_items(
 ) -> None:
     content = b"%PDF-1.4 fake paper with out-of-ontology extractions"
     (tmp_path / "mixed.pdf").write_bytes(content)
-    text = "外圈剥落与神秘实体；外圈故障频率。"
+    text = "外圈剥落与神秘实体并存，外圈故障频率也会出现。"
     segment_id = evidence_id(content_doc_id(content), 1, text)
     response = json.dumps(
         {

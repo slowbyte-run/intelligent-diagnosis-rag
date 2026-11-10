@@ -15,6 +15,8 @@ from idr_core.graph import GraphBatch
 from idr_core.llm.embedding import OpenAICompatibleEmbedder
 from idr_core.models import BBox
 from idr_core.parsing import ParsedDocument, ParsedPage
+from idr_core.state import DocumentProcessingState
+from idr_core.state.postgres import PostgresStateStore
 from idr_core.vector_store.pgvector import PgVectorStore
 from idr_rotating import IngestDeps
 
@@ -67,7 +69,7 @@ def test_ingest_prints_per_document_and_total_counts(
     content = b"%PDF-1.4 fake paper"
     (tmp_path / "paper.pdf").write_bytes(content)
     doc_id = hashlib.sha256(content).hexdigest()[:16]
-    text = "外圈剥落表现为 BPFO 倍频。"
+    text = "外圈剥落表现为 BPFO 倍频，能量集中在高频段。"
     segment_id = f"ev:{doc_id}:1:0-{len(text)}"
     response = json.dumps(
         {
@@ -115,6 +117,28 @@ def test_ingest_prints_per_document_and_total_counts(
     assert "合计：证据段 1，实体 2，关系 1" in captured.out
 
 
+def test_ingest_reports_quarantined_scanned_documents(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (tmp_path / "scan.pdf").write_bytes(b"%PDF-1.4 scanned pages")
+    deps = IngestDeps(
+        llm=FakeLLM('{"entities": [], "relations": []}'),
+        parser=FakeParser(
+            [ParsedPage(number=1, text="", bbox=BBox(0.0, 0.0, 595.0, 842.0))]
+        ),
+        graph_store=FakeGraphStore(),
+        embedder=FakeEmbedder(),
+        vector_store=FakeVectorStore(),
+    )
+
+    exit_code = run_ingest(tmp_path, deps=deps, reports_dir=tmp_path / "reports")
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "scan.pdf：已隔离" in captured.out
+    assert "扫描件" in captured.out
+
+
 def test_main_dispatches_ingest_subcommand(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -123,7 +147,7 @@ def test_main_dispatches_ingest_subcommand(
     content = b"%PDF-1.4 fake paper"
     (tmp_path / "paper.pdf").write_bytes(content)
     doc_id = hashlib.sha256(content).hexdigest()[:16]
-    text = "外圈剥落。"
+    text = "外圈剥落会表现为 BPFO 倍频振动，且能量集中在高频段。"
     segment_id = f"ev:{doc_id}:1:0-{len(text)}"
     response = json.dumps(
         {
@@ -193,7 +217,39 @@ def test_build_deps_wires_the_embedder_and_vector_store() -> None:
     deps = build_deps(config)
 
     assert isinstance(deps.embedder, OpenAICompatibleEmbedder)
-    assert isinstance(deps.vector_store, PgVectorStore)
+    assert isinstance(deps.state_store, PostgresStateStore)
+
+
+class FakeStateStore:
+    """内存版处理状态，供 CLI 行为测试使用。"""
+
+    def __init__(self) -> None:
+        self.states: dict[str, DocumentProcessingState] = {}
+
+    def get(self, doc_id: str) -> DocumentProcessingState | None:
+        return self.states.get(doc_id)
+
+    def record(self, state: DocumentProcessingState) -> None:
+        self.states[state.doc_id] = state
+
+
+def make_stateful_deps(state_store: FakeStateStore) -> IngestDeps:
+    return IngestDeps(
+        llm=FakeLLM('{"entities": [], "relations": []}'),
+        parser=FakeParser(
+            [
+                ParsedPage(
+                    number=1,
+                    text="外圈剥落表现为 BPFO 倍频，能量集中在高频段。",
+                    bbox=BBox(0.0, 0.0, 595.0, 842.0),
+                )
+            ]
+        ),
+        graph_store=FakeGraphStore(),
+        embedder=FakeEmbedder(),
+        vector_store=FakeVectorStore(),
+        state_store=state_store,
+    )
 
 
 def test_ingest_writes_a_batch_report_for_the_run(
@@ -202,7 +258,7 @@ def test_ingest_writes_a_batch_report_for_the_run(
     content = b"%PDF-1.4 fake paper"
     (tmp_path / "paper.pdf").write_bytes(content)
     doc_id = hashlib.sha256(content).hexdigest()[:16]
-    text = "外圈剥落表现为 BPFO 倍频。"
+    text = "外圈剥落表现为 BPFO 倍频，且能量集中在高频段。"
     segment_id = f"ev:{doc_id}:1:0-{len(text)}"
     response = json.dumps(
         {
@@ -254,6 +310,7 @@ def test_ingest_writes_a_batch_report_for_the_run(
         "succeeded": 1,
         "failed": 0,
         "quarantined": 0,
+        "skipped": 0,
     }
     assert (
         payload["documents"][0]["evidence_segments"],
@@ -282,6 +339,88 @@ def test_empty_input_directory_still_writes_a_report(
     assert exit_code == 0
     (report_file,) = list(reports_dir.glob("ingest-*.json"))
     payload = json.loads(report_file.read_text(encoding="utf-8"))
-    assert payload["summary"]["documents"]["total"] == 0
+    assert payload["summary"]["documents"] == {
+        "total": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "quarantined": 0,
+        "skipped": 0,
+    }
     assert payload["documents"] == []
     assert not capsys.readouterr().err
+
+
+def test_repeated_run_reports_skipped_documents(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (tmp_path / "a.pdf").write_bytes(b"%PDF-1.4 a")
+    (tmp_path / "b.pdf").write_bytes(b"%PDF-1.4 b")
+    deps = make_stateful_deps(FakeStateStore())
+    reports_dir = tmp_path / "reports"
+
+    assert run_ingest(tmp_path, deps=deps, reports_dir=reports_dir) == 0
+    capsys.readouterr()
+    assert run_ingest(tmp_path, deps=deps, reports_dir=reports_dir) == 0
+
+    captured = capsys.readouterr()
+    assert "a.pdf：已跳过（此前已入库）" in captured.out
+    assert "b.pdf：已跳过（此前已入库）" in captured.out
+    assert "分类：成功 0，失败 0，隔离 0，跳过 2，待审计 0" in captured.out
+    assert "合计：证据段 0，实体 0，关系 0" in captured.out
+
+    # 跳过也是报告里单独计数的一类，不能混进成功或失败。
+    reports = [
+        json.loads(path.read_text(encoding="utf-8"))
+        for path in reports_dir.glob("ingest-*.json")
+    ]
+    assert any(
+        payload["summary"]["documents"]["skipped"] == 2 for payload in reports
+    )
+
+
+def test_main_limit_processes_only_the_first_documents(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / "a.pdf").write_bytes(b"%PDF-1.4 a")
+    (tmp_path / "b.pdf").write_bytes(b"%PDF-1.4 b")
+    deps = make_stateful_deps(FakeStateStore())
+    for name, value in {
+        "DEEPSEEK_BASE_URL": "https://example.invalid",
+        "DEEPSEEK_API_KEY": "sk-test",
+        "DEEPSEEK_MODEL": "test-model",
+        "SILICONFLOW_BASE_URL": "https://example.invalid",
+        "SILICONFLOW_API_KEY": "sk-test",
+        "EMBEDDING_MODEL": "test-embedding",
+        "EMBEDDING_DIM": "1024",
+        "NEO4J_URI": "bolt://127.0.0.1:1",
+        "NEO4J_USER": "neo4j",
+        "NEO4J_PASSWORD": "secret",
+        "DATABASE_URL": "postgresql://idr:secret@127.0.0.1:1/idr",
+    }.items():
+        monkeypatch.setenv(name, value)
+
+    exit_code = main(
+        [
+            "ingest",
+            str(tmp_path),
+            "--limit",
+            "1",
+            "--reports-dir",
+            str(tmp_path / "reports"),
+        ],
+        deps_factory=lambda config: deps,
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "a.pdf：" in captured.out
+    assert "b.pdf" not in captured.out
+
+
+def test_limit_must_be_a_positive_integer(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        main(["ingest", str(tmp_path), "--limit", "0"])
+
+    assert exit_info.value.code == 2

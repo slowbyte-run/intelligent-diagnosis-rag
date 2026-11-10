@@ -11,6 +11,13 @@ from idr_cli.ingest import build_deps, run_ingest
 from idr_rotating import IngestDeps
 
 
+def _positive_int(value: str) -> int:
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError("必须是正整数")
+    return number
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="idr",
@@ -27,6 +34,13 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help="批次报告输出目录，默认 data/output/reports",
+    )
+    ingest_command.add_argument(
+        "--limit",
+        type=_positive_int,
+        default=None,
+        metavar="N",
+        help="只处理按文件名排序的前 N 篇，用于扩大语料前快速验证",
     )
     return parser
 
@@ -56,6 +70,7 @@ def main(
         return run_ingest(
             Path(arguments.source_dir),
             deps=deps,
+            limit=arguments.limit,
             reports_dir=arguments.reports_dir,
         )
 
