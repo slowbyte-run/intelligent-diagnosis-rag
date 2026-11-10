@@ -99,6 +99,7 @@ def _run_payload(report: IngestReport, run_id: str) -> dict[str, object]:
             "limit": None,
             "model": None,
             "ontology": None,
+            "prompt": None,
         }
 
     model = None
@@ -119,6 +120,7 @@ def _run_payload(report: IngestReport, run_id: str) -> dict[str, object]:
             "version": run.ontology_version,
             "sha256": run.ontology_sha256,
         },
+        "prompt": {"sha256": run.prompt_sha256},
     }
 
 

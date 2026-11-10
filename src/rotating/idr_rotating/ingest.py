@@ -57,7 +57,7 @@ from idr_rotating.pending import (
     PendingReview,
     aggregate_pending,
 )
-from idr_rotating.prompts import build_extraction_prompt
+from idr_rotating.prompts import build_extraction_prompt, extraction_fingerprint
 from idr_rotating.segments import build_evidence_segments
 
 
@@ -131,6 +131,8 @@ class RunMetadata:
     model: ModelDescriptor | None
     ontology_version: str
     ontology_sha256: str
+    # 生成抽取提示词的「模板 + 本体」指纹，与处理状态里的跳过判定同源。
+    prompt_sha256: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -229,9 +231,11 @@ def ingest(
     if limit is not None:
         paths = paths[:limit]
 
+    fingerprint = extraction_fingerprint(ontology)
     model_calls: list[ModelCallRecord] = []
     documents = tuple(
-        _ingest_document(path, deps, ontology, model_calls) for path in paths
+        _ingest_document(path, deps, ontology, fingerprint, model_calls)
+        for path in paths
     )
     return IngestReport(
         documents=documents,
@@ -244,6 +248,7 @@ def ingest(
             model=describe_model(deps.llm),
             ontology_version=ontology.version,
             ontology_sha256=ontology_fingerprint(),
+            prompt_sha256=fingerprint,
         ),
     )
 
@@ -252,6 +257,7 @@ def _ingest_document(
     path: Path,
     deps: IngestDeps,
     ontology: Ontology,
+    fingerprint: str,
     model_calls: list[ModelCallRecord],
 ) -> DocumentReport:
     doc_id = ""
@@ -259,14 +265,16 @@ def _ingest_document(
     try:
         doc_id = _doc_id(path.read_bytes())
         previous = _previous_state(deps, doc_id)
-        if previous is not None and previous.settled:
+        if previous is not None and previous.is_current(fingerprint):
             return _skipped_report(path, doc_id, previous)
 
         # 先记进行中再干活：进程被中断时这篇只剩「处理中」，下次会重做。
         _record_state(
             deps,
             DocumentProcessingState(
-                doc_id=doc_id, status=DocumentStatus.PROCESSING
+                doc_id=doc_id,
+                status=DocumentStatus.PROCESSING,
+                fingerprint=fingerprint,
             ),
         )
         parsed = deps.parser.parse(path)
@@ -279,6 +287,7 @@ def _ingest_document(
                     doc_id=doc_id,
                     status=DocumentStatus.QUARANTINED,
                     reason=quarantine_reason,
+                    fingerprint=fingerprint,
                 ),
             )
             return DocumentReport(
@@ -325,6 +334,7 @@ def _ingest_document(
                     doc_id=doc_id,
                     status=DocumentStatus.FAILED,
                     reason=message,
+                    fingerprint=fingerprint,
                 ),
             )
         return DocumentReport(
@@ -345,6 +355,7 @@ def _ingest_document(
             evidence_segments=len(segments),
             entities=len(validated.entities),
             relations=len(validated.relations),
+            fingerprint=fingerprint,
         ),
     )
     return DocumentReport(

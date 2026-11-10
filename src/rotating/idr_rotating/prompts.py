@@ -5,8 +5,14 @@
 
 from __future__ import annotations
 
+import hashlib
+
 from idr_core.models import EvidenceSegment
-from idr_rotating.ontology import EntityTypeDef, Ontology
+from idr_rotating.ontology import (
+    EntityTypeDef,
+    Ontology,
+    ontology_fingerprint,
+)
 
 
 def build_extraction_prompt(
@@ -112,3 +118,15 @@ def _attribute_value_lines(ontology: Ontology) -> str:
             lines.append(f"- {type_id}.{attribute}：{rendered}")
     return "\n".join(lines) if lines else "（本体没有额外的取值约束）"
 
+
+
+def extraction_fingerprint(ontology: Ontology) -> str:
+    """提示词模板与本体内容的组合指纹。
+
+    改提示词或改本体都会改变它。指纹写进处理状态：已完成文献只有在指纹
+    不变时才允许跳过，否则重新抽取。
+    """
+    skeleton = build_extraction_prompt(ontology, ())
+    digest = hashlib.sha256(skeleton.encode("utf-8"))
+    digest.update(ontology_fingerprint().encode("ascii"))
+    return digest.hexdigest()

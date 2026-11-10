@@ -124,3 +124,20 @@ def test_states_are_isolated_by_document_id(
     assert quarantined is not None
     assert quarantined.status == DocumentStatus.QUARANTINED
     assert quarantined.reason == "扫描件：未检测到可用的文字层"
+
+
+def test_extraction_fingerprint_round_trips(
+    store: PostgresStateStore, doc_ids: list[str]
+) -> None:
+    completed = DocumentProcessingState(
+        doc_id=doc_ids[0],
+        status=DocumentStatus.COMPLETED,
+        evidence_segments=2,
+        entities=1,
+        relations=1,
+        fingerprint="f" * 64,
+    )
+
+    store.record(completed)
+
+    assert PostgresStateStore(DATABASE_URL).get(doc_ids[0]) == completed

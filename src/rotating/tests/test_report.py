@@ -105,6 +105,7 @@ def sample_report(source_dir: Path) -> IngestReport:
             ),
             ontology_version="0.1",
             ontology_sha256="a" * 64,
+            prompt_sha256="b" * 64,
         ),
     )
 
@@ -127,6 +128,7 @@ def test_report_file_has_counts_and_details_for_all_four_categories(
         "parameters": {"temperature": 0.0, "response_format": "json_object"},
     }
     assert payload["run"]["ontology"] == {"version": "0.1", "sha256": "a" * 64}
+    assert payload["run"]["prompt"] == {"sha256": "b" * 64}
 
     summary = payload["summary"]
     assert summary["documents"] == {

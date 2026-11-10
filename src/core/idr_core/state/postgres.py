@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
     entities integer NOT NULL DEFAULT 0,
     relations integer NOT NULL DEFAULT 0,
     reason text,
+    fingerprint text,
     updated_at timestamptz NOT NULL DEFAULT now()
 )
 """
@@ -43,7 +44,8 @@ class PostgresStateStore:
             self._ensure_schema(connection)
             row = connection.execute(
                 f"""
-                SELECT doc_id, status, evidence_segments, entities, relations, reason
+                SELECT doc_id, status, evidence_segments, entities, relations,
+                       reason, fingerprint
                 FROM {TABLE_NAME}
                 WHERE doc_id = %s
                 """,
@@ -58,6 +60,7 @@ class PostgresStateStore:
             entities=row[3],
             relations=row[4],
             reason=row[5],
+            fingerprint=row[6],
         )
 
     def record(self, state: DocumentProcessingState) -> None:
@@ -67,14 +70,15 @@ class PostgresStateStore:
                 f"""
                 INSERT INTO {TABLE_NAME}
                     (doc_id, status, evidence_segments, entities, relations,
-                     reason, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, now())
+                     reason, fingerprint, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, now())
                 ON CONFLICT (doc_id) DO UPDATE SET
                     status = EXCLUDED.status,
                     evidence_segments = EXCLUDED.evidence_segments,
                     entities = EXCLUDED.entities,
                     relations = EXCLUDED.relations,
                     reason = EXCLUDED.reason,
+                    fingerprint = EXCLUDED.fingerprint,
                     updated_at = now()
                 """,
                 (
@@ -84,6 +88,7 @@ class PostgresStateStore:
                     state.entities,
                     state.relations,
                     state.reason,
+                    state.fingerprint,
                 ),
             )
 
@@ -92,4 +97,8 @@ class PostgresStateStore:
             return
         with connection.cursor() as cursor:
             cursor.execute(_CREATE_TABLE)
+            # 旧库没有指纹列；没有迁移框架，建表时补一列即可。
+            cursor.execute(
+                f"ALTER TABLE {TABLE_NAME} ADD COLUMN IF NOT EXISTS fingerprint text"
+            )
         self._schema_ready = True

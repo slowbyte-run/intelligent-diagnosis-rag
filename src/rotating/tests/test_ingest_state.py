@@ -205,3 +205,50 @@ def test_limit_must_be_positive(tmp_path: Path) -> None:
 
     with pytest.raises(IngestError):
         ingest(tmp_path, deps=deps, limit=0)
+
+
+def test_ontology_or_prompt_change_invalidates_completed_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ontology_path = tmp_path / "ontology.yaml"
+
+    def base_ontology() -> str:
+        return (
+            "version: 0.1.0\n"
+            "domain: alpha\n"
+            "entity_types:\n"
+            "  entity_type_a:\n"
+            "    label: 甲类实体\n"
+            "relation_types: {}\n"
+        )
+
+    ontology_path.write_text(base_ontology(), encoding="utf-8")
+    monkeypatch.setattr(
+        "idr_rotating.ontology.DEFAULT_ONTOLOGY_PATH", ontology_path
+    )
+    content = write_pdf(tmp_path, "a.pdf")
+    llm = ScriptedLLM([EMPTY_EXTRACTION, EMPTY_EXTRACTION])
+    state_store = FakeStateStore()
+    deps = make_deps(llm=llm, state_store=state_store)
+
+    first = ingest(tmp_path, deps=deps)
+    assert first.documents[0].skipped is False
+    recorded = state_store.states[content_doc_id(content)]
+    assert recorded.fingerprint is not None
+    assert len(recorded.fingerprint) == 64
+
+    second = ingest(tmp_path, deps=deps)
+    assert second.documents[0].skipped is True
+    assert len(llm.prompts) == 1, "提示词与本体都没变时不应重新抽取"
+
+    # 本体文件变化（哪怕只是注释）意味着抽取依据变了，已完成的文献要重做。
+    ontology_path.write_text(
+        base_ontology() + "\n# 本体版本变化\n", encoding="utf-8"
+    )
+    third = ingest(tmp_path, deps=deps)
+
+    assert third.documents[0].skipped is False
+    assert len(llm.prompts) == 2
+    assert state_store.states[content_doc_id(content)].fingerprint != (
+        recorded.fingerprint
+    )
