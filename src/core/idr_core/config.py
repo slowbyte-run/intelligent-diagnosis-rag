@@ -7,7 +7,15 @@
 import os
 from collections.abc import Mapping
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+)
+
+from idr_core.embedding import EMBEDDING_DIM
 
 
 class ConfigError(RuntimeError):
@@ -34,6 +42,17 @@ class Config(BaseModel):
     neo4j_user: str = Field(validation_alias="NEO4J_USER")
     neo4j_password: str = Field(validation_alias="NEO4J_PASSWORD")
     database_url: str = Field(validation_alias="DATABASE_URL")
+
+    @field_validator("embedding_dim")
+    @classmethod
+    def _fixed_embedding_dimension(cls, value: int) -> int:
+        """ADR-0002 把向量维度钉死在 EMBEDDING_DIM；配置漂移在这里就失败。"""
+        if value != EMBEDDING_DIM:
+            raise ValueError(
+                f"EMBEDDING_DIM 必须等于 {EMBEDDING_DIM}（ADR-0002 固定向量维度），"
+                f"收到 {value}；换维度等于重建全部向量索引，不属于配置可调项"
+            )
+        return value
 
     @classmethod
     def required_env_names(cls) -> tuple[str, ...]:
