@@ -4,7 +4,7 @@ services:
   neo4j:
     image: neo4j:5.26.0-community
     environment:
-      NEO4J_AUTH: neo4j/idrdevpassword
+      NEO4J_AUTH: "neo4j/${NEO4J_PASSWORD:?请先在 .env 中设置 NEO4J_PASSWORD}"
       NEO4J_server_memory_heap_max__size: 1G
       NEO4J_server_memory_pagecache_size: 512M
     ports:
@@ -14,7 +14,8 @@ services:
       - neo4j_data:/data
     healthcheck:
       test:
-        ["CMD-SHELL", "cypher-shell -a bolt://localhost:7687 -u neo4j -p idrdevpassword 'RETURN 1' || exit 1"]
+        - CMD-SHELL
+        - cypher-shell -a bolt://localhost:7687 -u neo4j -p "$${NEO4J_AUTH#*/}" 'RETURN 1' || exit 1
       interval: 10s
       timeout: 10s
       retries: 12
@@ -22,17 +23,18 @@ services:
     restart: unless-stopped
 
   postgres:
-    image: pgvector/pgvector:pg17
+    image: pgvector/pgvector:0.8.7-pg17
     environment:
-      POSTGRES_USER: idr
-      POSTGRES_PASSWORD: idrdevpassword
-      POSTGRES_DB: idr
+      POSTGRES_USER: ${POSTGRES_USER:-idr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请先在 .env 中设置 POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-idr}
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./docker/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U idr -d idr"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-idr} -d ${POSTGRES_DB:-idr}"]
       interval: 5s
       timeout: 5s
       retries: 12

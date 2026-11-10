@@ -63,3 +63,15 @@ def test_doctor_reports_each_unreachable_service() -> None:
     assert "Neo4j" in result.stdout
     assert "Postgres" in result.stdout
     assert "Traceback" not in result.stderr
+
+
+def test_doctor_never_prints_the_database_password() -> None:
+    result = run_cli(
+        "doctor",
+        env=configured_env(
+            DATABASE_URL="postgresql://idr:supersecret@127.0.0.1:1/idr"
+        ),
+    )
+
+    assert "supersecret" not in result.stdout
+    assert "supersecret" not in result.stderr

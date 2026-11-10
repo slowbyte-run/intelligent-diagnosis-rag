@@ -28,7 +28,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if arguments.command == "doctor":
         return run_doctor()
 
-    return 1
+    raise AssertionError(f"未实现的命令：{arguments.command}")
 
 
 if __name__ == "__main__":
