@@ -81,9 +81,9 @@ class Neo4jGraphStore:
                 {
                     "concept_id": link.concept_id,
                     "evidence_id": link.evidence_id,
-                    "evidence_ids": list(link.evidence_ids),
-                    "confidence": link.confidence,
-                    "source": link.source,
+                    "evidence_ids": list(link.provenance.evidence_ids),
+                    "confidence": link.provenance.confidence,
+                    "source": link.provenance.source,
                 }
                 for link in batch.evidence_links
             ],
@@ -97,9 +97,9 @@ class Neo4jGraphStore:
                 {
                     "head_id": relation.head_id,
                     "tail_id": relation.tail_id,
-                    "evidence_ids": list(relation.evidence_ids),
-                    "confidence": relation.confidence,
-                    "source": relation.source,
+                    "evidence_ids": list(relation.provenance.evidence_ids),
+                    "confidence": relation.provenance.confidence,
+                    "source": relation.provenance.source,
                 }
             )
 

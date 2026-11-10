@@ -16,9 +16,7 @@ from statistics import median
 
 from idr_core.models import BBox, CharSpan, EvidenceSegment
 from idr_core.parsing import ParsedDocument, ParsedPage
-from idr_rotating.document import DocumentType
-
-_PATENT_PARAGRAPH = re.compile(r"\[\d{4,5}\]")
+from idr_rotating.document import PATENT_PARAGRAPH, DocumentType
 
 # 标题的三种常见写法：层级编号（1.2 方法）、单级编号（1. 一种… 或 1. Introduction）、
 # 中文序号（一、概述）。编号后紧跟数字的写法不算标题（如「3.5 mm 间隙」）。
@@ -145,7 +143,7 @@ def _is_heading_only(text: str) -> bool:
 def _patent_ranges(page: ParsedPage) -> list[tuple[int, int]]:
     """专利优先按段号切；没有段号时退回按标题与段落间距切。"""
     text = page.text
-    markers = [match.start() for match in _PATENT_PARAGRAPH.finditer(text)]
+    markers = [match.start() for match in PATENT_PARAGRAPH.finditer(text)]
     if not markers:
         return _block_ranges(page, 0, len(text))
 

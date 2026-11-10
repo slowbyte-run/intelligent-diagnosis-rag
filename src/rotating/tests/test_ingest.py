@@ -118,21 +118,25 @@ def test_single_document_ingest_writes_traceable_concepts(tmp_path: Path) -> Non
 
     assert len(batch.evidence_links) == 2
     link_confidences = {
-        (concepts_by_id[link.concept_id].name, link.confidence)
+        (concepts_by_id[link.concept_id].name, link.provenance.confidence)
         for link in batch.evidence_links
     }
     assert link_confidences == {
         ("轴承外圈疲劳剥落", 0.91),
         ("外圈故障频率及其倍频", 0.88),
     }
-    assert all(link.evidence_ids == (segment_id,) for link in batch.evidence_links)
-    assert all(link.source == "extracted" for link in batch.evidence_links)
+    assert all(link.evidence_id == segment_id for link in batch.evidence_links)
+    assert all(
+        link.provenance.evidence_ids == (segment_id,)
+        for link in batch.evidence_links
+    )
+    assert all(link.provenance.source == "extracted" for link in batch.evidence_links)
 
     (relation,) = batch.relations
     assert relation.type == "indicated_by"
-    assert relation.evidence_ids == (segment_id,)
-    assert relation.confidence == 0.8
-    assert relation.source == "extracted"
+    assert relation.provenance.evidence_ids == (segment_id,)
+    assert relation.provenance.confidence == 0.8
+    assert relation.provenance.source == "extracted"
     assert concepts_by_id[relation.head_id].name == "轴承外圈疲劳剥落"
     assert concepts_by_id[relation.tail_id].name == "外圈故障频率及其倍频"
 

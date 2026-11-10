@@ -17,7 +17,8 @@ MIN_EFFECTIVE_CHARS_PER_PAGE = 10
 # 单页文档的兜底：整篇有效字符过少同样视为没有文字层。
 MIN_EFFECTIVE_CHARS = 20
 
-_PATENT_PARAGRAPH = re.compile(r"\[\d{4,5}\]")
+# 专利段号（[0001]）在文档类型判别与切分里共用同一份定义。
+PATENT_PARAGRAPH = re.compile(r"\[\d{4,5}\]")
 
 # 专利文献特有的标记。刻意不放「摘要」「实施例」等两类文献都可能出现的词，
 # 避免把论文误判成专利；判型只求在混放语料里可靠，不求覆盖每一种版式。
@@ -91,7 +92,7 @@ def detect_document_type(parsed: ParsedDocument) -> DocumentType:
     """按结构标记自动判别论文与专利，歧义时按论文处理。"""
     text = "\n".join(page.text for page in parsed.pages).lower()
 
-    paragraph_marks = len(_PATENT_PARAGRAPH.findall(text))
+    paragraph_marks = len(PATENT_PARAGRAPH.findall(text))
     patent_labels = _count_labels(text, _PATENT_LABELS)
     paper_labels = _count_labels(text, _PAPER_LABELS)
 

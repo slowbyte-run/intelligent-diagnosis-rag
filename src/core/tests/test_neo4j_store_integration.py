@@ -20,6 +20,7 @@ from idr_core.graph import (
     ConceptNode,
     ConceptRelation,
     GraphBatch,
+    Provenance,
 )
 from idr_core.graph.neo4j import Neo4jGraphStore
 from idr_core.models import BBox, CharSpan, EvidenceSegment
@@ -89,25 +90,29 @@ def make_batch(doc_id: str) -> GraphBatch:
                 head_id=first.id,
                 type="linked_to",
                 tail_id=second.id,
-                evidence_ids=(evidence.id,),
-                confidence=0.8,
-                source="extracted",
+                provenance=Provenance(
+                    evidence_ids=(evidence.id,),
+                    confidence=0.8,
+                    source="extracted",
+                ),
             ),
         ),
         evidence_links=(
             ConceptEvidenceLink(
                 concept_id=first.id,
-                evidence_id=evidence.id,
-                evidence_ids=(evidence.id,),
-                confidence=0.9,
-                source="extracted",
+                provenance=Provenance(
+                    evidence_ids=(evidence.id,),
+                    confidence=0.9,
+                    source="extracted",
+                ),
             ),
             ConceptEvidenceLink(
                 concept_id=second.id,
-                evidence_id=evidence.id,
-                evidence_ids=(evidence.id,),
-                confidence=0.85,
-                source="extracted",
+                provenance=Provenance(
+                    evidence_ids=(evidence.id,),
+                    confidence=0.85,
+                    source="extracted",
+                ),
             ),
         ),
     )

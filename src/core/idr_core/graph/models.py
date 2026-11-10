@@ -10,6 +10,18 @@ from idr_core.models import EvidenceSegment
 
 
 @dataclass(frozen=True, slots=True)
+class Provenance:
+    """一条断言/链接的出处：证据段、抽取置信度与来源。
+
+    关系边与概念—证据边共用这一份形状，避免两处各写一遍三个字段。
+    """
+
+    evidence_ids: tuple[str, ...]
+    confidence: float
+    source: str
+
+
+@dataclass(frozen=True, slots=True)
 class ConceptNode:
     id: str
     name: str
@@ -24,18 +36,18 @@ class ConceptRelation:
     head_id: str
     type: str
     tail_id: str
-    evidence_ids: tuple[str, ...]
-    confidence: float
-    source: str
+    provenance: Provenance
 
 
 @dataclass(frozen=True, slots=True)
 class ConceptEvidenceLink:
     concept_id: str
-    evidence_id: str
-    evidence_ids: tuple[str, ...]
-    confidence: float
-    source: str
+    provenance: Provenance
+
+    @property
+    def evidence_id(self) -> str:
+        """链接指向的证据段：概念—证据边永远是单条证据。"""
+        return self.provenance.evidence_ids[0]
 
 
 @dataclass(frozen=True, slots=True)

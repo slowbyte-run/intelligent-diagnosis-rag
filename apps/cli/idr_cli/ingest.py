@@ -92,7 +92,7 @@ def run_ingest(
     print(
         f"分类：成功 {report.succeeded}，失败 {report.failed}，"
         f"隔离 {report.quarantined}，跳过 {report.skipped}，"
-        f"待审计 {report.pending_review}"
+        f"待审计 {report.pending_review_count}"
     )
     print(
         f"合计：证据段 {report.evidence_segments}，"

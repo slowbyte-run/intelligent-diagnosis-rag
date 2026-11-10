@@ -20,6 +20,7 @@ from idr_core.graph import (
     ConceptRelation,
     GraphBatch,
     GraphStore,
+    Provenance,
 )
 from idr_core.llm import (
     LLMClient,
@@ -121,11 +122,6 @@ class DocumentReport:
         """本篇被拒绝抽取的待审条目（按类型与原因聚合）。"""
         return aggregate_pending(self.pending)
 
-    @property
-    def pending_review(self) -> tuple[PendingReview, ...]:
-        """兼容批次报告与旧调用方的别名。"""
-        return self.pending_reviews
-
 
 @dataclass(frozen=True, slots=True)
 class RunMetadata:
@@ -201,7 +197,7 @@ class IngestReport:
         )
 
     @property
-    def pending_review(self) -> int:
+    def pending_review_count(self) -> int:
         """待审计条目的类别数，供命令行摘要使用。"""
         return len(self.pending_reviews)
 
@@ -475,10 +471,11 @@ def _build_batch(
             links.append(
                 ConceptEvidenceLink(
                     concept_id=concept.id,
-                    evidence_id=evidence_id,
-                    evidence_ids=(evidence_id,),
-                    confidence=entity.confidence,
-                    source="extracted",
+                    provenance=Provenance(
+                        evidence_ids=(evidence_id,),
+                        confidence=entity.confidence,
+                        source="extracted",
+                    ),
                 )
             )
 
@@ -498,9 +495,11 @@ def _build_batch(
                 head_id=head.id,
                 type=relation.type,
                 tail_id=tail.id,
-                evidence_ids=tuple(relation.evidence_ids),
-                confidence=relation.confidence,
-                source="extracted",
+                provenance=Provenance(
+                    evidence_ids=tuple(relation.evidence_ids),
+                    confidence=relation.confidence,
+                    source="extracted",
+                ),
             )
         )
 
