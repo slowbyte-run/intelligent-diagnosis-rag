@@ -7,8 +7,10 @@ from pathlib import Path
 
 from idr_core.config import Config
 from idr_core.graph.neo4j import Neo4jGraphStore
+from idr_core.llm.embedding import OpenAICompatibleEmbedder
 from idr_core.llm.openai_compat import OpenAICompatibleLLM
 from idr_core.parsing.pdf import PdfTextParser
+from idr_core.vector_store.pgvector import PgVectorStore
 from idr_rotating import IngestDeps, IngestError, ingest
 
 
@@ -47,9 +49,10 @@ def run_ingest(
 
 
 def build_deps(config: Config) -> IngestDeps:
-    """真实依赖：DeepSeek 兼容客户端、pdfplumber 解析器、Neo4j 图存储。
+    """真实依赖：模型客户端、pdfplumber 解析器、Neo4j、嵌入服务与 pgvector。
 
-    嵌入与向量存储留给 T6；本票真的不写向量，因此显式不注入。
+    嵌入维度取自 EMBEDDING_DIM；向量列由适配器固定为 ADR-0002 的 1024 维，
+    配置漂移会在写入时明确失败，而不是静默截断。
     """
     return IngestDeps(
         llm=OpenAICompatibleLLM(
@@ -61,4 +64,11 @@ def build_deps(config: Config) -> IngestDeps:
         graph_store=Neo4jGraphStore(
             config.neo4j_uri, config.neo4j_user, config.neo4j_password
         ),
+        embedder=OpenAICompatibleEmbedder(
+            base_url=config.siliconflow_base_url,
+            api_key=config.siliconflow_api_key,
+            model=config.embedding_model,
+            dimensions=config.embedding_dim,
+        ),
+        vector_store=PgVectorStore(config.database_url),
     )

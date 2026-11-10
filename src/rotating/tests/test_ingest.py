@@ -6,11 +6,20 @@ import hashlib
 import json
 from pathlib import Path
 
+from idr_core.embedding import EMBEDDING_DIM
 from idr_core.models import BBox, CharSpan
 from idr_core.parsing import ParsedPage
+from idr_core.vector_store import VectorDimensionError
 from idr_rotating import IngestDeps, IngestReport, ingest
 
-from fakes import FakeGraphStore, FakeLLM, FakeParser
+from fakes import (
+    FailingVectorStore,
+    FakeEmbedder,
+    FakeGraphStore,
+    FakeLLM,
+    FakeParser,
+    FakeVectorStore,
+)
 
 
 def content_doc_id(content: bytes) -> str:
@@ -71,6 +80,8 @@ def test_single_document_ingest_writes_traceable_concepts(tmp_path: Path) -> Non
             [ParsedPage(number=1, text=text, bbox=BBox(72.0, 72.0, 540.0, 720.0))]
         ),
         graph_store=graph_store,
+        embedder=FakeEmbedder(),
+        vector_store=FakeVectorStore(),
     )
 
     report = ingest(tmp_path, deps=deps)
@@ -211,6 +222,8 @@ def test_extractions_that_fail_ontology_validation_are_not_written(
                 [ParsedPage(number=1, text=text, bbox=BBox(0.0, 0.0, 595.0, 842.0))]
             ),
             graph_store=graph_store,
+            embedder=FakeEmbedder(),
+            vector_store=FakeVectorStore(),
         ),
     )
 
@@ -269,6 +282,8 @@ def test_reprocessing_same_document_yields_same_identifiers(tmp_path: Path) -> N
             [ParsedPage(number=1, text=text, bbox=BBox(0.0, 0.0, 595.0, 842.0))]
         ),
         graph_store=graph_store,
+        embedder=FakeEmbedder(),
+        vector_store=FakeVectorStore(),
     )
 
     ingest(tmp_path, deps=deps)
@@ -313,8 +328,108 @@ def test_limit_processes_only_the_first_documents(tmp_path: Path) -> None:
                 [ParsedPage(number=1, text=text, bbox=BBox(0.0, 0.0, 595.0, 842.0))]
             ),
             graph_store=FakeGraphStore(),
+            embedder=FakeEmbedder(),
+            vector_store=FakeVectorStore(),
         ),
         limit=1,
     )
 
     assert [document.path.name for document in report.documents] == ["a.pdf"]
+
+
+def test_every_evidence_segment_gets_a_vector_keyed_by_its_id(tmp_path: Path) -> None:
+    content = b"%PDF-1.4 fake two page paper"
+    write_pdf(tmp_path, "paper.pdf", content)
+    doc_id = content_doc_id(content)
+    first_text = "外圈剥落表现为 BPFO 倍频。"
+    second_text = "润滑不足会加速疲劳剥落。"
+    first_id = evidence_id(doc_id, 1, first_text)
+    second_id = evidence_id(doc_id, 2, second_text)
+    response = json.dumps(
+        {
+            "entities": [
+                {
+                    "name": "外圈剥落",
+                    "type": "fault_mode",
+                    "evidence_ids": [first_id],
+                    "confidence": 0.9,
+                }
+            ],
+            "relations": [],
+        },
+        ensure_ascii=False,
+    )
+    embedder = FakeEmbedder()
+    vector_store = FakeVectorStore()
+
+    report = ingest(
+        tmp_path,
+        deps=IngestDeps(
+            llm=FakeLLM(response),
+            parser=FakeParser(
+                [
+                    ParsedPage(
+                        number=1, text=first_text, bbox=BBox(0.0, 0.0, 595.0, 842.0)
+                    ),
+                    ParsedPage(
+                        number=2, text=second_text, bbox=BBox(0.0, 0.0, 595.0, 842.0)
+                    ),
+                ]
+            ),
+            graph_store=FakeGraphStore(),
+            embedder=embedder,
+            vector_store=vector_store,
+        ),
+    )
+
+    assert report.documents[0].error is None
+    assert embedder.texts == [first_text, second_text]
+    assert set(vector_store.vectors) == {first_id, second_id}
+    assert vector_store.get_evidence_vector(first_id) == [
+        float(len(first_text))
+    ] * EMBEDDING_DIM
+    assert vector_store.get_evidence_vector(second_id) == [
+        float(len(second_text))
+    ] * EMBEDDING_DIM
+
+
+def test_vector_write_failure_does_not_write_graph_data(tmp_path: Path) -> None:
+    content = b"%PDF-1.4 fake paper whose vectors fail"
+    write_pdf(tmp_path, "paper.pdf", content)
+    doc_id = content_doc_id(content)
+    text = "外圈剥落表现为 BPFO 倍频。"
+    segment_id = evidence_id(doc_id, 1, text)
+    response = json.dumps(
+        {
+            "entities": [
+                {
+                    "name": "外圈剥落",
+                    "type": "fault_mode",
+                    "evidence_ids": [segment_id],
+                    "confidence": 0.9,
+                }
+            ],
+            "relations": [],
+        },
+        ensure_ascii=False,
+    )
+    graph_store = FakeGraphStore()
+    vector_store = FailingVectorStore(VectorDimensionError("维度与服务端约定不符"))
+
+    report = ingest(
+        tmp_path,
+        deps=IngestDeps(
+            llm=FakeLLM(response),
+            parser=FakeParser(
+                [ParsedPage(number=1, text=text, bbox=BBox(0.0, 0.0, 595.0, 842.0))]
+            ),
+            graph_store=graph_store,
+            embedder=FakeEmbedder(),
+            vector_store=vector_store,
+        ),
+    )
+
+    document = report.documents[0]
+    assert document.error is not None
+    assert "VectorDimensionError" in document.error
+    assert graph_store.batches == []

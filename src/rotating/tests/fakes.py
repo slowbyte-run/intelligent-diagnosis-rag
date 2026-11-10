@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
+from idr_core.embedding import EMBEDDING_DIM
 from idr_core.graph import GraphBatch
 from idr_core.parsing import ParsedDocument, ParsedPage
 
@@ -32,25 +33,46 @@ class FakeLLM:
 
 
 class FakeEmbedder:
-    """占位实现：本票不写向量。"""
+    """按文本长度生成确定性的定长向量，并记录被嵌入的文本。"""
+
+    def __init__(self, dimensions: int = EMBEDDING_DIM) -> None:
+        self.dimensions = dimensions
+        self.texts: list[str] = []
 
     def embed(self, texts: Sequence[str]) -> list[list[float]]:
-        return [[0.0] * 4 for _ in texts]
+        self.texts.extend(texts)
+        return [[float(len(text))] * self.dimensions for text in texts]
 
 
 class FakeVectorStore:
-    """占位实现：本票不写向量。"""
+    """按证据段标识覆盖写入，模拟真实适配器的 upsert 语义。"""
 
     def __init__(self) -> None:
-        self.rows: list[tuple[str, list[float]]] = []
+        self.vectors: dict[str, list[float]] = {}
 
     def upsert_evidence_vectors(
         self, *, evidence_ids: Sequence[str], vectors: Sequence[Sequence[float]]
     ) -> None:
-        self.rows.extend(
-            (evidence_id, list(vector))
-            for evidence_id, vector in zip(evidence_ids, vectors, strict=True)
-        )
+        for evidence_id, vector in zip(evidence_ids, vectors, strict=True):
+            self.vectors[evidence_id] = list(vector)
+
+    def get_evidence_vector(self, evidence_id: str) -> list[float] | None:
+        return self.vectors.get(evidence_id)
+
+
+class FailingVectorStore:
+    """写入必失败的向量存储，用于验证图谱不会被半途写入。"""
+
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+
+    def upsert_evidence_vectors(
+        self, *, evidence_ids: Sequence[str], vectors: Sequence[Sequence[float]]
+    ) -> None:
+        raise self.error
+
+    def get_evidence_vector(self, evidence_id: str) -> list[float] | None:
+        return None
 
 
 class FakeGraphStore:
