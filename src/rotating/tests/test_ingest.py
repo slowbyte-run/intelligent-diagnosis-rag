@@ -6,11 +6,13 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
+
 from idr_core.embedding import EMBEDDING_DIM
 from idr_core.models import BBox, CharSpan
 from idr_core.parsing import ParsedPage
 from idr_core.vector_store import VectorDimensionError
-from idr_rotating import IngestDeps, IngestReport, ingest
+from idr_rotating import IngestDeps, IngestReport, OntologyError, ingest
 
 from fakes import (
     FailingVectorStore,
@@ -103,7 +105,10 @@ def test_single_document_ingest_writes_traceable_concepts(tmp_path: Path) -> Non
     ]
 
     concepts_by_id = {concept.id: concept for concept in batch.concepts}
-    assert {concept.name for concept in batch.concepts} == {"外圈剥落", "BPFO 倍频"}
+    assert {concept.name for concept in batch.concepts} == {
+        "轴承外圈疲劳剥落",
+        "外圈故障频率及其倍频",
+    }
     assert {concept.type for concept in batch.concepts} == {"fault_mode", "symptom"}
 
     assert len(batch.evidence_links) == 2
@@ -111,7 +116,10 @@ def test_single_document_ingest_writes_traceable_concepts(tmp_path: Path) -> Non
         (concepts_by_id[link.concept_id].name, link.confidence)
         for link in batch.evidence_links
     }
-    assert link_confidences == {("外圈剥落", 0.91), ("BPFO 倍频", 0.88)}
+    assert link_confidences == {
+        ("轴承外圈疲劳剥落", 0.91),
+        ("外圈故障频率及其倍频", 0.88),
+    }
     assert all(link.evidence_ids == (segment_id,) for link in batch.evidence_links)
     assert all(link.source == "extracted" for link in batch.evidence_links)
 
@@ -120,8 +128,8 @@ def test_single_document_ingest_writes_traceable_concepts(tmp_path: Path) -> Non
     assert relation.evidence_ids == (segment_id,)
     assert relation.confidence == 0.8
     assert relation.source == "extracted"
-    assert concepts_by_id[relation.head_id].name == "外圈剥落"
-    assert concepts_by_id[relation.tail_id].name == "BPFO 倍频"
+    assert concepts_by_id[relation.head_id].name == "轴承外圈疲劳剥落"
+    assert concepts_by_id[relation.tail_id].name == "外圈故障频率及其倍频"
 
 
 def test_extractions_that_fail_ontology_validation_are_not_written(
@@ -233,7 +241,7 @@ def test_extractions_that_fail_ontology_validation_are_not_written(
 
     batch = graph_store.batches[0]
     assert {concept.name for concept in batch.concepts} == {
-        "外圈剥落",
+        "轴承外圈疲劳剥落",
         "外圈故障频率",
         "滚动轴承",
     }
@@ -432,4 +440,37 @@ def test_vector_write_failure_does_not_write_graph_data(tmp_path: Path) -> None:
     document = report.documents[0]
     assert document.error is not None
     assert "VectorDimensionError" in document.error
+    assert graph_store.batches == []
+
+
+def test_malformed_ontology_fails_before_any_document_is_processed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    write_pdf(tmp_path, "paper.pdf", b"%PDF-1.4 fake paper")
+    broken = tmp_path / "broken.yaml"
+    broken.write_text(
+        "version: 0.1.0\ndomain: rotating\n"
+        "entity_types:\n  fault_mode:\n    description: 缺少 label\n"
+        "relation_types: {}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "idr_rotating.ontology.DEFAULT_ONTOLOGY_PATH", broken
+    )
+    llm = FakeLLM('{"entities": [], "relations": []}')
+    graph_store = FakeGraphStore()
+
+    with pytest.raises(OntologyError):
+        ingest(
+            tmp_path,
+            deps=IngestDeps(
+                llm=llm,
+                parser=FakeParser([]),
+                graph_store=graph_store,
+                embedder=FakeEmbedder(),
+                vector_store=FakeVectorStore(),
+            ),
+        )
+
+    assert llm.prompts == []
     assert graph_store.batches == []

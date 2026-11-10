@@ -213,3 +213,94 @@ def test_build_deps_wires_the_embedder_and_vector_store() -> None:
 
     assert isinstance(deps.embedder, OpenAICompatibleEmbedder)
     assert isinstance(deps.vector_store, PgVectorStore)
+
+
+def test_ontology_error_is_reported_to_the_user(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / "paper.pdf").write_bytes(b"%PDF-1.4 fake paper")
+    broken = tmp_path / "broken-ontology.yaml"
+    broken.write_text(
+        "version: 0.1.0\ndomain: rotating\n"
+        "entity_types:\n  fault_mode:\n    description: 缺少 label\n"
+        "relation_types: {}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "idr_rotating.ontology.DEFAULT_ONTOLOGY_PATH", broken
+    )
+    deps = IngestDeps(
+        llm=FakeLLM('{"entities": [], "relations": []}'),
+        parser=FakeParser(
+            [ParsedPage(number=1, text="", bbox=BBox(0.0, 0.0, 595.0, 842.0))]
+        ),
+        graph_store=FakeGraphStore(),
+        embedder=FakeEmbedder(),
+        vector_store=FakeVectorStore(),
+    )
+
+    exit_code = run_ingest(tmp_path, deps=deps)
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "本体" in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_ingest_prints_pending_reviews_with_frequency_and_examples(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    content = b"%PDF-1.4 pending review output"
+    (tmp_path / "pending.pdf").write_bytes(content)
+    doc_id = hashlib.sha256(content).hexdigest()[:16]
+    text = "未知甲属于神秘类型，且与未知乙存在玄妙联系；外圈剥落则不同。"
+    segment_id = f"ev:{doc_id}:1:0-{len(text)}"
+    response = json.dumps(
+        {
+            "entities": [
+                {
+                    "name": "未知甲",
+                    "type": "alien_type",
+                    "evidence_ids": [segment_id],
+                    "confidence": 0.9,
+                },
+                {
+                    "name": "外圈剥落",
+                    "type": "fault_mode",
+                    "evidence_ids": [segment_id],
+                    "confidence": 0.9,
+                },
+            ],
+            "relations": [
+                {
+                    "head": "未知甲",
+                    "type": "magic_link",
+                    "tail": "未知甲",
+                    "evidence_ids": [segment_id],
+                    "confidence": 0.8,
+                }
+            ],
+        },
+        ensure_ascii=False,
+    )
+    deps = IngestDeps(
+        llm=FakeLLM(response),
+        parser=FakeParser(
+            [ParsedPage(number=1, text=text, bbox=BBox(0.0, 0.0, 595.0, 842.0))]
+        ),
+        graph_store=FakeGraphStore(),
+        embedder=FakeEmbedder(),
+        vector_store=FakeVectorStore(),
+    )
+
+    exit_code = run_ingest(tmp_path, deps=deps)
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "待审队列" in captured.out
+    assert "alien_type" in captured.out
+    assert "magic_link" in captured.out
+    assert "出现 1 次" in captured.out
+    assert text in captured.out

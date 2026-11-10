@@ -8,6 +8,14 @@ from idr_rotating.ingest import (
     IngestReport,
     ingest,
 )
+from idr_rotating.ontology import OntologyError
+from idr_rotating.pending import (
+    PendingExample,
+    PendingKind,
+    PendingObservation,
+    PendingReview,
+    RejectionReason,
+)
 
 __all__ = [
     "DocumentReport",
@@ -15,5 +23,11 @@ __all__ = [
     "IngestDeps",
     "IngestError",
     "IngestReport",
+    "OntologyError",
+    "PendingExample",
+    "PendingKind",
+    "PendingObservation",
+    "PendingReview",
+    "RejectionReason",
     "ingest",
 ]

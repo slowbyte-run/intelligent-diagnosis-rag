@@ -30,11 +30,17 @@ from idr_rotating.document import (
 from idr_rotating.extraction import (
     ExtractedEntity,
     ExtractedRelation,
-    build_extraction_prompt,
-    parse_extraction,
+    ExtractionError,
+    extract_with_retry,
     validate_extraction,
 )
 from idr_rotating.ontology import Ontology, load_ontology
+from idr_rotating.pending import (
+    PendingObservation,
+    PendingReview,
+    aggregate_pending,
+)
+from idr_rotating.prompts import build_extraction_prompt
 from idr_rotating.segments import build_evidence_segments
 
 
@@ -65,6 +71,13 @@ class DocumentReport:
     error: str | None = None
     document_type: DocumentType | None = None
     quarantine_reason: str | None = None
+    extraction_attempts: int = 0
+    pending: tuple[PendingObservation, ...] = ()
+
+    @property
+    def pending_reviews(self) -> tuple[PendingReview, ...]:
+        """本篇被拒绝抽取的待审条目（按频次聚合）。"""
+        return aggregate_pending(self.pending)
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,6 +104,15 @@ class IngestReport:
     def quarantined(self) -> int:
         return sum(
             1 for document in self.documents if document.quarantine_reason is not None
+        )
+
+    @property
+    def pending_reviews(self) -> tuple[PendingReview, ...]:
+        """整批的待审队列；同一越界类型跨文献合并频次与例句。"""
+        return aggregate_pending(
+            observation
+            for document in self.documents
+            for observation in document.pending
         )
 
 
@@ -125,6 +147,7 @@ def _ingest_document(
     path: Path, deps: IngestDeps, ontology: Ontology
 ) -> DocumentReport:
     doc_id = ""
+    attempts = 0
     try:
         doc_id = _doc_id(path.read_bytes())
         parsed = deps.parser.parse(path)
@@ -145,13 +168,15 @@ def _ingest_document(
         if not segments:
             raise IngestError("未解析出可切分的文字，无法产出证据段")
 
-        extraction = parse_extraction(
-            deps.llm.complete(build_extraction_prompt(ontology, segments))
+        evidence_text = {segment.id: segment.text for segment in segments}
+        extraction, attempts = extract_with_retry(
+            deps.llm, build_extraction_prompt(ontology, segments)
         )
         validated = validate_extraction(
             extraction,
             ontology,
-            available_evidence_ids={segment.id for segment in segments},
+            doc_id=doc_id,
+            evidence_text=evidence_text,
         )
         # 先写向量、再写图：向量失败时这篇文献的图谱数据一行都不会落库。
         # 两个存储跨不了服务事务，图存储自身按文档事务写入，因此不会半完成。
@@ -163,6 +188,8 @@ def _ingest_document(
             _build_batch(doc_id, segments, validated.entities, validated.relations)
         )
     except Exception as error:  # noqa: BLE001 - 单篇失败要记录原因，不能中断整批
+        if isinstance(error, ExtractionError):
+            attempts = error.attempts
         return DocumentReport(
             path=path,
             doc_id=doc_id,
@@ -170,6 +197,7 @@ def _ingest_document(
             entities=0,
             relations=0,
             error=f"{type(error).__name__}: {error}",
+            extraction_attempts=attempts,
         )
 
     return DocumentReport(
@@ -181,6 +209,8 @@ def _ingest_document(
         rejected_entities=validated.rejected_entities,
         rejected_relations=validated.rejected_relations,
         document_type=document_type,
+        extraction_attempts=attempts,
+        pending=validated.pending,
     )
 
 

@@ -78,15 +78,18 @@ class FakeParser:
 
 
 class FakeLLM:
-    """返回固定响应，并记录收到的提示词。"""
+    """返回固定响应或按调用顺序返回响应，并记录收到的提示词。"""
 
-    def __init__(self, response: str) -> None:
-        self._response = response
+    def __init__(self, response: str | Sequence[str]) -> None:
+        self._responses = (response,) if isinstance(response, str) else tuple(response)
+        if not self._responses:
+            raise ValueError("FakeLLM 至少需要一个响应")
         self.prompts: list[str] = []
 
     def complete(self, prompt: str) -> str:
         self.prompts.append(prompt)
-        return self._response
+        index = min(len(self.prompts) - 1, len(self._responses) - 1)
+        return self._responses[index]
 
 
 class FakeEmbedder:
