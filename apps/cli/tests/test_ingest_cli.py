@@ -67,7 +67,7 @@ def test_ingest_prints_per_document_and_total_counts(
     content = b"%PDF-1.4 fake paper"
     (tmp_path / "paper.pdf").write_bytes(content)
     doc_id = hashlib.sha256(content).hexdigest()[:16]
-    text = "外圈剥落表现为 BPFO 倍频。"
+    text = "外圈剥落表现为 BPFO 倍频，能量集中在高频段。"
     segment_id = f"ev:{doc_id}:1:0-{len(text)}"
     response = json.dumps(
         {
@@ -115,6 +115,28 @@ def test_ingest_prints_per_document_and_total_counts(
     assert "合计：证据段 1，实体 2，关系 1" in captured.out
 
 
+def test_ingest_reports_quarantined_scanned_documents(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (tmp_path / "scan.pdf").write_bytes(b"%PDF-1.4 scanned pages")
+    deps = IngestDeps(
+        llm=FakeLLM('{"entities": [], "relations": []}'),
+        parser=FakeParser(
+            [ParsedPage(number=1, text="", bbox=BBox(0.0, 0.0, 595.0, 842.0))]
+        ),
+        graph_store=FakeGraphStore(),
+        embedder=FakeEmbedder(),
+        vector_store=FakeVectorStore(),
+    )
+
+    exit_code = run_ingest(tmp_path, deps=deps)
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "scan.pdf：已隔离" in captured.out
+    assert "扫描件" in captured.out
+
+
 def test_main_dispatches_ingest_subcommand(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -123,7 +145,7 @@ def test_main_dispatches_ingest_subcommand(
     content = b"%PDF-1.4 fake paper"
     (tmp_path / "paper.pdf").write_bytes(content)
     doc_id = hashlib.sha256(content).hexdigest()[:16]
-    text = "外圈剥落。"
+    text = "外圈剥落会表现为 BPFO 倍频振动，且能量集中在高频段。"
     segment_id = f"ev:{doc_id}:1:0-{len(text)}"
     response = json.dumps(
         {

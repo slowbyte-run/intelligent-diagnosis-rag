@@ -26,6 +26,8 @@ def run_ingest(
     for document in report.documents:
         if document.error is not None:
             print(f"{document.path.name}：失败（{document.error}）")
+        elif document.quarantine_reason is not None:
+            print(f"{document.path.name}：已隔离（{document.quarantine_reason}）")
         else:
             rejected = ""
             if document.rejected_entities or document.rejected_relations:
@@ -43,7 +45,8 @@ def run_ingest(
     print(
         f"合计：证据段 {report.evidence_segments}，"
         f"实体 {report.entities}，"
-        f"关系 {report.relations}"
+        f"关系 {report.relations}，"
+        f"隔离 {report.quarantined}"
     )
     return 0 if report.failed == 0 else 1
 
