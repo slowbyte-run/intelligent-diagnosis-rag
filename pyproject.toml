@@ -1,0 +1,26 @@
+[project]
+name = "idr-workspace"
+version = "0.0.0"
+description = "旋转设备与肺部疾病的知识图谱 RAG（uv workspace 根）"
+requires-python = ">=3.12,<3.14"
+dependencies = ["idr-cli", "idr-rotating"]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+idr-cli = { workspace = true }
+idr-rotating = { workspace = true }
+
+[tool.uv.workspace]
+members = ["apps/cli", "src/core", "src/rotating"]
+
+[dependency-groups]
+dev = ["pytest>=8.3"]
+
+[tool.pytest.ini_options]
+testpaths = ["apps/cli/tests", "src/core/tests", "src/rotating/tests"]
+markers = [
+    "integration: 需要 docker compose 起的真实服务，默认不跑",
+]
+addopts = "-m 'not integration'"
