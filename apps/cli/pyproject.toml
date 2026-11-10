@@ -3,7 +3,7 @@ name = "idr-cli"
 version = "0.1.0"
 description = "命令行入口"
 requires-python = ">=3.12,<3.14"
-dependencies = ["idr-core"]
+dependencies = ["idr-core", "idr-rotating"]
 
 [project.scripts]
 idr = "idr_cli.main:main"
@@ -14,3 +14,4 @@ build-backend = "hatchling.build"
 
 [tool.uv.sources]
 idr-core = { workspace = true }
+idr-rotating = { workspace = true }

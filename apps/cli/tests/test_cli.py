@@ -25,6 +25,7 @@ def test_help_lists_available_commands() -> None:
 
     assert result.returncode == 0
     assert "doctor" in result.stdout
+    assert "ingest" in result.stdout
 
 
 def test_doctor_names_every_missing_environment_variable() -> None:
