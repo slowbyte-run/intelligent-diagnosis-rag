@@ -17,7 +17,10 @@ from idr_rotating import (
     IngestDeps,
     IngestReport,
     ModelCallRecord,
-    PendingReviewItem,
+    PendingExample,
+    PendingKind,
+    PendingObservation,
+    RejectionReason,
     RunMetadata,
     ingest,
     write_report,
@@ -30,13 +33,19 @@ STARTED_AT = datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC)
 
 def sample_report(source_dir: Path) -> IngestReport:
     """一份含成功、失败、隔离与待审计四类结果的运行报告。"""
-    pending = PendingReviewItem(
-        kind="entity",
-        label="神秘实体",
-        type="alien_type",
-        reason="type_not_in_ontology",
-        occurrences=2,
-        evidence_ids=("ev:doc1:1:0-12",),
+    pending = PendingObservation(
+        kind=PendingKind.ENTITY,
+        value="alien_type",
+        reason=RejectionReason.TYPE_NOT_IN_ONTOLOGY,
+        doc_id="doc1",
+        name="神秘实体",
+        examples=(
+            PendingExample(
+                doc_id="doc1",
+                evidence_id="ev:doc1:1:0-12",
+                text="神秘实体在文献中出现。",
+            ),
+        ),
     )
     return IngestReport(
         documents=(
@@ -48,7 +57,7 @@ def sample_report(source_dir: Path) -> IngestReport:
                 relations=2,
                 rejected_entities=2,
                 document_type=DocumentType.PAPER,
-                pending_review=(pending,),
+                pending=(pending, pending),
             ),
             DocumentReport(
                 path=source_dir / "broken.pdf",
@@ -169,6 +178,13 @@ def test_report_file_has_counts_and_details_for_all_four_categories(
             "reason": "type_not_in_ontology",
             "occurrences": 2,
             "evidence_ids": ["ev:doc1:1:0-12"],
+            "examples": [
+                {
+                    "document_id": "doc1",
+                    "evidence_id": "ev:doc1:1:0-12",
+                    "text": "神秘实体在文献中出现。",
+                }
+            ],
         }
     ]
     assert payload["model_calls"] == [

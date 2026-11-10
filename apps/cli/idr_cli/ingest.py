@@ -12,7 +12,14 @@ from idr_core.llm.openai_compat import OpenAICompatibleLLM
 from idr_core.parsing.pdf import PdfTextParser
 from idr_core.state.postgres import PostgresStateStore
 from idr_core.vector_store.pgvector import PgVectorStore
-from idr_rotating import IngestDeps, IngestError, ingest, write_report
+from idr_rotating import (
+    IngestDeps,
+    IngestError,
+    OntologyError,
+    PendingKind,
+    ingest,
+    write_report,
+)
 
 DEFAULT_REPORTS_DIR = Path("data/output/reports")
 
@@ -26,6 +33,9 @@ def run_ingest(
 ) -> int:
     try:
         report = ingest(source_dir, deps=deps, limit=limit)
+    except OntologyError as error:
+        print(f"本体错误：{error}", file=sys.stderr)
+        return 1
     except IngestError as error:
         print(f"入库失败：{error}", file=sys.stderr)
         return 1
@@ -56,6 +66,25 @@ def run_ingest(
                 f"实体 {document.entities}，"
                 f"关系 {document.relations}{rejected}"
             )
+
+    pending = report.pending_reviews
+    if pending:
+        print("待审队列（本体之外的抽取，需人工确认）：")
+        for review in pending:
+            kind = (
+                "实体类型"
+                if review.kind is PendingKind.ENTITY
+                else "关系类型"
+            )
+            print(
+                f"- {kind} {review.value}（出现 {review.frequency} 次；"
+                f"原因：{review.reason.value}）"
+            )
+            for example in review.examples:
+                print(
+                    f"  例句（{example.doc_id} {example.evidence_id}）："
+                    f"{example.text}"
+                )
 
     print(
         f"分类：成功 {report.succeeded}，失败 {report.failed}，"

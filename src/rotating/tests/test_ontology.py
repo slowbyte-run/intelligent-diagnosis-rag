@@ -58,3 +58,22 @@ relation_types:
 
     with pytest.raises(OntologyError, match="未定义的实体类型"):
         load_ontology(path)
+
+
+def test_unknown_definition_field_fails_during_load(tmp_path: Path) -> None:
+    path = tmp_path / "typo.yaml"
+    path.write_text(
+        """
+version: 0.1.0
+domain: rotating
+entity_types:
+  fault_mode:
+    label: 故障模式
+    alias: [故障形式]
+relation_types: {}
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(OntologyError, match="本体格式错误"):
+        load_ontology(path)

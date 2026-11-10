@@ -21,7 +21,12 @@ from idr_core.graph import (
     GraphBatch,
     GraphStore,
 )
-from idr_core.llm import LLMClient, ModelDescriptor, call_model, describe_model
+from idr_core.llm import (
+    LLMClient,
+    ModelDescriptor,
+    call_model,
+    describe_model,
+)
 from idr_core.models import EvidenceSegment
 from idr_core.parsing import Parser
 from idr_core.state import (
@@ -38,9 +43,8 @@ from idr_rotating.document import (
 from idr_rotating.extraction import (
     ExtractedEntity,
     ExtractedRelation,
-    RejectedExtraction,
-    build_extraction_prompt,
-    parse_extraction,
+    ExtractionError,
+    extract_with_retry,
     validate_extraction,
 )
 from idr_rotating.ontology import (
@@ -48,6 +52,12 @@ from idr_rotating.ontology import (
     load_ontology,
     ontology_fingerprint,
 )
+from idr_rotating.pending import (
+    PendingObservation,
+    PendingReview,
+    aggregate_pending,
+)
+from idr_rotating.prompts import build_extraction_prompt
 from idr_rotating.segments import build_evidence_segments
 
 
@@ -72,18 +82,6 @@ class IngestDeps:
 
 
 @dataclass(frozen=True, slots=True)
-class PendingReviewItem:
-    """一条等待人工审计的越界抽取；同名同因合并计频次。"""
-
-    kind: str
-    label: str
-    type: str
-    reason: str
-    occurrences: int
-    evidence_ids: tuple[str, ...]
-
-
-@dataclass(frozen=True, slots=True)
 class DocumentReport:
     path: Path
     doc_id: str
@@ -96,7 +94,8 @@ class DocumentReport:
     document_type: DocumentType | None = None
     quarantine_reason: str | None = None
     skipped: bool = False
-    pending_review: tuple[PendingReviewItem, ...] = ()
+    extraction_attempts: int = 0
+    pending: tuple[PendingObservation, ...] = ()
 
     @property
     def status(
@@ -109,6 +108,16 @@ class DocumentReport:
         if self.error is not None:
             return "failed"
         return "succeeded"
+
+    @property
+    def pending_reviews(self) -> tuple[PendingReview, ...]:
+        """本篇被拒绝抽取的待审条目（按类型与原因聚合）。"""
+        return aggregate_pending(self.pending)
+
+    @property
+    def pending_review(self) -> tuple[PendingReview, ...]:
+        """兼容批次报告与旧调用方的别名。"""
+        return self.pending_reviews
 
 
 @dataclass(frozen=True, slots=True)
@@ -174,8 +183,18 @@ class IngestReport:
         return sum(1 for document in self.documents if document.status == "skipped")
 
     @property
+    def pending_reviews(self) -> tuple[PendingReview, ...]:
+        """整批的待审队列；同一越界类型跨文献合并频次与例句。"""
+        return aggregate_pending(
+            observation
+            for document in self.documents
+            for observation in document.pending
+        )
+
+    @property
     def pending_review(self) -> int:
-        return sum(len(document.pending_review) for document in self.documents)
+        """待审计条目的类别数，供命令行摘要使用。"""
+        return len(self.pending_reviews)
 
 
 def ingest(
@@ -197,6 +216,7 @@ def ingest(
     if limit is not None and limit < 1:
         raise IngestError(f"limit 必须是正整数，收到 {limit}")
 
+    # 本体格式错误必须在这里失败，不能等处理到一半才暴露。
     ontology = load_ontology()
     paths = sorted(
         (
@@ -235,6 +255,7 @@ def _ingest_document(
     model_calls: list[ModelCallRecord],
 ) -> DocumentReport:
     doc_id = ""
+    attempts = 0
     try:
         doc_id = _doc_id(path.read_bytes())
         previous = _previous_state(deps, doc_id)
@@ -275,22 +296,13 @@ def _ingest_document(
             raise IngestError("未解析出可切分的文字，无法产出证据段")
 
         prompt = build_extraction_prompt(ontology, segments)
-        text, call = call_model(deps.llm, prompt)
-        model_calls.append(
-            ModelCallRecord(
-                document_id=doc_id,
-                purpose="extraction",
-                model=call.model,
-                input_tokens=call.input_tokens,
-                output_tokens=call.output_tokens,
-                elapsed_seconds=call.elapsed_seconds,
-            )
-        )
-        extraction = parse_extraction(text)
+        recording_llm = _CallRecordingLLM(deps.llm, doc_id, model_calls)
+        extraction, attempts = extract_with_retry(recording_llm, prompt)
         validated = validate_extraction(
             extraction,
             ontology,
-            available_evidence_ids={segment.id for segment in segments},
+            doc_id=doc_id,
+            evidence_text={segment.id: segment.text for segment in segments},
         )
         # 先写向量、再写图：向量失败时这篇文献的图谱数据一行都不会落库。
         # 两个存储跨不了服务事务，图存储自身按文档事务写入，因此不会半完成。
@@ -302,6 +314,8 @@ def _ingest_document(
             _build_batch(doc_id, segments, validated.entities, validated.relations)
         )
     except Exception as error:  # noqa: BLE001 - 单篇失败要记录原因，不能中断整批
+        if isinstance(error, ExtractionError):
+            attempts = error.attempts
         message = f"{type(error).__name__}: {error}"
         if doc_id:
             # 失败不是终态：下次运行会重试这篇文献。
@@ -320,6 +334,7 @@ def _ingest_document(
             entities=0,
             relations=0,
             error=message,
+            extraction_attempts=attempts,
         )
 
     _record_state(
@@ -341,35 +356,37 @@ def _ingest_document(
         rejected_entities=validated.rejected_entities,
         rejected_relations=validated.rejected_relations,
         document_type=document_type,
-        pending_review=_pending_review(validated.rejected),
+        extraction_attempts=attempts,
+        pending=validated.pending,
     )
 
 
-def _pending_review(
-    rejected: tuple[RejectedExtraction, ...],
-) -> tuple[PendingReviewItem, ...]:
-    """按「类型 + 名称 + 原因」合并被拒抽取，保留首次出现顺序。"""
-    occurrences: dict[tuple[str, str, str, str], int] = {}
-    evidence_ids: dict[tuple[str, str, str, str], list[str]] = {}
-    for item in rejected:
-        key = (item.kind, item.label, item.type, item.reason)
-        occurrences[key] = occurrences.get(key, 0) + 1
-        known = evidence_ids.setdefault(key, [])
-        for evidence_id in item.evidence_ids:
-            if evidence_id not in known:
-                known.append(evidence_id)
+class _CallRecordingLLM:
+    """包一层模型客户端，把每次调用（含重试）的成本记到当前文献上。"""
 
-    return tuple(
-        PendingReviewItem(
-            kind=kind,
-            label=label,
-            type=type_id,
-            reason=reason,
-            occurrences=count,
-            evidence_ids=tuple(evidence_ids[(kind, label, type_id, reason)]),
+    def __init__(
+        self,
+        llm: LLMClient,
+        document_id: str,
+        model_calls: list[ModelCallRecord],
+    ) -> None:
+        self._llm = llm
+        self._document_id = document_id
+        self._model_calls = model_calls
+
+    def complete(self, prompt: str) -> str:
+        text, call = call_model(self._llm, prompt)
+        self._model_calls.append(
+            ModelCallRecord(
+                document_id=self._document_id,
+                purpose="extraction",
+                model=call.model,
+                input_tokens=call.input_tokens,
+                output_tokens=call.output_tokens,
+                elapsed_seconds=call.elapsed_seconds,
+            )
         )
-        for (kind, label, type_id, reason), count in occurrences.items()
-    )
+        return text
 
 
 def _previous_state(

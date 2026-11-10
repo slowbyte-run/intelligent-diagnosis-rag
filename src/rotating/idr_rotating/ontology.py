@@ -22,7 +22,7 @@ class OntologyError(RuntimeError):
 
 
 class EntityTypeDef(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="ignore")
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     label: str
     description: str = ""
@@ -32,7 +32,7 @@ class EntityTypeDef(BaseModel):
 
 
 class RelationTypeDef(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="ignore")
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     label: str
     domain: list[str]
@@ -41,7 +41,7 @@ class RelationTypeDef(BaseModel):
 
 
 class InstanceDef(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="ignore")
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     id: str
     label: str

@@ -1,0 +1,122 @@
+"""抽取提示词的公开契约：内容由本体文件生成，改本体即改提示词。"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from idr_core.models import BBox, CharSpan, EvidenceSegment
+from idr_rotating.ontology import load_ontology
+from idr_rotating.prompts import build_extraction_prompt
+
+ALPHA_ONTOLOGY = """
+version: 0.1.0
+domain: alpha
+entity_types:
+  alpha_type:
+    label: 甲类实体
+    description: 甲类描述
+    aliases: [甲别名]
+    attributes:
+      location: 发生部位
+relation_types:
+  alpha_relation:
+    label: 甲关系
+    description: 甲关系描述
+    domain: [alpha_type]
+    range: [alpha_type]
+locations:
+  alpha_place: 甲部位
+instances:
+  alpha_type:
+    - id: alpha_instance
+      label: 甲实例
+      aliases: [甲实例别名]
+      location: alpha_place
+""".strip()
+
+BETA_ONTOLOGY = """
+version: 0.2.0
+domain: beta
+entity_types:
+  beta_type:
+    label: 乙类实体
+    description: 乙类描述
+    aliases: [乙别名]
+relation_types:
+  beta_relation:
+    label: 乙关系
+    description: 乙关系描述
+    domain: [beta_type]
+    range: [beta_type]
+instances:
+  beta_type:
+    - id: beta_instance
+      label: 乙实例
+      aliases: [乙实例别名]
+""".strip()
+
+
+def write_ontology(directory: Path, name: str, body: str) -> Path:
+    path = directory / name
+    path.write_text(body + "\n", encoding="utf-8")
+    return path
+
+
+def evidence_segment() -> EvidenceSegment:
+    text = "证据段里提到一个尚未定义的概念。"
+    return EvidenceSegment(
+        id="ev:doc:1:0-15",
+        doc_id="doc",
+        page=1,
+        bbox=BBox(0.0, 0.0, 10.0, 10.0),
+        charspan=CharSpan(0, len(text)),
+        text=text,
+    )
+
+
+def test_prompt_changes_when_the_ontology_file_changes(tmp_path: Path) -> None:
+    prompt_alpha = build_extraction_prompt(
+        load_ontology(write_ontology(tmp_path, "alpha.yaml", ALPHA_ONTOLOGY)),
+        (evidence_segment(),),
+    )
+    prompt_beta = build_extraction_prompt(
+        load_ontology(write_ontology(tmp_path, "beta.yaml", BETA_ONTOLOGY)),
+        (evidence_segment(),),
+    )
+
+    assert prompt_alpha != prompt_beta
+    for token in (
+        "alpha_type",
+        "甲类实体",
+        "甲类描述",
+        "甲别名",
+        "alpha_relation",
+        "甲关系",
+        "甲关系描述",
+        "alpha_instance",
+        "甲实例",
+        "甲实例别名",
+        "alpha_place",
+        "甲部位",
+    ):
+        assert token in prompt_alpha
+        assert token not in prompt_beta
+    for token in ("beta_type", "乙类实体", "beta_relation", "乙关系", "乙实例"):
+        assert token in prompt_beta
+        assert token not in prompt_alpha
+
+
+def test_prompt_lists_every_type_and_relation_of_the_real_ontology() -> None:
+    ontology = load_ontology()
+    segment = evidence_segment()
+
+    prompt = build_extraction_prompt(ontology, (segment,))
+
+    for type_id, definition in ontology.entity_types.items():
+        assert type_id in prompt
+        assert definition.label in prompt
+    for relation_id, definition in ontology.relation_types.items():
+        assert relation_id in prompt
+        assert definition.label in prompt
+    assert segment.id in prompt
+    assert segment.text in prompt

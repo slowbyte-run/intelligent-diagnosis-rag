@@ -42,9 +42,9 @@ def _run_id(report: IngestReport) -> str:
 def _payload(report: IngestReport, run_id: str) -> dict[str, object]:
     pending_review = _pending_review_payload(report)
     pending_occurrences = sum(
-        item.occurrences
+        review.frequency
         for document in report.documents
-        for item in document.pending_review
+        for review in document.pending_reviews
     )
     usage_reported = [
         call
@@ -144,17 +144,25 @@ def _document_payload(document: DocumentReport) -> dict[str, object]:
 def _pending_review_payload(report: IngestReport) -> list[dict[str, object]]:
     entries: list[dict[str, object]] = []
     for document in report.documents:
-        for item in document.pending_review:
+        for review in document.pending_reviews:
             entries.append(
                 {
                     "document_id": document.doc_id,
                     "file_name": document.path.name,
-                    "kind": item.kind,
-                    "label": item.label,
-                    "type": item.type,
-                    "reason": item.reason,
-                    "occurrences": item.occurrences,
-                    "evidence_ids": list(item.evidence_ids),
+                    "kind": review.kind.value,
+                    "label": review.label,
+                    "type": review.type,
+                    "reason": review.reason.value,
+                    "occurrences": review.occurrences,
+                    "evidence_ids": list(review.evidence_ids),
+                    "examples": [
+                        {
+                            "document_id": example.doc_id,
+                            "evidence_id": example.evidence_id,
+                            "text": example.text,
+                        }
+                        for example in review.examples
+                    ],
                 }
             )
     return entries

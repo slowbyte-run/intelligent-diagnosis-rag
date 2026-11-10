@@ -7,9 +7,16 @@ from idr_rotating.ingest import (
     IngestError,
     IngestReport,
     ModelCallRecord,
-    PendingReviewItem,
     RunMetadata,
     ingest,
+)
+from idr_rotating.ontology import OntologyError
+from idr_rotating.pending import (
+    PendingExample,
+    PendingKind,
+    PendingObservation,
+    PendingReview,
+    RejectionReason,
 )
 from idr_rotating.report import write_report
 
@@ -20,7 +27,12 @@ __all__ = [
     "IngestError",
     "IngestReport",
     "ModelCallRecord",
-    "PendingReviewItem",
+    "OntologyError",
+    "PendingExample",
+    "PendingKind",
+    "PendingObservation",
+    "PendingReview",
+    "RejectionReason",
     "RunMetadata",
     "ingest",
     "write_report",
