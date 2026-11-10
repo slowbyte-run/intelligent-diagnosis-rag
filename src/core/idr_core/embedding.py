@@ -1,7 +1,13 @@
-"""嵌入端口。向量写入在后续票接入，本票只保留注入点。"""
+"""嵌入端口。"""
 
 from collections.abc import Sequence
 from typing import Protocol
+
+EMBEDDING_DIM = 1024
+
+
+class EmbeddingError(RuntimeError):
+    """嵌入服务返回的结果与请求不符。"""
 
 
 class Embedder(Protocol):
