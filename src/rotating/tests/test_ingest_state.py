@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import replace
 from pathlib import Path
 
@@ -192,6 +193,11 @@ def test_quarantined_document_is_skipped_but_the_reason_stays_visible(
 
     assert second.documents[0].skipped is True
     assert second.documents[0].quarantine_reason == reason
+    assert second.documents[0].status == "quarantined"
+    assert second.documents[0].prior_status is DocumentStatus.QUARANTINED
+    assert (second.skipped, second.quarantined) == (0, 1), (
+        "此前隔离的文献仍应计入隔离，而不是混进跳过"
+    )
     assert len(parser.calls) == 1, "第二次运行不应重复解析已隔离的文献"
     assert len(llm.prompts) == 0
     assert state_store.states[content_doc_id(content)].status == (
@@ -252,3 +258,59 @@ def test_ontology_or_prompt_change_invalidates_completed_state(
     assert state_store.states[content_doc_id(content)].fingerprint != (
         recorded.fingerprint
     )
+
+
+def test_skipped_documents_carry_their_previously_recorded_counts(
+    tmp_path: Path,
+) -> None:
+    content = write_pdf(tmp_path, "paper.pdf")
+    doc_id = content_doc_id(content)
+    segment_id = f"ev:{doc_id}:1:0-{len(TEXT)}"
+    response = json.dumps(
+        {
+            "entities": [
+                {
+                    "name": "外圈剥落",
+                    "type": "fault_mode",
+                    "evidence_ids": [segment_id],
+                    "confidence": 0.9,
+                },
+                {
+                    "name": "BPFO 倍频",
+                    "type": "symptom",
+                    "evidence_ids": [segment_id],
+                    "confidence": 0.8,
+                },
+            ],
+            "relations": [
+                {
+                    "head": "外圈剥落",
+                    "type": "indicated_by",
+                    "tail": "BPFO 倍频",
+                    "evidence_ids": [segment_id],
+                    "confidence": 0.8,
+                }
+            ],
+        },
+        ensure_ascii=False,
+    )
+    llm = ScriptedLLM([response])
+    state_store = FakeStateStore()
+    deps = make_deps(llm=llm, state_store=state_store)
+
+    first = ingest(tmp_path, deps=deps)
+    second = ingest(tmp_path, deps=deps)
+
+    assert (first.documents[0].evidence_segments, first.documents[0].entities,
+            first.documents[0].relations) == (1, 2, 1)
+
+    document = second.documents[0]
+    assert document.skipped is True
+    assert document.status == "skipped"
+    assert document.prior_status is DocumentStatus.COMPLETED
+    assert (document.evidence_segments, document.entities, document.relations) == (
+        1,
+        2,
+        1,
+    ), "跳过的文献必须在报告里带回此前的计数"
+    assert second.evidence_segments == 1

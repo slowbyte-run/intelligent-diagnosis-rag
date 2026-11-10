@@ -96,12 +96,17 @@ class DocumentReport:
     skipped: bool = False
     extraction_attempts: int = 0
     pending: tuple[PendingObservation, ...] = ()
+    # 本次跳过的文献，此前一次处理的状态；用于在报告里保留原分类。
+    prior_status: DocumentStatus | None = None
 
     @property
     def status(
         self,
     ) -> Literal["succeeded", "failed", "quarantined", "skipped"]:
         if self.skipped:
+            # 此前已隔离的文献这次虽被跳过，分类仍是隔离，不能混进「跳过」。
+            if self.prior_status is DocumentStatus.QUARANTINED:
+                return "quarantined"
             return "skipped"
         if self.quarantine_reason is not None:
             return "quarantined"
@@ -175,7 +180,7 @@ class IngestReport:
 
     @property
     def quarantined(self) -> int:
-        """本次运行新判定为隔离的篇数；跳过的文献不重复计数。"""
+        """隔离的篇数，含此前已隔离、本次被跳过的文献。"""
         return sum(
             1 for document in self.documents if document.status == "quarantined"
         )
@@ -420,13 +425,14 @@ def _skipped_report(
     return DocumentReport(
         path=path,
         doc_id=doc_id,
-        evidence_segments=0,
-        entities=0,
-        relations=0,
+        evidence_segments=state.evidence_segments,
+        entities=state.entities,
+        relations=state.relations,
         quarantine_reason=(
             state.reason if state.status == DocumentStatus.QUARANTINED else None
         ),
         skipped=True,
+        prior_status=state.status,
     )
 
 

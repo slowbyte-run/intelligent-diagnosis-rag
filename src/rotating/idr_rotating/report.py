@@ -130,6 +130,10 @@ def _document_payload(document: DocumentReport) -> dict[str, object]:
         "path": str(document.path),
         "doc_id": document.doc_id,
         "status": document.status,
+        "skipped": document.skipped,
+        "prior_status": (
+            None if document.prior_status is None else document.prior_status.value
+        ),
         "document_type": (
             None if document.document_type is None else str(document.document_type)
         ),
