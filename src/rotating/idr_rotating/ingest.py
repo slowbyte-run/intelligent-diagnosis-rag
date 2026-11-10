@@ -211,8 +211,8 @@ def ingest(
     """把一个目录里的 PDF 入库，按文件名排序处理。
 
     ``limit`` 只处理前 N 篇，用于扩大语料前快速验证。注入了
-    ``deps.state_store`` 时，已完成的文献直接跳过；被中断的文献没有完成
-    记录，下次运行只补做这些。
+    ``deps.state_store`` 时，按当前提示词与本体处理完成的文献直接跳过；
+    提示词或本体变了就重做。被中断的文献没有完成记录，下次运行只补做这些。
     """
     started_at = datetime.now(UTC)
     root = Path(source_dir)

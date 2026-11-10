@@ -34,11 +34,6 @@ class DocumentProcessingState:
     # 抽取依据（提示词 + 本体）的指纹；已完成文献只有在指纹一致时可跳过。
     fingerprint: str | None = None
 
-    @property
-    def settled(self) -> bool:
-        """是否已处理到不需要再跑：已入库，或已确定要隔离。"""
-        return self.status in (DocumentStatus.COMPLETED, DocumentStatus.QUARANTINED)
-
     def is_current(self, fingerprint: str) -> bool:
         """当前抽取依据下这篇文献是否可以直接跳过。
 

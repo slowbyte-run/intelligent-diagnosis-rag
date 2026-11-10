@@ -27,7 +27,7 @@ class ConceptNode:
     name: str
     type: str
     doc_id: str
-    # 本体为该实体类型声明的属性（规范标识），如发生部位与损伤形式。
+    # 本体为该实体类型声明的属性（规范标识），与具体领域无关。
     attributes: dict[str, str] = field(default_factory=dict)
 
 
