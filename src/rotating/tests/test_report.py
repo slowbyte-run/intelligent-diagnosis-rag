@@ -59,6 +59,7 @@ def sample_report(source_dir: Path) -> IngestReport:
                 rejected_entities=2,
                 document_type=DocumentType.PAPER,
                 pending=(pending, pending),
+                warnings=("证据段没有可用的行坐标，bbox 回退为整页",),
             ),
             DocumentReport(
                 path=source_dir / "broken.pdf",
@@ -170,6 +171,7 @@ def test_report_file_has_counts_and_details_for_all_four_categories(
     ]
     assert documents[0]["document_type"] == "paper"
     assert (documents[0]["evidence_segments"], documents[0]["entities"]) == (3, 5)
+    assert documents[0]["warnings"] == ["证据段没有可用的行坐标，bbox 回退为整页"]
     assert documents[1]["error"] == "ExtractionError: 模型输出不符合抽取契约"
     assert documents[2]["quarantine_reason"] == "扫描件：未检测到可用的文字层"
     assert (documents[3]["skipped"], documents[3]["prior_status"]) == (

@@ -98,6 +98,8 @@ class DocumentReport:
     pending: tuple[PendingObservation, ...] = ()
     # 本次跳过的文献，此前一次处理的状态；用于在报告里保留原分类。
     prior_status: DocumentStatus | None = None
+    # 解析或切分时的降级事实（丢行、bbox 回退整页等），不得静默。
+    warnings: tuple[str, ...] = ()
 
     @property
     def status(
@@ -267,6 +269,7 @@ def _ingest_document(
 ) -> DocumentReport:
     doc_id = ""
     attempts = 0
+    warnings: tuple[str, ...] = ()
     try:
         doc_id = _doc_id(path.read_bytes())
         previous = _previous_state(deps, doc_id)
@@ -283,6 +286,7 @@ def _ingest_document(
             ),
         )
         parsed = deps.parser.parse(path)
+        warnings = parsed.warnings
         quarantine_reason = scanned_document_reason(parsed)
         if quarantine_reason is not None:
             # 扫描件隔离在抽取之前：不调模型、不写图，也不产出空证据段。
@@ -302,10 +306,14 @@ def _ingest_document(
                 entities=0,
                 relations=0,
                 quarantine_reason=quarantine_reason,
+                warnings=warnings,
             )
 
         document_type = detect_document_type(parsed)
         segments = build_evidence_segments(doc_id, parsed, document_type)
+        warnings = warnings + tuple(
+            warning for segment in segments for warning in segment.warnings
+        )
         if not segments:
             raise IngestError("未解析出可切分的文字，无法产出证据段")
 
@@ -350,6 +358,7 @@ def _ingest_document(
             relations=0,
             error=message,
             extraction_attempts=attempts,
+            warnings=warnings,
         )
 
     _record_state(
@@ -374,6 +383,7 @@ def _ingest_document(
         document_type=document_type,
         extraction_attempts=attempts,
         pending=validated.pending,
+        warnings=warnings,
     )
 
 

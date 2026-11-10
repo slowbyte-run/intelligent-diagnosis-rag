@@ -67,6 +67,8 @@ def run_ingest(
                 f"实体 {document.entities}，"
                 f"关系 {document.relations}{rejected}"
             )
+        for warning in document.warnings:
+            print(f"  警告：{warning}")
 
     pending = report.pending_reviews
     if pending:

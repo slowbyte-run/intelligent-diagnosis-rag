@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import replace
 from pathlib import Path
 
 from idr_core.models import BBox, CharSpan
@@ -10,6 +11,7 @@ from idr_core.parsing import ParsedPage
 from idr_rotating import DocumentType, IngestDeps, IngestReport, ingest
 
 from fakes import (
+    DEFAULT_PAGE_BBOX,
     EMPTY_EXTRACTION,
     FakeEmbedder,
     FakeGraphStore,
@@ -363,3 +365,28 @@ def test_single_page_patent_is_segmented_into_its_paragraphs(tmp_path: Path) -> 
         "[0001]单页专利的第一段。",
         "[0002]单页专利的第二段。",
     ]
+
+
+def test_page_wide_bbox_fallback_is_recorded_as_a_warning(tmp_path: Path) -> None:
+    page_text = "第一段文字描述了一种现象。\n第二段文字继续描述。"
+    pages = [parsed_page(1, page_text)]  # 没有行几何：bbox 只能退回整页
+
+    report, graph_store, _ = ingest_pages(tmp_path, pages)
+
+    (segment,) = graph_store.batches[0].evidence
+    assert segment.bbox == DEFAULT_PAGE_BBOX, "没有行坐标时确实会回退到整页"
+    assert segment.warnings, "回退到整页 bbox 不得静默发生"
+    assert "整页" in segment.warnings[0]
+    assert any("整页" in warning for warning in report.documents[0].warnings)
+
+
+def test_parser_page_warnings_are_carried_into_the_document_report(
+    tmp_path: Path,
+) -> None:
+    page = replace(
+        parsed_page(1, "第一段文字描述了一种现象。"), warnings=("第 1 页丢弃了 2 行文字",)
+    )
+
+    report, _, _ = ingest_pages(tmp_path, [page])
+
+    assert "第 1 页丢弃了 2 行文字" in report.documents[0].warnings

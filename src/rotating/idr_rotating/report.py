@@ -144,6 +144,7 @@ def _document_payload(document: DocumentReport) -> dict[str, object]:
         "relations": document.relations,
         "rejected_entities": document.rejected_entities,
         "rejected_relations": document.rejected_relations,
+        "warnings": list(document.warnings),
     }
 
 

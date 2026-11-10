@@ -27,11 +27,13 @@ class PdfTextParser:
     def _parse_page(number: int, page: Page) -> ParsedPage:
         text = page.extract_text() or ""
         lines: list[ParsedLine] = []
+        dropped_lines = 0
         cursor = 0
         for raw in page.extract_text_lines(strip=True, return_chars=False):
             line_text = raw["text"]
             start = text.find(line_text, cursor)
             if start < 0:  # 行文字与整页文字对不上时宁可不给坐标，也不编造
+                dropped_lines += 1
                 continue
             end = start + len(line_text)
             lines.append(
@@ -47,9 +49,16 @@ class PdfTextParser:
                 )
             )
             cursor = end
+        warnings: tuple[str, ...] = ()
+        if dropped_lines:
+            warnings = (
+                f"第 {number} 页有 {dropped_lines} 行文字无法在整页文字中定位，"
+                "已丢弃这些行的坐标",
+            )
         return ParsedPage(
             number=number,
             text=text,
             bbox=BBox(*page.bbox),
             lines=tuple(lines),
+            warnings=warnings,
         )

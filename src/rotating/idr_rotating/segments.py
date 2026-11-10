@@ -96,14 +96,17 @@ def build_evidence_segments(
             start, end = _tighten(page.text, raw_start, raw_end)
             if start >= end:
                 continue
+            segment_id = f"ev:{doc_id}:{page.number}:{start}-{end}"
+            bbox, warnings = _bbox_for(page, start, end, segment_id)
             segments.append(
                 EvidenceSegment(
-                    id=f"ev:{doc_id}:{page.number}:{start}-{end}",
+                    id=segment_id,
                     doc_id=doc_id,
                     page=page.number,
-                    bbox=_bbox_for(page, start, end),
+                    bbox=bbox,
                     charspan=CharSpan(start=start, end=end),
                     text=page.text[start:end],
+                    warnings=warnings,
                 )
             )
     return tuple(segments)
@@ -269,20 +272,49 @@ def _paragraph_starts(lines: list[_Line]) -> set[int]:
     return starts
 
 
-def _bbox_for(page: ParsedPage, start: int, end: int) -> BBox:
+def _bbox_for(
+    page: ParsedPage, start: int, end: int, segment_id: str
+) -> tuple[BBox, tuple[str, ...]]:
+    """返回证据段的版面坐标；定位降级时同时返回可留存的警告。"""
     boxes = [
         line.bbox
         for line in page.lines
         if line.charspan.start < end and line.charspan.end > start
     ]
     if not boxes:
-        return page.bbox
-    return BBox(
+        return page.bbox, (
+            f"证据段 {segment_id} 没有可用的行坐标，bbox 回退为整页",
+        )
+    bbox = BBox(
         x0=min(box.x0 for box in boxes),
         y0=min(box.y0 for box in boxes),
         x1=max(box.x1 for box in boxes),
         y1=max(box.y1 for box in boxes),
     )
+    if _has_uncovered_text(page, start, end):
+        return bbox, (
+            f"证据段 {segment_id} 的部分文字没有行坐标，"
+            "bbox 只覆盖可定位的行",
+        )
+    return bbox, ()
+
+
+def _has_uncovered_text(page: ParsedPage, start: int, end: int) -> bool:
+    """证据段区间里是否有非空白文字没有被任何行坐标覆盖。"""
+    if not page.lines:
+        # 整页都没有行几何时由「回退为整页」那条警告说明，不重复报。
+        return False
+    spans = sorted(
+        (line.charspan.start, line.charspan.end)
+        for line in page.lines
+        if line.charspan.end > start and line.charspan.start < end
+    )
+    cursor = start
+    for span_start, span_end in spans:
+        if span_start > cursor and page.text[cursor:span_start].strip():
+            return True
+        cursor = max(cursor, span_end)
+    return cursor < end and bool(page.text[cursor:end].strip())
 
 
 def _tighten(text: str, start: int, end: int) -> tuple[int, int]:
