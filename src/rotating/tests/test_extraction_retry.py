@@ -10,7 +10,14 @@ from idr_core.models import BBox
 from idr_core.parsing import ParsedPage
 from idr_rotating import IngestDeps, ingest
 
-from fakes import FakeEmbedder, FakeGraphStore, FakeLLM, FakeParser, FakeVectorStore
+from fakes import (
+    FakeEmbedder,
+    FakeGraphStore,
+    FakeLLM,
+    FakeParser,
+    FakeVectorStore,
+    InstrumentedFakeLLM,
+)
 
 TEXT = "外圈剥落表现为 BPFO 倍频振动，能量集中在高频段。"
 BAD_RESPONSE = "这不是 JSON"
@@ -90,3 +97,20 @@ def test_a_retry_that_succeeds_keeps_the_document(tmp_path: Path) -> None:
     assert document.entities == 1
     assert len(llm.prompts) == 2
     assert len(graph_store.batches) == 1
+
+
+def test_every_retry_is_recorded_as_its_own_model_call(tmp_path: Path) -> None:
+    content = b"%PDF-1.4 always malformed"
+    (tmp_path / "paper.pdf").write_bytes(content)
+    doc_id = hashlib.sha256(content).hexdigest()[:16]
+    llm = InstrumentedFakeLLM(BAD_RESPONSE, model="fake-model")
+    graph_store = FakeGraphStore()
+
+    report = ingest(tmp_path, deps=deps_for(llm, graph_store))
+
+    document = report.documents[0]
+    assert document.error is not None
+    assert document.extraction_attempts == 3
+    assert len(report.model_calls) == 3
+    assert {call.document_id for call in report.model_calls} == {doc_id}
+    assert {call.model for call in report.model_calls} == {"fake-model"}

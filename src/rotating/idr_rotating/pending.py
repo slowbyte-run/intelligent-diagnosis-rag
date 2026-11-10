@@ -25,8 +25,7 @@ class PendingKind(StrEnum):
 class RejectionReason(StrEnum):
     """抽取被拒绝的原因；前两项是本体边界，其余是数据错误。"""
 
-    UNKNOWN_ENTITY_TYPE = "unknown_entity_type"
-    UNKNOWN_RELATION_TYPE = "unknown_relation_type"
+    TYPE_NOT_IN_ONTOLOGY = "type_not_in_ontology"
     MISSING_EVIDENCE = "missing_evidence"
     UNKNOWN_EVIDENCE = "unknown_evidence"
     UNKNOWN_RELATION_ENDPOINT = "unknown_relation_endpoint"
@@ -64,6 +63,26 @@ class PendingReview:
     frequency: int
     names: tuple[str, ...]
     examples: tuple[PendingExample, ...]
+
+    @property
+    def label(self) -> str:
+        """人名可读的样本名称，供报告展示。"""
+        return "、".join(self.names)
+
+    @property
+    def type(self) -> str:
+        """越界的类型或关系标识（与 ``value`` 同义，报告字段沿用此名）。"""
+        return self.value
+
+    @property
+    def occurrences(self) -> int:
+        """出现次数（与 ``frequency`` 同义，报告字段沿用此名）。"""
+        return self.frequency
+
+    @property
+    def evidence_ids(self) -> tuple[str, ...]:
+        """出现过该问题的证据段标识，按首次出现顺序去重。"""
+        return tuple(dict.fromkeys(example.evidence_id for example in self.examples))
 
 
 @dataclass(slots=True)

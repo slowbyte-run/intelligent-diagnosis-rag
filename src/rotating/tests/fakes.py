@@ -7,8 +7,10 @@ from pathlib import Path
 
 from idr_core.embedding import EMBEDDING_DIM
 from idr_core.graph import GraphBatch
+from idr_core.llm import LLMResponse, ModelDescriptor
 from idr_core.models import BBox, CharSpan
 from idr_core.parsing import ParsedDocument, ParsedLine, ParsedPage
+from idr_core.state import DocumentProcessingState
 
 DEFAULT_PAGE_BBOX = BBox(0.0, 0.0, 595.0, 842.0)
 
@@ -68,12 +70,14 @@ def stacked_boxes(
 
 
 class FakeParser:
-    """按页码顺序返回固定页面，不读取真实 PDF。"""
+    """按页码顺序返回固定页面，不读取真实 PDF，并记录被解析的路径。"""
 
     def __init__(self, pages: Sequence[ParsedPage]) -> None:
         self._pages = tuple(pages)
+        self.calls: list[Path] = []
 
     def parse(self, path: Path) -> ParsedDocument:
+        self.calls.append(path)
         return ParsedDocument(pages=self._pages)
 
 
@@ -90,6 +94,53 @@ class FakeLLM:
         self.prompts.append(prompt)
         index = min(len(self.prompts) - 1, len(self._responses) - 1)
         return self._responses[index]
+
+
+class InstrumentedFakeLLM(FakeLLM):
+    """同时报告用量与调用参数的假模型，让报告能记录成本。"""
+
+    def __init__(
+        self,
+        response: str,
+        *,
+        model: str = "fake-model",
+        input_tokens: int = 100,
+        output_tokens: int = 20,
+        parameters: dict[str, str | int | float | bool] | None = None,
+    ) -> None:
+        super().__init__(response)
+        self._model = model
+        self._input_tokens = input_tokens
+        self._output_tokens = output_tokens
+        self._parameters = {} if parameters is None else parameters
+
+    def complete_with_usage(self, prompt: str) -> LLMResponse:
+        self.prompts.append(prompt)
+        index = min(len(self.prompts) - 1, len(self._responses) - 1)
+        return LLMResponse(
+            text=self._responses[index],
+            model=self._model,
+            input_tokens=self._input_tokens,
+            output_tokens=self._output_tokens,
+        )
+
+    def describe(self) -> ModelDescriptor:
+        return ModelDescriptor(model=self._model, parameters=self._parameters)
+
+
+class ScriptedLLM:
+    """按调用顺序返回脚本化响应；元素是异常时抛出，用来模拟中断或单篇失败。"""
+
+    def __init__(self, steps: Sequence[str | BaseException]) -> None:
+        self._steps = tuple(steps)
+        self.prompts: list[str] = []
+
+    def complete(self, prompt: str) -> str:
+        self.prompts.append(prompt)
+        step = self._steps[len(self.prompts) - 1]
+        if isinstance(step, BaseException):
+            raise step
+        return step
 
 
 class FakeEmbedder:
@@ -143,3 +194,16 @@ class FakeGraphStore:
 
     def write_document(self, batch: GraphBatch) -> None:
         self.batches.append(batch)
+
+
+class FakeStateStore:
+    """内存版处理状态：按 doc_id 覆盖写入，模拟真实适配器的 upsert 语义。"""
+
+    def __init__(self) -> None:
+        self.states: dict[str, DocumentProcessingState] = {}
+
+    def get(self, doc_id: str) -> DocumentProcessingState | None:
+        return self.states.get(doc_id)
+
+    def record(self, state: DocumentProcessingState) -> None:
+        self.states[state.doc_id] = state

@@ -97,13 +97,13 @@ def test_out_of_ontology_entities_and_relations_are_reported_with_examples(
         (review.kind, review.value): review for review in document.pending_reviews
     }
     entity_review = reviews[(PendingKind.ENTITY, "alien_type")]
-    assert entity_review.reason is RejectionReason.UNKNOWN_ENTITY_TYPE
+    assert entity_review.reason is RejectionReason.TYPE_NOT_IN_ONTOLOGY
     assert entity_review.frequency == 2
     assert set(entity_review.names) == {"未知甲", "未知乙"}
     assert [example.text for example in entity_review.examples] == [text]
 
     relation_review = reviews[(PendingKind.RELATION, "magic_link")]
-    assert relation_review.reason is RejectionReason.UNKNOWN_RELATION_TYPE
+    assert relation_review.reason is RejectionReason.TYPE_NOT_IN_ONTOLOGY
     assert relation_review.frequency == 2
     assert [example.text for example in relation_review.examples] == [text]
 

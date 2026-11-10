@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import yaml
@@ -101,3 +102,13 @@ def load_ontology(path: Path | None = None) -> Ontology:
             for item in error.errors()
         )
         raise OntologyError(f"本体格式错误：{details}") from None
+
+
+def ontology_fingerprint(path: Path | None = None) -> str:
+    """本体文件的内容指纹；写进报告即可确认两次运行是否用了同一份本体。"""
+    target = DEFAULT_ONTOLOGY_PATH if path is None else path
+    try:
+        content = target.read_bytes()
+    except OSError as error:
+        raise OntologyError(f"无法读取本体文件 {target}：{error}") from error
+    return hashlib.sha256(content).hexdigest()

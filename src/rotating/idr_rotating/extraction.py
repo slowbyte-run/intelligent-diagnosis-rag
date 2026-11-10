@@ -145,7 +145,7 @@ def validate_extraction(
                 _observation(
                     kind=PendingKind.ENTITY,
                     value=entity.type,
-                    reason=RejectionReason.UNKNOWN_ENTITY_TYPE,
+                    reason=RejectionReason.TYPE_NOT_IN_ONTOLOGY,
                     doc_id=doc_id,
                     name=entity.name,
                     evidence_ids=entity.evidence_ids,
@@ -222,7 +222,7 @@ def validate_extraction(
                 _observation(
                     kind=PendingKind.RELATION,
                     value=relation.type,
-                    reason=RejectionReason.UNKNOWN_RELATION_TYPE,
+                    reason=RejectionReason.TYPE_NOT_IN_ONTOLOGY,
                     doc_id=doc_id,
                     name=_relation_name(relation),
                     evidence_ids=relation.evidence_ids,
