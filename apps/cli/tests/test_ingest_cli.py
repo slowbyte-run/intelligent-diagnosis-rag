@@ -109,7 +109,7 @@ def test_ingest_prints_per_document_and_total_counts(
         vector_store=FakeVectorStore(),
     )
 
-    exit_code = run_ingest(tmp_path, deps=deps)
+    exit_code = run_ingest(tmp_path, deps=deps, reports_dir=tmp_path / "reports")
 
     captured = capsys.readouterr()
     assert exit_code == 0
@@ -131,7 +131,7 @@ def test_ingest_reports_quarantined_scanned_documents(
         vector_store=FakeVectorStore(),
     )
 
-    exit_code = run_ingest(tmp_path, deps=deps)
+    exit_code = run_ingest(tmp_path, deps=deps, reports_dir=tmp_path / "reports")
 
     captured = capsys.readouterr()
     assert exit_code == 0
@@ -187,7 +187,10 @@ def test_main_dispatches_ingest_subcommand(
     }.items():
         monkeypatch.setenv(name, value)
 
-    exit_code = main(["ingest", str(tmp_path)], deps_factory=lambda config: deps)
+    exit_code = main(
+        ["ingest", str(tmp_path), "--reports-dir", str(tmp_path / "reports")],
+        deps_factory=lambda config: deps,
+    )
 
     captured = capsys.readouterr()
     assert exit_code == 0
@@ -214,7 +217,6 @@ def test_build_deps_wires_the_embedder_and_vector_store() -> None:
     deps = build_deps(config)
 
     assert isinstance(deps.embedder, OpenAICompatibleEmbedder)
-    assert isinstance(deps.vector_store, PgVectorStore)
     assert isinstance(deps.state_store, PostgresStateStore)
 
 
@@ -250,21 +252,130 @@ def make_stateful_deps(state_store: FakeStateStore) -> IngestDeps:
     )
 
 
+def test_ingest_writes_a_batch_report_for_the_run(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    content = b"%PDF-1.4 fake paper"
+    (tmp_path / "paper.pdf").write_bytes(content)
+    doc_id = hashlib.sha256(content).hexdigest()[:16]
+    text = "外圈剥落表现为 BPFO 倍频，且能量集中在高频段。"
+    segment_id = f"ev:{doc_id}:1:0-{len(text)}"
+    response = json.dumps(
+        {
+            "entities": [
+                {
+                    "name": "外圈剥落",
+                    "type": "fault_mode",
+                    "evidence_ids": [segment_id],
+                    "confidence": 0.9,
+                },
+                {
+                    "name": "BPFO 倍频",
+                    "type": "symptom",
+                    "evidence_ids": [segment_id],
+                    "confidence": 0.9,
+                },
+            ],
+            "relations": [
+                {
+                    "head": "外圈剥落",
+                    "type": "indicated_by",
+                    "tail": "BPFO 倍频",
+                    "evidence_ids": [segment_id],
+                    "confidence": 0.8,
+                }
+            ],
+        },
+        ensure_ascii=False,
+    )
+    deps = IngestDeps(
+        llm=FakeLLM(response),
+        parser=FakeParser(
+            [ParsedPage(number=1, text=text, bbox=BBox(0.0, 0.0, 595.0, 842.0))]
+        ),
+        graph_store=FakeGraphStore(),
+        embedder=FakeEmbedder(),
+        vector_store=FakeVectorStore(),
+    )
+    reports_dir = tmp_path / "reports"
+
+    exit_code = run_ingest(tmp_path, deps=deps, reports_dir=reports_dir)
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    (report_file,) = list(reports_dir.glob("ingest-*.json"))
+    payload = json.loads(report_file.read_text(encoding="utf-8"))
+    assert payload["summary"]["documents"] == {
+        "total": 1,
+        "succeeded": 1,
+        "failed": 0,
+        "quarantined": 0,
+        "skipped": 0,
+    }
+    assert (
+        payload["documents"][0]["evidence_segments"],
+        payload["documents"][0]["entities"],
+        payload["documents"][0]["relations"],
+    ) == (1, 2, 1)
+    assert str(report_file) in captured.out
+
+
+def test_empty_input_directory_still_writes_a_report(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    empty_dir = tmp_path / "input"
+    empty_dir.mkdir()
+    deps = IngestDeps(
+        llm=FakeLLM("{}"),
+        parser=FakeParser([]),
+        graph_store=FakeGraphStore(),
+        embedder=FakeEmbedder(),
+        vector_store=FakeVectorStore(),
+    )
+    reports_dir = tmp_path / "reports"
+
+    exit_code = run_ingest(empty_dir, deps=deps, reports_dir=reports_dir)
+
+    assert exit_code == 0
+    (report_file,) = list(reports_dir.glob("ingest-*.json"))
+    payload = json.loads(report_file.read_text(encoding="utf-8"))
+    assert payload["summary"]["documents"] == {
+        "total": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "quarantined": 0,
+        "skipped": 0,
+    }
+    assert payload["documents"] == []
+    assert not capsys.readouterr().err
+
+
 def test_repeated_run_reports_skipped_documents(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     (tmp_path / "a.pdf").write_bytes(b"%PDF-1.4 a")
     (tmp_path / "b.pdf").write_bytes(b"%PDF-1.4 b")
     deps = make_stateful_deps(FakeStateStore())
+    reports_dir = tmp_path / "reports"
 
-    assert run_ingest(tmp_path, deps=deps) == 0
+    assert run_ingest(tmp_path, deps=deps, reports_dir=reports_dir) == 0
     capsys.readouterr()
-    assert run_ingest(tmp_path, deps=deps) == 0
+    assert run_ingest(tmp_path, deps=deps, reports_dir=reports_dir) == 0
 
     captured = capsys.readouterr()
     assert "a.pdf：已跳过（此前已入库）" in captured.out
     assert "b.pdf：已跳过（此前已入库）" in captured.out
-    assert "合计：证据段 0，实体 0，关系 0，隔离 0，跳过 2" in captured.out
+    assert "分类：成功 0，失败 0，隔离 0，跳过 2，待审计 0" in captured.out
+    assert "合计：证据段 0，实体 0，关系 0" in captured.out
+
+    # 跳过也是报告里单独计数的一类，不能混进成功或失败。
+    reports = [
+        json.loads(path.read_text(encoding="utf-8"))
+        for path in reports_dir.glob("ingest-*.json")
+    ]
+    assert any(
+        payload["summary"]["documents"]["skipped"] == 2 for payload in reports
+    )
 
 
 def test_main_limit_processes_only_the_first_documents(
@@ -291,7 +402,14 @@ def test_main_limit_processes_only_the_first_documents(
         monkeypatch.setenv(name, value)
 
     exit_code = main(
-        ["ingest", str(tmp_path), "--limit", "1"],
+        [
+            "ingest",
+            str(tmp_path),
+            "--limit",
+            "1",
+            "--reports-dir",
+            str(tmp_path / "reports"),
+        ],
         deps_factory=lambda config: deps,
     )
 

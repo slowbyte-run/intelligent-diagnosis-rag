@@ -30,6 +30,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ingest_command.add_argument("source_dir", help="存放 PDF 的目录")
     ingest_command.add_argument(
+        "--reports-dir",
+        type=Path,
+        default=None,
+        help="批次报告输出目录，默认 data/output/reports",
+    )
+    ingest_command.add_argument(
         "--limit",
         type=_positive_int,
         default=None,
@@ -62,7 +68,10 @@ def main(
             print(f"配置错误：{error}", file=sys.stderr)
             return 1
         return run_ingest(
-            Path(arguments.source_dir), deps=deps, limit=arguments.limit
+            Path(arguments.source_dir),
+            deps=deps,
+            limit=arguments.limit,
+            reports_dir=arguments.reports_dir,
         )
 
     raise AssertionError(f"未实现的命令：{arguments.command}")

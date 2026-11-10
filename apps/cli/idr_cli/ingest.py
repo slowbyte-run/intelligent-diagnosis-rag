@@ -1,4 +1,4 @@
-"""ingest 命令：跑完入库门面并输出每篇文献与合计的计数。"""
+"""ingest 命令：跑完入库门面、输出计数并写一份批次报告。"""
 
 from __future__ import annotations
 
@@ -12,11 +12,17 @@ from idr_core.llm.openai_compat import OpenAICompatibleLLM
 from idr_core.parsing.pdf import PdfTextParser
 from idr_core.state.postgres import PostgresStateStore
 from idr_core.vector_store.pgvector import PgVectorStore
-from idr_rotating import IngestDeps, IngestError, ingest
+from idr_rotating import IngestDeps, IngestError, ingest, write_report
+
+DEFAULT_REPORTS_DIR = Path("data/output/reports")
 
 
 def run_ingest(
-    source_dir: Path, *, deps: IngestDeps, limit: int | None = None
+    source_dir: Path,
+    *,
+    deps: IngestDeps,
+    limit: int | None = None,
+    reports_dir: Path | None = None,
 ) -> int:
     try:
         report = ingest(source_dir, deps=deps, limit=limit)
@@ -52,12 +58,21 @@ def run_ingest(
             )
 
     print(
+        f"分类：成功 {report.succeeded}，失败 {report.failed}，"
+        f"隔离 {report.quarantined}，跳过 {report.skipped}，"
+        f"待审计 {report.pending_review}"
+    )
+    print(
         f"合计：证据段 {report.evidence_segments}，"
         f"实体 {report.entities}，"
-        f"关系 {report.relations}，"
-        f"隔离 {report.quarantined}，"
-        f"跳过 {report.skipped}"
+        f"关系 {report.relations}"
     )
+
+    report_path = write_report(
+        report,
+        output_dir=DEFAULT_REPORTS_DIR if reports_dir is None else reports_dir,
+    )
+    print(f"报告：{report_path}")
     return 0 if report.failed == 0 else 1
 
 
