@@ -440,6 +440,7 @@ def _build_batch(
             name=entity.name,
             type=entity.type,
             doc_id=doc_id,
+            attributes=dict(entity.attributes),
         )
         concepts.append(concept)
         concept_by_name.setdefault(entity.name, concept)

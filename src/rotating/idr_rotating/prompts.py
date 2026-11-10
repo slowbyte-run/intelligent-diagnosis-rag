@@ -32,13 +32,16 @@ def build_extraction_prompt(
         f"{evidence_lines}\n\n"
         "输出格式：\n"
         '{"entities": [{"name": "实体名", "type": "实体类型", '
-        '"evidence_ids": ["证据段标识"], "confidence": 0.0}], '
+        '"evidence_ids": ["证据段标识"], "confidence": 0.0, '
+        '"location": "属性取值或 null", "damage_form": "属性取值或 null"}], '
         '"relations": [{"head": "头实体名", "type": "关系类型", '
         '"tail": "尾实体名", "evidence_ids": ["证据段标识"], '
         '"confidence": 0.0}]}\n'
         "规则：\n"
         "- name 使用文献原文术语；命中规范概念或别名时，必须使用规范名。\n"
         "- evidence_ids 只能引用上面出现过的证据段标识。\n"
+        "- 仅当实体类型声明了 location/damage_form 时填写这两个字段，"
+        "取值必须来自上面的属性取值清单；不确定时填 null。\n"
         "- 不得编造实体类型、关系类型或证据段标识。"
     )
 
@@ -99,22 +102,13 @@ def _attribute_value_lines(ontology: Ontology) -> str:
     lines: list[str] = []
     for type_id, definition in ontology.entity_types.items():
         for attribute in definition.attributes:
-            values = _allowed_values(ontology, attribute)
+            values = ontology.attribute_values(attribute)
             if not values:
                 continue
             rendered = "、".join(
                 f"{'null' if key is None else key}（{label}）"
-                for key, label in values
+                for key, label in values.items()
             )
             lines.append(f"- {type_id}.{attribute}：{rendered}")
     return "\n".join(lines) if lines else "（本体没有额外的取值约束）"
 
-
-def _allowed_values(
-    ontology: Ontology, attribute: str
-) -> tuple[tuple[str | None, str], ...]:
-    if attribute == "location":
-        return tuple(ontology.locations.items())
-    if attribute == "damage_form":
-        return tuple(ontology.damage_forms.items())
-    return ()

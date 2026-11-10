@@ -40,6 +40,7 @@ class Neo4jGraphStore:
             SET concept.name = row.name,
                 concept.type = row.type,
                 concept.doc_id = row.doc_id
+            SET concept += row.attributes
             """,
             rows=[
                 {
@@ -47,6 +48,7 @@ class Neo4jGraphStore:
                     "name": concept.name,
                     "type": concept.type,
                     "doc_id": concept.doc_id,
+                    "attributes": dict(concept.attributes),
                 }
                 for concept in batch.concepts
             ],

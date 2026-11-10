@@ -64,6 +64,21 @@ class Ontology(BaseModel):
     instances: dict[str, list[InstanceDef]] = Field(default_factory=dict)
     pending: list[str] = Field(default_factory=list)
 
+    def attribute_values(self, attribute: str) -> dict[str | None, str]:
+        """某属性在本体里的允许取值：``标识 -> 标签``；未定义时为空。"""
+        if attribute == "location":
+            return dict(self.locations)
+        if attribute == "damage_form":
+            return dict(self.damage_forms)
+        return {}
+
+    def instance(self, entity_type: str, instance_id: str) -> InstanceDef | None:
+        """按实体类型与实例 ID 取规范实例；不存在时返回 ``None``。"""
+        for instance in self.instances.get(entity_type, ()):
+            if instance.id == instance_id:
+                return instance
+        return None
+
     @model_validator(mode="after")
     def _check_references(self) -> Ontology:
         for relation_id, relation in self.relation_types.items():

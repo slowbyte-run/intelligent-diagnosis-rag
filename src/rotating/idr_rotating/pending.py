@@ -26,6 +26,7 @@ class RejectionReason(StrEnum):
     """抽取被拒绝的原因；前两项是本体边界，其余是数据错误。"""
 
     TYPE_NOT_IN_ONTOLOGY = "type_not_in_ontology"
+    ATTRIBUTE_NOT_IN_ONTOLOGY = "attribute_not_in_ontology"
     MISSING_EVIDENCE = "missing_evidence"
     UNKNOWN_EVIDENCE = "unknown_evidence"
     UNKNOWN_RELATION_ENDPOINT = "unknown_relation_endpoint"

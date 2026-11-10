@@ -71,12 +71,14 @@ def make_batch(doc_id: str) -> GraphBatch:
         name="entity-a",
         type="kind_a",
         doc_id=doc_id,
+        attributes={"position": "part_a"},
     )
     second = ConceptNode(
         id=f"{doc_id}:concept:entity-b",
         name="entity-b",
         type="kind_b",
         doc_id=doc_id,
+        attributes={"position": "part_b"},
     )
     return GraphBatch(
         doc_id=doc_id,
@@ -133,6 +135,7 @@ def test_written_concepts_and_evidence_are_queryable(driver: Driver, doc_id: str
                 RETURN concept.id AS concept_id,
                        concept.name AS name,
                        concept.type AS type,
+                       concept.position AS position,
                        evidence.id AS evidence_id,
                        evidence.page AS page,
                        evidence.bbox AS bbox,
@@ -148,6 +151,7 @@ def test_written_concepts_and_evidence_are_queryable(driver: Driver, doc_id: str
 
     assert len(records) == 2
     assert [record["name"] for record in records] == ["entity-a", "entity-b"]
+    assert [record["position"] for record in records] == ["part_a", "part_b"]
     assert all(record["evidence_id"] == batch.evidence[0].id for record in records)
     assert all(record["page"] == 1 for record in records)
     assert all(record["bbox"] == [72.0, 72.0, 540.0, 720.0] for record in records)

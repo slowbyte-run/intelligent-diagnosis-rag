@@ -4,7 +4,7 @@
 （见 ADR-0004：论断的证据挂在边属性上，不建断言节点）。
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from idr_core.models import EvidenceSegment
 
@@ -15,6 +15,8 @@ class ConceptNode:
     name: str
     type: str
     doc_id: str
+    # 本体为该实体类型声明的属性（规范标识），如发生部位与损伤形式。
+    attributes: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
