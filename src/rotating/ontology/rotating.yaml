@@ -1,0 +1,588 @@
+# 旋转设备故障诊断本体
+#
+# 用途：抽取阶段的受控词表与入库校验标准。清单外的新类型不得直接入库，
+# 只能进入待审队列（见 AGENTS.md 第 5 条约束）。
+#
+# 建模原则（见 ADR-0004）：
+#   1. 故障模式按「位置 × 损伤形式」建模。位置决定特征频率，损伤形式对齐标准。
+#   2. 只列文献中真实出现过的组合，不做笛卡尔展开。
+#   3. 无标准可依的类别（转子、结构）自建，并如实标注 source: 自建。
+#   4. ISO 标准为付费版权文本：只借用术语与条款号，不复制其表格结构。
+
+version: 0.1.0
+domain: rotating
+updated: 2026-11-10
+
+standards:
+  - id: ISO 15243:2017
+    title: 滚动轴承 损伤和失效 术语、特征和原因
+    usage: damage_form 词表来源（六大类），引用条款号
+    modeling: 基于外观的损伤机理分类，不区分位置；位置维度由本项目补充
+  - id: ISO 10825-1:2022
+    title: 齿轮 齿的磨损和损伤 术语
+    usage: 齿轮 damage_form 词表来源
+  - id: IEC TS 60034-24:2009
+    title: 旋转电机 在线检测与诊断
+    usage: 电气类故障模式来源
+  - id: ISO 20816-1:2026
+    title: 机械振动 振动评定（取代 ISO 10816-1:1995）
+    usage: 振动烈度评定方法；**不含故障模式分类**，不作为词表
+  - id: ISO 13373-3:2015
+    title: 状态监测与诊断 振动诊断
+    usage: 诊断流程与数据获取；**不含分类体系**，不作为词表
+  - id: ISO 13374-1:2003
+    title: 状态监测与诊断 数据处理、通信与表示
+    usage: 参考架构 DA→DM→SD→HA→PA→AG，对应本项目的流水线分层
+
+# ---------------------------------------------------------------------------
+
+entity_types:
+  equipment_class:
+    label: 设备类别
+    description: 顶层设备分类，通过 has_component 展开部件
+    aliases: [设备类型, 装备类别]
+    external_code: null
+
+  component:
+    label: 部件
+    description: 设备中可独立评估故障状态的最小机械单元
+    aliases: [零件, 组件, 构件]
+    external_code: null
+
+  fault_mode:
+    label: 故障模式
+    description: 能对应一组特征征兆的故障单元，属性见 location 与 damage_form
+    aliases: [故障形式, 失效形式, 损伤形式, 缺陷形式]
+    attributes:
+      location: 发生部位，取值见 locations
+      damage_form: 损伤形式，取值见 damage_forms
+    external_code: null
+
+  fault_cause:
+    label: 故障原因
+    description: 导致故障模式形成的因素
+    aliases: [诱因, 成因, 起因]
+    external_code: null
+
+  symptom:
+    label: 征兆
+    description: 可由传感器或人工巡检直接观测到的量或现象；只存最具体的一层
+    aliases: [症状, 表征, 表现, 现象]
+    external_code: null
+
+  detection_method:
+    label: 检测手段
+    description: 用于确认某个故障模式的方法或试验
+    aliases: [检测方法, 诊断手段, 测试方法, 检查方法]
+    external_code: null
+
+  evidence:
+    label: 证据段
+    description: 文献原文段落及其定位信息，是引用回溯的最小单位
+    aliases: []
+    attributes:
+      doc_id: 文献标识
+      page: 页码
+      bbox: 版面坐标
+      charspan: 字符区间
+    external_code: null
+
+# ---------------------------------------------------------------------------
+
+locations:
+  outer_race: 外圈
+  inner_race: 内圈
+  rolling_element: 滚动体
+  cage: 保持架
+  tooth_flank: 齿面
+  tooth_root: 齿根
+  shaft: 轴
+  windings: 绕组
+  null: 未限定（跨多个部位或不区分部位）
+
+damage_forms:
+  # ISO 15243:2017 六大类
+  rolling_contact_fatigue: 滚动接触疲劳
+  wear: 磨损
+  corrosion: 腐蚀
+  electrical_erosion: 电蚀
+  plastic_deformation: 塑性变形
+  cracking_fracture: 裂纹与断裂
+  # ISO 10825-1:2022 六大类（齿轮）
+  tribological_damage: 摩擦学损伤
+  fatigue_damage: 疲劳损伤
+  non_fatigue_fracture: 非疲劳断裂
+  gear_plastic_deformation: 塑性变形（齿轮）
+  manufacturing_issue: 制造缺陷
+  other_surface_damage: 其他表面损伤
+
+# ---------------------------------------------------------------------------
+
+relation_types:
+  has_component:
+    label: 包含部件
+    domain: [equipment_class]
+    range: [component]
+    description: 设备类别包含哪些部件
+  has_fault_mode:
+    label: 具有故障模式
+    domain: [component]
+    range: [fault_mode]
+    description: 部件可能出现的故障模式
+  has_cause:
+    label: 起因于
+    domain: [fault_mode]
+    range: [fault_cause]
+    description: 导致该故障模式的因素
+  indicated_by:
+    label: 表现为
+    domain: [fault_mode]
+    range: [symptom]
+    description: 该故障模式在观测上的表现
+  detected_by:
+    label: 可检测于
+    domain: [fault_mode]
+    range: [detection_method]
+    description: 确认该故障模式的方法
+  confused_with:
+    label: 易混淆于
+    domain: [fault_mode]
+    range: [fault_mode]
+    description: 频谱或现象上容易混淆的故障模式，对称关系
+  evidenced_by:
+    label: 依据于
+    domain: [equipment_class, component, fault_mode, fault_cause, symptom, detection_method]
+    range: [evidence]
+    description: 该概念或论断的文献出处
+
+# 边的属性约定
+edge_properties:
+  evidence_ids: 证据段 ID 列表，表示该条论断的出处（见 ADR-0004）
+  confidence: 置信度，0–1，抽取时的模型自评
+  source: 出处类型，extracted（从文献抽取）或 curated（人工整理）
+
+# ---------------------------------------------------------------------------
+
+instances:
+
+  equipment_class:
+    - id: centrifugal_pump
+      label: 离心泵
+      aliases: [离心水泵, 泵]
+    - id: induction_motor
+      label: 异步电机
+      aliases: [感应电机, 电动机, 三相异步电机]
+    - id: centrifugal_fan
+      label: 离心风机
+      aliases: [风机, 鼓风机]
+    - id: gearbox
+      label: 齿轮箱
+      aliases: [减速机, 减速箱, 增速箱]
+    - id: compressor
+      label: 压缩机
+      aliases: [空压机]
+    - id: steam_turbine
+      label: 汽轮机
+      aliases: [蒸汽轮机]
+
+  component:
+    - id: rolling_bearing
+      label: 滚动轴承
+      aliases: [轴承, 滚珠轴承, 滚子轴承]
+    - id: gear_pair
+      label: 齿轮副
+      aliases: [齿轮, 齿对]
+    - id: rotor
+      label: 转子
+      aliases: [转轮, 叶轮转子]
+    - id: shaft
+      label: 轴
+      aliases: [主轴, 传动轴]
+    - id: coupling
+      label: 联轴器
+      aliases: [靠背轮, 连接器]
+    - id: impeller
+      label: 叶轮
+      aliases: [叶片]
+    - id: mechanical_seal
+      label: 机械密封
+      aliases: [轴封, 密封件]
+    - id: stator_winding
+      label: 定子绕组
+      aliases: [绕组, 定子线圈]
+    - id: squirrel_cage
+      label: 鼠笼转子绕组
+      aliases: [鼠笼, 转子导条, 导条]
+
+  fault_mode:
+    # ---- 轴承：位置 × 形式（ISO 15243）----
+    - id: bearing_outer_race_fatigue_spalling
+      label: 轴承外圈疲劳剥落
+      aliases: [外圈剥落, 外环剥落, 外套圈剥落, 外滚道剥落, 外圈点蚀]
+      location: outer_race
+      damage_form: rolling_contact_fatigue
+      external_code: "ISO 15243:2017 §5.1"
+      source: extracted
+    - id: bearing_inner_race_fatigue_spalling
+      label: 轴承内圈疲劳剥落
+      aliases: [内圈剥落, 内环剥落, 内滚道剥落, 内圈点蚀]
+      location: inner_race
+      damage_form: rolling_contact_fatigue
+      external_code: "ISO 15243:2017 §5.1"
+      source: extracted
+    - id: bearing_rolling_element_fatigue_spalling
+      label: 滚动体疲劳剥落
+      aliases: [滚珠剥落, 滚子剥落, 滚动体点蚀]
+      location: rolling_element
+      damage_form: rolling_contact_fatigue
+      external_code: "ISO 15243:2017 §5.1"
+      source: extracted
+    - id: bearing_abrasive_wear
+      label: 轴承磨粒磨损
+      aliases: [磨粒磨损, 三体磨损]
+      location: null
+      damage_form: wear
+      external_code: "ISO 15243:2017 §5.2"
+      source: extracted
+    - id: bearing_adhesive_wear
+      label: 轴承粘着磨损
+      aliases: [粘着磨损, 擦伤, 涂抹]
+      location: null
+      damage_form: wear
+      external_code: "ISO 15243:2017 §5.2"
+      source: extracted
+    - id: bearing_moisture_corrosion
+      label: 轴承水分腐蚀
+      aliases: [锈蚀, 水蚀, 腐蚀]
+      location: null
+      damage_form: corrosion
+      external_code: "ISO 15243:2017 §5.3"
+      source: extracted
+    - id: bearing_fretting_corrosion
+      label: 轴承微动腐蚀
+      aliases: [微动磨损, 摩擦腐蚀, 蠕变腐蚀]
+      location: null
+      damage_form: corrosion
+      external_code: "ISO 15243:2017 §5.3"
+      source: extracted
+    - id: bearing_electrical_erosion
+      label: 轴承电蚀
+      aliases: [电蚀, 电流腐蚀, 电火花蚀, 搓板纹]
+      location: null
+      damage_form: electrical_erosion
+      external_code: "ISO 15243:2017 §5.4"
+      source: extracted
+    - id: bearing_overload_deformation
+      label: 轴承过载塑性变形
+      aliases: [过载压痕, 塑性变形, 布氏压痕]
+      location: null
+      damage_form: plastic_deformation
+      external_code: "ISO 15243:2017 §5.5"
+      source: extracted
+    - id: bearing_particle_indentation
+      label: 轴承颗粒压痕
+      aliases: [异物压痕, 颗粒压痕, 压痕]
+      location: null
+      damage_form: plastic_deformation
+      external_code: "ISO 15243:2017 §5.5"
+      source: extracted
+    - id: bearing_cage_fracture
+      label: 保持架断裂
+      aliases: [保持架破损, 保持架开裂]
+      location: cage
+      damage_form: cracking_fracture
+      external_code: "ISO 15243:2017 §5.6"
+      source: extracted
+    - id: bearing_thermal_cracking
+      label: 轴承热裂纹
+      aliases: [热裂, 热裂纹]
+      location: null
+      damage_form: cracking_fracture
+      external_code: "ISO 15243:2017 §5.6"
+      source: extracted
+
+    # ---- 齿轮（ISO 10825-1）----
+    - id: gear_tooth_micropitting
+      label: 齿面微点蚀
+      aliases: [微点蚀, 灰斑]
+      location: tooth_flank
+      damage_form: fatigue_damage
+      external_code: "ISO 10825-1:2022"
+      source: extracted
+    - id: gear_tooth_macropitting
+      label: 齿面点蚀
+      aliases: [点蚀, 麻点, 剥落]
+      location: tooth_flank
+      damage_form: fatigue_damage
+      external_code: "ISO 10825-1:2022"
+      source: extracted
+    - id: gear_tooth_scuffing
+      label: 齿面胶合
+      aliases: [胶合, 拉伤, 刮伤]
+      location: tooth_flank
+      damage_form: tribological_damage
+      external_code: "ISO 10825-1:2022"
+      source: extracted
+    - id: gear_tooth_abrasive_wear
+      label: 齿面磨粒磨损
+      aliases: [齿面磨损, 磨粒磨损]
+      location: tooth_flank
+      damage_form: tribological_damage
+      external_code: "ISO 10825-1:2022"
+      source: extracted
+    - id: gear_tooth_root_fatigue_crack
+      label: 齿根疲劳裂纹
+      aliases: [齿根裂纹, 齿根开裂]
+      location: tooth_root
+      damage_form: fatigue_damage
+      external_code: "ISO 10825-1:2022"
+      source: extracted
+    - id: gear_tooth_breakage
+      label: 断齿
+      aliases: [轮齿断裂, 齿折断, 崩齿]
+      location: tooth_root
+      damage_form: non_fatigue_fracture
+      external_code: "ISO 10825-1:2022"
+      source: extracted
+    - id: gear_tooth_plastic_deformation
+      label: 齿面塑性变形
+      aliases: [塑性变形, 压陷, 起脊]
+      location: tooth_flank
+      damage_form: gear_plastic_deformation
+      external_code: "ISO 10825-1:2022"
+      source: extracted
+
+    # ---- 转子与轴（无标准锚定，自建）----
+    - id: rotor_unbalance
+      label: 转子不平衡
+      aliases: [不平衡, 质量偏心, 失衡]
+      location: null
+      damage_form: null
+      external_code: null
+      source: 自建
+    - id: rotor_misalignment
+      label: 转子不对中
+      aliases: [不对中, 轴线不重合, 轴线偏移, 对中不良]
+      location: null
+      damage_form: null
+      external_code: null
+      source: 自建
+    - id: shaft_bow
+      label: 轴弯曲
+      aliases: [弯曲, 轴弯, 弓形弯曲]
+      location: shaft
+      damage_form: null
+      external_code: null
+      source: 自建
+    - id: shaft_crack
+      label: 轴裂纹
+      aliases: [转轴裂纹, 轴开裂]
+      location: shaft
+      damage_form: cracking_fracture
+      external_code: null
+      source: 自建
+    - id: rotor_rub
+      label: 转子碰摩
+      aliases: [碰摩, 动静碰摩, 摩擦, 刮磨]
+      location: null
+      damage_form: null
+      external_code: null
+      source: 自建
+
+    # ---- 结构类（自建）----
+    - id: coupling_looseness
+      label: 联接松动
+      aliases: [松动, 联接件松动, 螺栓松动]
+      location: null
+      damage_form: null
+      external_code: null
+      source: 自建
+    - id: foundation_looseness
+      label: 基础松动
+      aliases: [地脚松动, 底座松动, 基础刚度不足]
+      location: null
+      damage_form: null
+      external_code: null
+      source: 自建
+    - id: structural_resonance
+      label: 结构共振
+      aliases: [共振, 临界转速, 谐振]
+      location: null
+      damage_form: null
+      external_code: null
+      source: 自建
+
+    # ---- 电气类（IEC TS 60034-24）----
+    - id: stator_interturn_fault
+      label: 定子匝间短路
+      aliases: [匝间短路, 绕组匝间故障]
+      location: windings
+      damage_form: null
+      external_code: "IEC TS 60034-24:2009"
+      source: extracted
+    - id: stator_phase_short
+      label: 定子相间短路
+      aliases: [相间短路, 绕组短路]
+      location: windings
+      damage_form: null
+      external_code: "IEC TS 60034-24:2009"
+      source: extracted
+    - id: stator_earth_fault
+      label: 定子接地故障
+      aliases: [接地故障, 单相接地]
+      location: windings
+      damage_form: null
+      external_code: "IEC TS 60034-24:2009"
+      source: extracted
+    - id: rotor_bar_breakage
+      label: 转子断条
+      aliases: [断条, 导条断裂, 端环开裂, 鼠笼断裂]
+      location: null
+      damage_form: null
+      external_code: "IEC TS 60034-24:2009"
+      source: extracted
+    - id: air_gap_eccentricity_static
+      label: 静态气隙偏心
+      aliases: [静态偏心, 气隙不均]
+      location: null
+      damage_form: null
+      external_code: "IEC TS 60034-24:2009"
+      source: extracted
+    - id: air_gap_eccentricity_dynamic
+      label: 动态气隙偏心
+      aliases: [动态偏心, 气隙偏心]
+      location: null
+      damage_form: null
+      external_code: "IEC TS 60034-24:2009"
+      source: extracted
+
+  fault_cause:
+    - id: inadequate_lubrication
+      label: 润滑不良
+      aliases: [润滑不足, 缺油, 润滑失效]
+    - id: lubricant_contamination
+      label: 润滑剂污染
+      aliases: [油品污染, 杂质混入, 水分侵入]
+    - id: assembly_error
+      label: 装配误差
+      aliases: [安装误差, 装配不当]
+    - id: fatigue_accumulation
+      label: 疲劳累积
+      aliases: [交变应力, 疲劳]
+    - id: corrosive_environment
+      label: 腐蚀性环境
+      aliases: [潮湿环境, 腐蚀介质]
+    - id: foreign_particle
+      label: 异物进入
+      aliases: [颗粒侵入, 杂质进入]
+    - id: overload_operation
+      label: 过载运行
+      aliases: [超负荷, 长期过载]
+    - id: frequent_start_stop
+      label: 频繁启停
+      aliases: [反复启动, 频繁起停]
+    - id: shaft_current
+      label: 轴电流
+      aliases: [轴电压, 共模电压, 轴承电流]
+    - id: manufacturing_defect
+      label: 制造缺陷
+      aliases: [加工缺陷, 材料缺陷, 制造遗留瑕疵]
+    - id: insufficient_foundation_stiffness
+      label: 基础刚度不足
+      aliases: [基础刚性差, 支撑刚度不足]
+    - id: thermal_expansion
+      label: 热膨胀
+      aliases: [受热膨胀, 热变形]
+
+  symptom:
+    - id: one_x_vibration_high
+      label: 1× 转频振动突出
+      aliases: [一倍频振动大, 基频振动大, 同步振动大]
+    - id: two_x_vibration_high
+      label: 2× 转频振动突出
+      aliases: [二倍频振动大, 二倍频突出]
+    - id: axial_vibration_high
+      label: 轴向振动偏大
+      aliases: [轴向振动大]
+    - id: bpfo_harmonics
+      label: 外圈故障频率及其倍频
+      aliases: [BPFO 倍频, 外圈特征频率]
+    - id: bpfi_harmonics
+      label: 内圈故障频率及其倍频
+      aliases: [BPFI 倍频, 内圈特征频率]
+    - id: bsf_harmonics
+      label: 滚动体故障频率及其倍频
+      aliases: [BSF 倍频, 滚动体特征频率]
+    - id: ftf_harmonics
+      label: 保持架故障频率
+      aliases: [FTF 频率, 保持架特征频率]
+    - id: sidebands_around_resonance
+      label: 共振峰附近边带
+      aliases: [边频带, 调制边带]
+    - id: high_frequency_impact
+      label: 高频冲击信号
+      aliases: [冲击脉冲, 高频共振, 加速度冲击]
+    - id: vibration_level_rise
+      label: 振动烈度升高
+      aliases: [振动增大, 振动超标, 振动值上升]
+    - id: temperature_rise
+      label: 温升异常
+      aliases: [温度偏高, 轴承发热, 过热]
+    - id: abnormal_noise
+      label: 异常噪声
+      aliases: [异响, 噪声增大, 敲击声]
+    - id: speed_frequency_sidebands
+      label: 转频边带
+      aliases: [转速边频, 转频调制]
+    - id: subharmonic_vibration
+      label: 次同步振动
+      aliases: [亚同步振动, 低频振动, 半频振动]
+    - id: orbit_change
+      label: 轴心轨迹异常
+      aliases: [轴心轨迹变化, 轨迹紊乱]
+    - id: current_spectrum_sidebands
+      label: 电流频谱边带
+      aliases: [电流边频, MCSA 特征]
+
+  detection_method:
+    - id: fft_spectrum_analysis
+      label: 频谱分析
+      aliases: [FFT 分析, 振动频谱分析, 频率分析]
+    - id: envelope_demodulation
+      label: 包络解调
+      aliases: [包络分析, 共振解调, 冲击脉冲法]
+    - id: time_waveform_analysis
+      label: 时域波形分析
+      aliases: [波形分析, 时域分析]
+    - id: shaft_orbit_analysis
+      label: 轴心轨迹分析
+      aliases: [轨迹分析, 轴振分析]
+    - id: oil_analysis
+      label: 油液分析
+      aliases: [油谱分析, 铁谱分析, 光谱分析]
+    - id: infrared_thermography
+      label: 红外测温
+      aliases: [热成像, 红外检测]
+    - id: motor_current_signature_analysis
+      label: 电流特征分析
+      aliases: [MCSA, 电流频谱分析, 定子电流分析]
+    - id: field_balancing
+      label: 现场动平衡
+      aliases: [动平衡试验, 单面动平衡, 双面动平衡]
+    - id: modal_testing
+      label: 模态测试
+      aliases: [模态分析, 敲击测试]
+    - id: acoustic_emission
+      label: 声发射检测
+      aliases: [声发射, AE 检测]
+    - id: insulation_test
+      label: 绝缘测试
+      aliases: [绝缘电阻测试, 匝间冲击试验, 耐压试验]
+
+# ---------------------------------------------------------------------------
+
+# 本文件尚未定稿的部分，明确留空而不是猜：
+pending:
+  - 轴承「表面起源疲劳」与「次表面起源疲劳」是否拆成两个节点（ISO 15243 区分，但文献常不区分）
+  - 齿轮 ISO 10825-1 的 micropitting 与 macropitting 是否合并
+  - 征兆是否需要引入「振动烈度等级」（ISO 20816 分区 A/B/C/D）
