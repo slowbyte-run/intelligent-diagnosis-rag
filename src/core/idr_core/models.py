@@ -34,3 +34,5 @@ class EvidenceSegment:
     bbox: BBox
     charspan: CharSpan
     text: str
+    # 定位降级的事实（例如 bbox 退回整页），随证据段一起留存。
+    warnings: tuple[str, ...] = ()

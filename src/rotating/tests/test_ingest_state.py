@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import replace
 from pathlib import Path
 
@@ -192,6 +193,11 @@ def test_quarantined_document_is_skipped_but_the_reason_stays_visible(
 
     assert second.documents[0].skipped is True
     assert second.documents[0].quarantine_reason == reason
+    assert second.documents[0].status == "quarantined"
+    assert second.documents[0].prior_status is DocumentStatus.QUARANTINED
+    assert (second.skipped, second.quarantined) == (0, 1), (
+        "此前隔离的文献仍应计入隔离，而不是混进跳过"
+    )
     assert len(parser.calls) == 1, "第二次运行不应重复解析已隔离的文献"
     assert len(llm.prompts) == 0
     assert state_store.states[content_doc_id(content)].status == (
@@ -205,3 +211,106 @@ def test_limit_must_be_positive(tmp_path: Path) -> None:
 
     with pytest.raises(IngestError):
         ingest(tmp_path, deps=deps, limit=0)
+
+
+def test_ontology_or_prompt_change_invalidates_completed_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ontology_path = tmp_path / "ontology.yaml"
+
+    def base_ontology() -> str:
+        return (
+            "version: 0.1.0\n"
+            "domain: alpha\n"
+            "entity_types:\n"
+            "  entity_type_a:\n"
+            "    label: 甲类实体\n"
+            "relation_types: {}\n"
+        )
+
+    ontology_path.write_text(base_ontology(), encoding="utf-8")
+    monkeypatch.setattr(
+        "idr_rotating.ontology.DEFAULT_ONTOLOGY_PATH", ontology_path
+    )
+    content = write_pdf(tmp_path, "a.pdf")
+    llm = ScriptedLLM([EMPTY_EXTRACTION, EMPTY_EXTRACTION])
+    state_store = FakeStateStore()
+    deps = make_deps(llm=llm, state_store=state_store)
+
+    first = ingest(tmp_path, deps=deps)
+    assert first.documents[0].skipped is False
+    recorded = state_store.states[content_doc_id(content)]
+    assert recorded.fingerprint is not None
+    assert len(recorded.fingerprint) == 64
+
+    second = ingest(tmp_path, deps=deps)
+    assert second.documents[0].skipped is True
+    assert len(llm.prompts) == 1, "提示词与本体都没变时不应重新抽取"
+
+    # 本体文件变化（哪怕只是注释）意味着抽取依据变了，已完成的文献要重做。
+    ontology_path.write_text(
+        base_ontology() + "\n# 本体版本变化\n", encoding="utf-8"
+    )
+    third = ingest(tmp_path, deps=deps)
+
+    assert third.documents[0].skipped is False
+    assert len(llm.prompts) == 2
+    assert state_store.states[content_doc_id(content)].fingerprint != (
+        recorded.fingerprint
+    )
+
+
+def test_skipped_documents_carry_their_previously_recorded_counts(
+    tmp_path: Path,
+) -> None:
+    content = write_pdf(tmp_path, "paper.pdf")
+    doc_id = content_doc_id(content)
+    segment_id = f"ev:{doc_id}:1:0-{len(TEXT)}"
+    response = json.dumps(
+        {
+            "entities": [
+                {
+                    "name": "外圈剥落",
+                    "type": "fault_mode",
+                    "evidence_ids": [segment_id],
+                    "confidence": 0.9,
+                },
+                {
+                    "name": "BPFO 倍频",
+                    "type": "symptom",
+                    "evidence_ids": [segment_id],
+                    "confidence": 0.8,
+                },
+            ],
+            "relations": [
+                {
+                    "head": "外圈剥落",
+                    "type": "indicated_by",
+                    "tail": "BPFO 倍频",
+                    "evidence_ids": [segment_id],
+                    "confidence": 0.8,
+                }
+            ],
+        },
+        ensure_ascii=False,
+    )
+    llm = ScriptedLLM([response])
+    state_store = FakeStateStore()
+    deps = make_deps(llm=llm, state_store=state_store)
+
+    first = ingest(tmp_path, deps=deps)
+    second = ingest(tmp_path, deps=deps)
+
+    assert (first.documents[0].evidence_segments, first.documents[0].entities,
+            first.documents[0].relations) == (1, 2, 1)
+
+    document = second.documents[0]
+    assert document.skipped is True
+    assert document.status == "skipped"
+    assert document.prior_status is DocumentStatus.COMPLETED
+    assert (document.evidence_segments, document.entities, document.relations) == (
+        1,
+        2,
+        1,
+    ), "跳过的文献必须在报告里带回此前的计数"
+    assert second.evidence_segments == 1

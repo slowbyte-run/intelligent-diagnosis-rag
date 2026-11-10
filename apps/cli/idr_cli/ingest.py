@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from idr_core.config import Config
+from idr_core.embedding import EMBEDDING_DIM
 from idr_core.graph.neo4j import Neo4jGraphStore
 from idr_core.llm.embedding import OpenAICompatibleEmbedder
 from idr_core.llm.openai_compat import OpenAICompatibleLLM
@@ -66,6 +67,8 @@ def run_ingest(
                 f"实体 {document.entities}，"
                 f"关系 {document.relations}{rejected}"
             )
+        for warning in document.warnings:
+            print(f"  警告：{warning}")
 
     pending = report.pending_reviews
     if pending:
@@ -89,7 +92,7 @@ def run_ingest(
     print(
         f"分类：成功 {report.succeeded}，失败 {report.failed}，"
         f"隔离 {report.quarantined}，跳过 {report.skipped}，"
-        f"待审计 {report.pending_review}"
+        f"待审计 {report.pending_review_count}"
     )
     print(
         f"合计：证据段 {report.evidence_segments}，"
@@ -108,8 +111,8 @@ def run_ingest(
 def build_deps(config: Config) -> IngestDeps:
     """真实依赖：模型客户端、pdfplumber 解析器、Neo4j、嵌入服务与 pgvector。
 
-    嵌入维度取自 EMBEDDING_DIM；向量列由适配器固定为 ADR-0002 的 1024 维，
-    配置漂移会在写入时明确失败，而不是静默截断。
+    嵌入维度是 ADR-0002 的共享常量，加载配置时已校验 ``EMBEDDING_DIM`` 必须与
+    之相等；这里只传常量，代码里不再出现第二份 1024。
     """
     return IngestDeps(
         llm=OpenAICompatibleLLM(
@@ -125,7 +128,7 @@ def build_deps(config: Config) -> IngestDeps:
             base_url=config.siliconflow_base_url,
             api_key=config.siliconflow_api_key,
             model=config.embedding_model,
-            dimensions=config.embedding_dim,
+            dimensions=EMBEDDING_DIM,
         ),
         vector_store=PgVectorStore(config.database_url),
         state_store=PostgresStateStore(config.database_url),

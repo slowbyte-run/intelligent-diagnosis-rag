@@ -367,7 +367,8 @@ def test_repeated_run_reports_skipped_documents(
     assert "a.pdf：已跳过（此前已入库）" in captured.out
     assert "b.pdf：已跳过（此前已入库）" in captured.out
     assert "分类：成功 0，失败 0，隔离 0，跳过 2，待审计 0" in captured.out
-    assert "合计：证据段 0，实体 0，关系 0" in captured.out
+    # 跳过的文献带回此前记录的计数，因此批次合计不再归零。
+    assert "合计：证据段 2，实体 0，关系 0" in captured.out
 
     # 跳过也是报告里单独计数的一类，不能混进成功或失败。
     reports = [

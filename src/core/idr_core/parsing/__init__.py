@@ -29,11 +29,20 @@ class ParsedPage:
     text: str
     bbox: BBox
     lines: tuple[ParsedLine, ...] = ()
+    # 解析降级的事实（如某些行无法定位），不能静默丢失。
+    warnings: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
 class ParsedDocument:
     pages: tuple[ParsedPage, ...]
+
+    @property
+    def warnings(self) -> tuple[str, ...]:
+        """整篇解析过程里的全部降级警告，按页顺序。"""
+        return tuple(
+            warning for page in self.pages for warning in page.warnings
+        )
 
 
 class Parser(Protocol):

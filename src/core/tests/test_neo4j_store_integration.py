@@ -20,6 +20,7 @@ from idr_core.graph import (
     ConceptNode,
     ConceptRelation,
     GraphBatch,
+    Provenance,
 )
 from idr_core.graph.neo4j import Neo4jGraphStore
 from idr_core.models import BBox, CharSpan, EvidenceSegment
@@ -57,7 +58,7 @@ def doc_id(driver: Driver) -> Iterator[str]:
 
 
 def make_batch(doc_id: str) -> GraphBatch:
-    text = "外圈剥落表现为 BPFO 倍频。"
+    text = "entity-a relates to entity-b."
     evidence = EvidenceSegment(
         id=f"ev:{doc_id}:1:0-{len(text)}",
         doc_id=doc_id,
@@ -66,46 +67,52 @@ def make_batch(doc_id: str) -> GraphBatch:
         charspan=CharSpan(0, len(text)),
         text=text,
     )
-    fault = ConceptNode(
-        id=f"{doc_id}:concept:0",
-        name="外圈剥落",
-        type="fault_mode",
+    first = ConceptNode(
+        id=f"{doc_id}:concept:entity-a",
+        name="entity-a",
+        type="kind_a",
         doc_id=doc_id,
+        attributes={"position": "part_a"},
     )
-    symptom = ConceptNode(
-        id=f"{doc_id}:concept:1",
-        name="BPFO 倍频",
-        type="symptom",
+    second = ConceptNode(
+        id=f"{doc_id}:concept:entity-b",
+        name="entity-b",
+        type="kind_b",
         doc_id=doc_id,
+        attributes={"position": "part_b"},
     )
     return GraphBatch(
         doc_id=doc_id,
-        concepts=(fault, symptom),
+        concepts=(first, second),
         evidence=(evidence,),
         relations=(
             ConceptRelation(
-                head_id=fault.id,
-                type="indicated_by",
-                tail_id=symptom.id,
-                evidence_ids=(evidence.id,),
-                confidence=0.8,
-                source="extracted",
+                head_id=first.id,
+                type="linked_to",
+                tail_id=second.id,
+                provenance=Provenance(
+                    evidence_ids=(evidence.id,),
+                    confidence=0.8,
+                    source="extracted",
+                ),
             ),
         ),
         evidence_links=(
             ConceptEvidenceLink(
-                concept_id=fault.id,
-                evidence_id=evidence.id,
-                evidence_ids=(evidence.id,),
-                confidence=0.9,
-                source="extracted",
+                concept_id=first.id,
+                provenance=Provenance(
+                    evidence_ids=(evidence.id,),
+                    confidence=0.9,
+                    source="extracted",
+                ),
             ),
             ConceptEvidenceLink(
-                concept_id=symptom.id,
-                evidence_id=evidence.id,
-                evidence_ids=(evidence.id,),
-                confidence=0.85,
-                source="extracted",
+                concept_id=second.id,
+                provenance=Provenance(
+                    evidence_ids=(evidence.id,),
+                    confidence=0.85,
+                    source="extracted",
+                ),
             ),
         ),
     )
@@ -133,6 +140,7 @@ def test_written_concepts_and_evidence_are_queryable(driver: Driver, doc_id: str
                 RETURN concept.id AS concept_id,
                        concept.name AS name,
                        concept.type AS type,
+                       concept.position AS position,
                        evidence.id AS evidence_id,
                        evidence.page AS page,
                        evidence.bbox AS bbox,
@@ -147,7 +155,8 @@ def test_written_concepts_and_evidence_are_queryable(driver: Driver, doc_id: str
         )
 
     assert len(records) == 2
-    assert [record["name"] for record in records] == ["外圈剥落", "BPFO 倍频"]
+    assert [record["name"] for record in records] == ["entity-a", "entity-b"]
+    assert [record["position"] for record in records] == ["part_a", "part_b"]
     assert all(record["evidence_id"] == batch.evidence[0].id for record in records)
     assert all(record["page"] == 1 for record in records)
     assert all(record["bbox"] == [72.0, 72.0, 540.0, 720.0] for record in records)
@@ -162,7 +171,7 @@ def test_written_concepts_and_evidence_are_queryable(driver: Driver, doc_id: str
         relation = session.run(
             """
             MATCH (head:Concept {id: $head_id})
-                  -[edge:INDICATED_BY]->
+                  -[edge:LINKED_TO]->
                   (tail:Concept {id: $tail_id})
             RETURN edge.evidence_ids AS evidence_ids,
                    edge.confidence AS confidence,
@@ -197,7 +206,7 @@ def test_rewriting_same_batch_does_not_duplicate_graph(driver: Driver, doc_id: s
             MATCH (:Concept {doc_id: $doc_id})-[link:EVIDENCED_BY]->
                   (:Evidence {doc_id: $doc_id})
             WITH concepts, evidence_nodes, count(link) AS links
-            MATCH (:Concept {doc_id: $doc_id})-[relation:INDICATED_BY]->
+            MATCH (:Concept {doc_id: $doc_id})-[relation:LINKED_TO]->
                   (:Concept {doc_id: $doc_id})
             RETURN concepts, evidence_nodes, links, count(relation) AS relations
             """,

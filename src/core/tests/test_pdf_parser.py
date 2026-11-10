@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from idr_core.parsing.pdf import PdfTextParser
 
 
@@ -59,14 +61,14 @@ def one_page_pdf_with_lines(lines: list[str]) -> bytes:
 
 def test_parser_returns_text_page_with_bbox(tmp_path: Path) -> None:
     path = tmp_path / "tiny.pdf"
-    path.write_bytes(one_page_pdf("Outer race spalling"))
+    path.write_bytes(one_page_pdf("Sample line of text"))
 
     parsed = PdfTextParser().parse(path)
 
     assert len(parsed.pages) == 1
     page = parsed.pages[0]
     assert page.number == 1
-    assert "Outer race spalling" in page.text
+    assert "Sample line of text" in page.text
     assert (page.bbox.x0, page.bbox.y0, page.bbox.x1, page.bbox.y1) == (
         0.0,
         0.0,
@@ -83,17 +85,17 @@ def test_parser_exposes_line_geometry_for_segment_localization(
     path = tmp_path / "lines.pdf"
     path.write_bytes(
         one_page_pdf_with_lines(
-            ["Outer race spalling occurs", "at the BPFO frequency."]
+            ["First line of text occurs", "at the measured frequency."]
         )
     )
 
     parsed = PdfTextParser().parse(path)
 
     page = parsed.pages[0]
-    assert page.text == "Outer race spalling occurs\nat the BPFO frequency."
+    assert page.text == "First line of text occurs\nat the measured frequency."
     assert [line.text for line in page.lines] == [
-        "Outer race spalling occurs",
-        "at the BPFO frequency.",
+        "First line of text occurs",
+        "at the measured frequency.",
     ]
 
     first, second = page.lines
@@ -103,3 +105,72 @@ def test_parser_exposes_line_geometry_for_segment_localization(
     assert first.bbox.y1 < second.bbox.y0  # 按阅读顺序自上而下
     assert page.bbox.x0 <= first.bbox.x0 < first.bbox.x1 <= page.bbox.x1
     assert page.bbox.y0 <= first.bbox.y0 < first.bbox.y1 <= page.bbox.y1
+
+
+class _FakePage:
+    """只实现 PdfTextParser 用到的方法，用来制造行文字与整页文字不一致。"""
+
+    bbox = (0.0, 0.0, 612.0, 792.0)
+
+    def __init__(self, text: str, lines: list[dict[str, object]]) -> None:
+        self._text = text
+        self._lines = lines
+
+    def extract_text(self) -> str:
+        return self._text
+
+    def extract_text_lines(
+        self, *, strip: bool, return_chars: bool
+    ) -> list[dict[str, object]]:
+        return self._lines
+
+    def __enter__(self) -> _FakePage:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        return None
+
+
+class _FakePdf:
+    def __init__(self, pages: list[_FakePage]) -> None:
+        self.pages = pages
+
+    def __enter__(self) -> _FakePdf:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        return None
+
+
+def test_line_that_cannot_be_located_in_page_text_is_recorded_as_warning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    page = _FakePage(
+        "locatable line",
+        [
+            {
+                "text": "locatable line",
+                "x0": 72.0,
+                "top": 72.0,
+                "x1": 300.0,
+                "bottom": 84.0,
+            },
+            {
+                "text": "missing from extract_text",
+                "x0": 72.0,
+                "top": 86.0,
+                "x1": 300.0,
+                "bottom": 98.0,
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "idr_core.parsing.pdf.pdfplumber.open", lambda path: _FakePdf([page])
+    )
+
+    parsed = PdfTextParser().parse(tmp_path / "fake.pdf")
+
+    assert [line.text for line in parsed.pages[0].lines] == ["locatable line"]
+    assert parsed.pages[0].warnings, "丢弃行坐标必须留下可观察的警告"
+    assert "第 1 页" in parsed.pages[0].warnings[0]
+    assert parsed.warnings == parsed.pages[0].warnings

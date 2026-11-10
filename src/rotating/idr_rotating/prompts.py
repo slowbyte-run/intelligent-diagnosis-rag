@@ -5,8 +5,14 @@
 
 from __future__ import annotations
 
+import hashlib
+
 from idr_core.models import EvidenceSegment
-from idr_rotating.ontology import EntityTypeDef, Ontology
+from idr_rotating.ontology import (
+    EntityTypeDef,
+    Ontology,
+    ontology_fingerprint,
+)
 
 
 def build_extraction_prompt(
@@ -32,13 +38,16 @@ def build_extraction_prompt(
         f"{evidence_lines}\n\n"
         "输出格式：\n"
         '{"entities": [{"name": "实体名", "type": "实体类型", '
-        '"evidence_ids": ["证据段标识"], "confidence": 0.0}], '
+        '"evidence_ids": ["证据段标识"], "confidence": 0.0, '
+        '"location": "属性取值或 null", "damage_form": "属性取值或 null"}], '
         '"relations": [{"head": "头实体名", "type": "关系类型", '
         '"tail": "尾实体名", "evidence_ids": ["证据段标识"], '
         '"confidence": 0.0}]}\n'
         "规则：\n"
         "- name 使用文献原文术语；命中规范概念或别名时，必须使用规范名。\n"
         "- evidence_ids 只能引用上面出现过的证据段标识。\n"
+        "- 仅当实体类型声明了 location/damage_form 时填写这两个字段，"
+        "取值必须来自上面的属性取值清单；不确定时填 null。\n"
         "- 不得编造实体类型、关系类型或证据段标识。"
     )
 
@@ -99,22 +108,25 @@ def _attribute_value_lines(ontology: Ontology) -> str:
     lines: list[str] = []
     for type_id, definition in ontology.entity_types.items():
         for attribute in definition.attributes:
-            values = _allowed_values(ontology, attribute)
+            values = ontology.attribute_values(attribute)
             if not values:
                 continue
             rendered = "、".join(
                 f"{'null' if key is None else key}（{label}）"
-                for key, label in values
+                for key, label in values.items()
             )
             lines.append(f"- {type_id}.{attribute}：{rendered}")
     return "\n".join(lines) if lines else "（本体没有额外的取值约束）"
 
 
-def _allowed_values(
-    ontology: Ontology, attribute: str
-) -> tuple[tuple[str | None, str], ...]:
-    if attribute == "location":
-        return tuple(ontology.locations.items())
-    if attribute == "damage_form":
-        return tuple(ontology.damage_forms.items())
-    return ()
+
+def extraction_fingerprint(ontology: Ontology) -> str:
+    """提示词模板与本体内容的组合指纹。
+
+    改提示词或改本体都会改变它。指纹写进处理状态：已完成文献只有在指纹
+    不变时才允许跳过，否则重新抽取。
+    """
+    skeleton = build_extraction_prompt(ontology, ())
+    digest = hashlib.sha256(skeleton.encode("utf-8"))
+    digest.update(ontology_fingerprint().encode("ascii"))
+    return digest.hexdigest()

@@ -5,6 +5,7 @@ from idr_core.graph.models import (
     ConceptNode,
     ConceptRelation,
     GraphBatch,
+    Provenance,
 )
 from idr_core.graph.store import GraphStore
 
@@ -14,4 +15,5 @@ __all__ = [
     "ConceptRelation",
     "GraphBatch",
     "GraphStore",
+    "Provenance",
 ]

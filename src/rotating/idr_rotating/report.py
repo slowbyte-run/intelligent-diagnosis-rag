@@ -99,6 +99,7 @@ def _run_payload(report: IngestReport, run_id: str) -> dict[str, object]:
             "limit": None,
             "model": None,
             "ontology": None,
+            "prompt": None,
         }
 
     model = None
@@ -119,6 +120,7 @@ def _run_payload(report: IngestReport, run_id: str) -> dict[str, object]:
             "version": run.ontology_version,
             "sha256": run.ontology_sha256,
         },
+        "prompt": {"sha256": run.prompt_sha256},
     }
 
 
@@ -128,6 +130,10 @@ def _document_payload(document: DocumentReport) -> dict[str, object]:
         "path": str(document.path),
         "doc_id": document.doc_id,
         "status": document.status,
+        "skipped": document.skipped,
+        "prior_status": (
+            None if document.prior_status is None else document.prior_status.value
+        ),
         "document_type": (
             None if document.document_type is None else str(document.document_type)
         ),
@@ -138,6 +144,7 @@ def _document_payload(document: DocumentReport) -> dict[str, object]:
         "relations": document.relations,
         "rejected_entities": document.rejected_entities,
         "rejected_relations": document.rejected_relations,
+        "warnings": list(document.warnings),
     }
 
 

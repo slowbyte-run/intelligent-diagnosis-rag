@@ -8,12 +8,12 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from idr_core.llm import LLMClient
-from idr_rotating.aliases import AliasResolver, normalize_term
+from idr_rotating.aliases import AliasResolver, CanonicalEntity, normalize_term
 from idr_rotating.ontology import Ontology
 from idr_rotating.pending import (
     PendingExample,
@@ -41,6 +41,9 @@ class ExtractedEntity(BaseModel):
     type: str = Field(min_length=1)
     evidence_ids: list[str]
     confidence: float = Field(ge=0.0, le=1.0)
+    # 本体为 fault_mode 声明的两个建模维度（ADR-0004）；其他类型可为空。
+    location: str | None = None
+    damage_form: str | None = None
 
 
 class ExtractedRelation(BaseModel):
@@ -61,8 +64,24 @@ class Extraction(BaseModel):
 
 
 @dataclass(frozen=True, slots=True)
+class ValidatedEntity:
+    """通过本体校验的实体。
+
+    ``key`` 是概念身份：解析到规范实例时就是本体 ID，否则是「类型 + 归一标签」。
+    概念节点 ID 由它推导，因此抽取顺序变化不会改变节点 ID。
+    """
+
+    name: str
+    type: str
+    evidence_ids: tuple[str, ...]
+    confidence: float
+    key: str
+    attributes: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
 class ValidatedExtraction:
-    entities: tuple[ExtractedEntity, ...]
+    entities: tuple[ValidatedEntity, ...]
     relations: tuple[ExtractedRelation, ...]
     rejected_entities: int
     rejected_relations: int
@@ -75,6 +94,8 @@ class _EntityAccumulator:
     type: str
     evidence_ids: list[str]
     confidence: float
+    key: str
+    attributes: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -154,10 +175,44 @@ def validate_extraction(
             )
             continue
 
-        canonical = resolver.resolve_entity(
+        candidates = resolver.lookup_entity(
             entity.name, entity_type=canonical_type
         )
+        if len(candidates) > 1:
+            rejected_entities += 1
+            pending.append(
+                _observation(
+                    kind=PendingKind.ENTITY,
+                    value=canonical_type,
+                    reason=RejectionReason.AMBIGUOUS_ALIAS,
+                    doc_id=doc_id,
+                    name=entity.name.strip(),
+                    evidence_ids=entity.evidence_ids,
+                    evidence_text=evidence_text,
+                )
+            )
+            continue
+        canonical = candidates[0] if candidates else None
         name = canonical.label if canonical is not None else entity.name.strip()
+
+        attributes, invalid_attribute = _validated_attributes(
+            entity, canonical, canonical_type, ontology
+        )
+        if invalid_attribute is not None:
+            attribute, raw_value = invalid_attribute
+            rejected_entities += 1
+            pending.append(
+                _observation(
+                    kind=PendingKind.ENTITY,
+                    value=f"{canonical_type}.{attribute}",
+                    reason=RejectionReason.ATTRIBUTE_NOT_IN_ONTOLOGY,
+                    doc_id=doc_id,
+                    name=f"{entity.name.strip()}（{raw_value}）",
+                    evidence_ids=entity.evidence_ids,
+                    evidence_text=evidence_text,
+                )
+            )
+            continue
 
         evidence_ids, reason = _valid_evidence(
             entity.evidence_ids, evidence_text
@@ -182,16 +237,26 @@ def validate_extraction(
             if canonical is not None
             else f"{canonical_type}:{normalize_term(name)}"
         )
-        _merge_entity(entities, key, name, canonical_type, evidence_ids, entity)
+        _merge_entity(
+            entities,
+            key,
+            name,
+            canonical_type,
+            evidence_ids,
+            entity,
+            attributes,
+        )
         raw_to_canonical.setdefault(entity.name.strip(), set()).add(name)
         raw_to_canonical.setdefault(name, set()).add(name)
 
     accepted_entities = tuple(
-        ExtractedEntity(
+        ValidatedEntity(
             name=accumulator.name,
             type=accumulator.type,
-            evidence_ids=accumulator.evidence_ids,
+            evidence_ids=tuple(accumulator.evidence_ids),
             confidence=accumulator.confidence,
+            key=accumulator.key,
+            attributes=dict(accumulator.attributes),
         )
         for accumulator in entities.values()
     )
@@ -325,6 +390,7 @@ def _merge_entity(
     canonical_type: str,
     evidence_ids: tuple[str, ...],
     entity: ExtractedEntity,
+    attributes: Mapping[str, str],
 ) -> None:
     accumulator = entities.get(key)
     if accumulator is None:
@@ -333,10 +399,67 @@ def _merge_entity(
             type=canonical_type,
             evidence_ids=list(evidence_ids),
             confidence=entity.confidence,
+            key=key,
+            attributes=dict(attributes),
         )
         return
     _extend_unique(accumulator.evidence_ids, evidence_ids)
     accumulator.confidence = max(accumulator.confidence, entity.confidence)
+    for attribute, value in attributes.items():
+        accumulator.attributes.setdefault(attribute, value)
+
+
+def _validated_attributes(
+    entity: ExtractedEntity,
+    canonical: CanonicalEntity | None,
+    canonical_type: str,
+    ontology: Ontology,
+) -> tuple[dict[str, str], tuple[str, str] | None]:
+    """校验模型给出的属性值；返回 (规范属性, 第一个越界项)。
+
+    越界项用 ``(属性名, 原始值)`` 表示，由调用方送进待审队列。已解析到规范
+    实例时以本体定义的属性为准——规范实例的身份本身就包含这两个维度。
+    """
+    definition = ontology.entity_types[canonical_type]
+    provided = {"location": entity.location, "damage_form": entity.damage_form}
+    attributes: dict[str, str] = {}
+
+    for attribute in definition.attributes:
+        allowed = ontology.attribute_values(attribute)
+        if not allowed:
+            continue
+        raw = provided.get(attribute)
+        if raw is None:
+            continue
+        matched, value = _match_attribute_value(allowed, raw)
+        if not matched:
+            return {}, (attribute, raw)
+        if value is not None:
+            attributes[attribute] = value
+
+    if canonical is not None:
+        instance = ontology.instance(canonical_type, canonical.id)
+        if instance is not None:
+            for attribute in definition.attributes:
+                value = getattr(instance, attribute, None)
+                if value is not None:
+                    attributes[attribute] = value
+
+    return attributes, None
+
+
+def _match_attribute_value(
+    allowed: Mapping[str | None, str], raw: str
+) -> tuple[bool, str | None]:
+    """把标识或标签归一为允许取值；``null`` 表示「未限定」这一合法取值。"""
+    needle = normalize_term(raw)
+    if needle in ("", "null", "none"):
+        return True, None
+    for key, label in allowed.items():
+        candidates = (label,) if key is None else (key, label)
+        if any(normalize_term(candidate) == needle for candidate in candidates):
+            return True, key
+    return False, None
 
 
 def _extend_unique(target: list[str], values: Sequence[str]) -> None:

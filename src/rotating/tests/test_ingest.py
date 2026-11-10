@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
 import json
 from pathlib import Path
 
@@ -13,6 +14,10 @@ from idr_core.models import BBox, CharSpan
 from idr_core.parsing import ParsedPage
 from idr_core.vector_store import VectorDimensionError
 from idr_rotating import IngestDeps, IngestReport, OntologyError, ingest
+from idr_rotating.extraction import (
+    ExtractedRelation,
+    ValidatedExtraction,
+)
 
 from fakes import (
     FailingVectorStore,
@@ -113,21 +118,25 @@ def test_single_document_ingest_writes_traceable_concepts(tmp_path: Path) -> Non
 
     assert len(batch.evidence_links) == 2
     link_confidences = {
-        (concepts_by_id[link.concept_id].name, link.confidence)
+        (concepts_by_id[link.concept_id].name, link.provenance.confidence)
         for link in batch.evidence_links
     }
     assert link_confidences == {
         ("轴承外圈疲劳剥落", 0.91),
         ("外圈故障频率及其倍频", 0.88),
     }
-    assert all(link.evidence_ids == (segment_id,) for link in batch.evidence_links)
-    assert all(link.source == "extracted" for link in batch.evidence_links)
+    assert all(link.evidence_id == segment_id for link in batch.evidence_links)
+    assert all(
+        link.provenance.evidence_ids == (segment_id,)
+        for link in batch.evidence_links
+    )
+    assert all(link.provenance.source == "extracted" for link in batch.evidence_links)
 
     (relation,) = batch.relations
     assert relation.type == "indicated_by"
-    assert relation.evidence_ids == (segment_id,)
-    assert relation.confidence == 0.8
-    assert relation.source == "extracted"
+    assert relation.provenance.evidence_ids == (segment_id,)
+    assert relation.provenance.confidence == 0.8
+    assert relation.provenance.source == "extracted"
     assert concepts_by_id[relation.head_id].name == "轴承外圈疲劳剥落"
     assert concepts_by_id[relation.tail_id].name == "外圈故障频率及其倍频"
 
@@ -473,4 +482,110 @@ def test_malformed_ontology_fails_before_any_document_is_processed(
         )
 
     assert llm.prompts == []
+    assert graph_store.batches == []
+
+
+def test_concept_node_ids_follow_concept_identity_not_extraction_order(
+    tmp_path: Path,
+) -> None:
+    content = b"%PDF-1.4 concept identity"
+    write_pdf(tmp_path, "paper.pdf", content)
+    doc_id = content_doc_id(content)
+    text = "外圈剥落表现为 BPFO 倍频振动，新概念甲也出现了。"
+    segment_id = evidence_id(doc_id, 1, text)
+
+    def entity(name: str, type_: str, confidence: float) -> dict[str, object]:
+        return {
+            "name": name,
+            "type": type_,
+            "evidence_ids": [segment_id],
+            "confidence": confidence,
+        }
+
+    entities = [
+        entity("外圈剥落", "fault_mode", 0.9),
+        entity("BPFO 倍频", "symptom", 0.8),
+        entity("新概念甲", "symptom", 0.7),
+    ]
+    responses = [
+        json.dumps({"entities": entities, "relations": []}, ensure_ascii=False),
+        json.dumps(
+            {"entities": list(reversed(entities)), "relations": []},
+            ensure_ascii=False,
+        ),
+    ]
+    graph_store = FakeGraphStore()
+    deps = IngestDeps(
+        llm=FakeLLM(responses),
+        parser=FakeParser(
+            [ParsedPage(number=1, text=text, bbox=BBox(0.0, 0.0, 595.0, 842.0))]
+        ),
+        graph_store=graph_store,
+        embedder=FakeEmbedder(),
+        vector_store=FakeVectorStore(),
+    )
+
+    ingest(tmp_path, deps=deps)
+    ingest(tmp_path, deps=deps)
+
+    first_ids = {concept.name: concept.id for concept in graph_store.batches[0].concepts}
+    second_ids = {
+        concept.name: concept.id for concept in graph_store.batches[1].concepts
+    }
+    assert first_ids == second_ids, "抽取顺序变化不得改变概念节点 ID"
+
+    # 已解析到规范实例的概念用本体 ID，未解析的概念用归一后的标签。
+    assert first_ids["轴承外圈疲劳剥落"] == (
+        f"{doc_id}:concept:bearing_outer_race_fatigue_spalling"
+    )
+    assert first_ids["新概念甲"] == f"{doc_id}:concept:symptom:新概念甲"
+
+
+def test_relation_endpoint_missing_from_validated_entities_fails_the_document(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """校验阶段放行了不存在的端点时，入库必须报数据错误而不是静默丢边。"""
+    content = b"%PDF-1.4 dangling relation"
+    write_pdf(tmp_path, "paper.pdf", content)
+    doc_id = content_doc_id(content)
+    text = "外圈剥落表现为 BPFO 倍频振动，能量集中在高频段。"
+    segment_id = evidence_id(doc_id, 1, text)
+    relation = ExtractedRelation(
+        head="幽灵甲",
+        type="indicated_by",
+        tail="幽灵乙",
+        evidence_ids=[segment_id],
+        confidence=0.9,
+    )
+
+    def dangling_validation(*args: object, **kwargs: object) -> ValidatedExtraction:
+        return ValidatedExtraction(
+            entities=(),
+            relations=(relation,),
+            rejected_entities=0,
+            rejected_relations=0,
+        )
+
+    ingest_module = importlib.import_module("idr_rotating.ingest")
+    monkeypatch.setattr(ingest_module, "validate_extraction", dangling_validation)
+    graph_store = FakeGraphStore()
+
+    report = ingest(
+        tmp_path,
+        deps=IngestDeps(
+            llm=FakeLLM('{"entities": [], "relations": []}'),
+            parser=FakeParser(
+                [ParsedPage(number=1, text=text, bbox=BBox(0.0, 0.0, 595.0, 842.0))]
+            ),
+            graph_store=graph_store,
+            embedder=FakeEmbedder(),
+            vector_store=FakeVectorStore(),
+        ),
+    )
+
+    document = report.documents[0]
+    assert document.error is not None, "端点缺失是数据错误，不是可以忽略的分支"
+    assert "幽灵甲" in document.error
+    assert "幽灵乙" in document.error
+    assert report.failed == 1
     assert graph_store.batches == []

@@ -233,7 +233,7 @@ def test_ontology_rejected_extractions_become_pending_review_items(
     assert document.entities == 1
     assert (document.rejected_entities, document.rejected_relations) == (2, 1)
 
-    entity_item, relation_item = document.pending_review
+    entity_item, relation_item = document.pending_reviews
     assert (
         entity_item.kind,
         entity_item.label,
@@ -248,4 +248,4 @@ def test_ontology_rejected_extractions_become_pending_review_items(
         relation_item.type,
         relation_item.reason,
     ) == ("relation", "外圈剥落 → 外圈故障频率", "magic_link", "type_not_in_ontology")
-    assert report.pending_review == 2
+    assert report.pending_review_count == 2

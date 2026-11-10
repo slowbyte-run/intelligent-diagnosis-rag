@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from idr_core.llm import ModelDescriptor
+from idr_core.state import DocumentStatus
 from idr_rotating import (
     DocumentReport,
     DocumentType,
@@ -58,6 +59,7 @@ def sample_report(source_dir: Path) -> IngestReport:
                 rejected_entities=2,
                 document_type=DocumentType.PAPER,
                 pending=(pending, pending),
+                warnings=("证据段没有可用的行坐标，bbox 回退为整页",),
             ),
             DocumentReport(
                 path=source_dir / "broken.pdf",
@@ -78,10 +80,11 @@ def sample_report(source_dir: Path) -> IngestReport:
             DocumentReport(
                 path=source_dir / "done.pdf",
                 doc_id="doc4",
-                evidence_segments=0,
-                entities=0,
-                relations=0,
+                evidence_segments=7,
+                entities=4,
+                relations=2,
                 skipped=True,
+                prior_status=DocumentStatus.COMPLETED,
             ),
         ),
         model_calls=(
@@ -105,6 +108,7 @@ def sample_report(source_dir: Path) -> IngestReport:
             ),
             ontology_version="0.1",
             ontology_sha256="a" * 64,
+            prompt_sha256="b" * 64,
         ),
     )
 
@@ -127,6 +131,7 @@ def test_report_file_has_counts_and_details_for_all_four_categories(
         "parameters": {"temperature": 0.0, "response_format": "json_object"},
     }
     assert payload["run"]["ontology"] == {"version": "0.1", "sha256": "a" * 64}
+    assert payload["run"]["prompt"] == {"sha256": "b" * 64}
 
     summary = payload["summary"]
     assert summary["documents"] == {
@@ -137,11 +142,12 @@ def test_report_file_has_counts_and_details_for_all_four_categories(
         "skipped": 1,
     }
     assert summary["pending_review"] == {"items": 1, "occurrences": 2}
+    # 跳过的文献带回此前计数，批次合计因此包含它们的存量。
     assert (
         summary["evidence_segments"],
         summary["entities"],
         summary["relations"],
-    ) == (3, 5, 2)
+    ) == (10, 9, 4)
     assert summary["model_calls"] == {
         "count": 1,
         "usage_reported": 1,
@@ -165,8 +171,18 @@ def test_report_file_has_counts_and_details_for_all_four_categories(
     ]
     assert documents[0]["document_type"] == "paper"
     assert (documents[0]["evidence_segments"], documents[0]["entities"]) == (3, 5)
+    assert documents[0]["warnings"] == ["证据段没有可用的行坐标，bbox 回退为整页"]
     assert documents[1]["error"] == "ExtractionError: 模型输出不符合抽取契约"
     assert documents[2]["quarantine_reason"] == "扫描件：未检测到可用的文字层"
+    assert (documents[3]["skipped"], documents[3]["prior_status"]) == (
+        True,
+        "completed",
+    )
+    assert (
+        documents[3]["evidence_segments"],
+        documents[3]["entities"],
+        documents[3]["relations"],
+    ) == (7, 4, 2)
 
     assert payload["pending_review"] == [
         {

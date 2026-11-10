@@ -20,6 +20,7 @@ from idr_core.graph import (
     ConceptRelation,
     GraphBatch,
     GraphStore,
+    Provenance,
 )
 from idr_core.llm import (
     LLMClient,
@@ -41,9 +42,9 @@ from idr_rotating.document import (
     scanned_document_reason,
 )
 from idr_rotating.extraction import (
-    ExtractedEntity,
     ExtractedRelation,
     ExtractionError,
+    ValidatedEntity,
     extract_with_retry,
     validate_extraction,
 )
@@ -57,7 +58,7 @@ from idr_rotating.pending import (
     PendingReview,
     aggregate_pending,
 )
-from idr_rotating.prompts import build_extraction_prompt
+from idr_rotating.prompts import build_extraction_prompt, extraction_fingerprint
 from idr_rotating.segments import build_evidence_segments
 
 
@@ -96,12 +97,19 @@ class DocumentReport:
     skipped: bool = False
     extraction_attempts: int = 0
     pending: tuple[PendingObservation, ...] = ()
+    # 本次跳过的文献，此前一次处理的状态；用于在报告里保留原分类。
+    prior_status: DocumentStatus | None = None
+    # 解析或切分时的降级事实（丢行、bbox 回退整页等），不得静默。
+    warnings: tuple[str, ...] = ()
 
     @property
     def status(
         self,
     ) -> Literal["succeeded", "failed", "quarantined", "skipped"]:
         if self.skipped:
+            # 此前已隔离的文献这次虽被跳过，分类仍是隔离，不能混进「跳过」。
+            if self.prior_status is DocumentStatus.QUARANTINED:
+                return "quarantined"
             return "skipped"
         if self.quarantine_reason is not None:
             return "quarantined"
@@ -113,11 +121,6 @@ class DocumentReport:
     def pending_reviews(self) -> tuple[PendingReview, ...]:
         """本篇被拒绝抽取的待审条目（按类型与原因聚合）。"""
         return aggregate_pending(self.pending)
-
-    @property
-    def pending_review(self) -> tuple[PendingReview, ...]:
-        """兼容批次报告与旧调用方的别名。"""
-        return self.pending_reviews
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,6 +134,8 @@ class RunMetadata:
     model: ModelDescriptor | None
     ontology_version: str
     ontology_sha256: str
+    # 生成抽取提示词的「模板 + 本体」指纹，与处理状态里的跳过判定同源。
+    prompt_sha256: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -173,7 +178,7 @@ class IngestReport:
 
     @property
     def quarantined(self) -> int:
-        """本次运行新判定为隔离的篇数；跳过的文献不重复计数。"""
+        """隔离的篇数，含此前已隔离、本次被跳过的文献。"""
         return sum(
             1 for document in self.documents if document.status == "quarantined"
         )
@@ -192,7 +197,7 @@ class IngestReport:
         )
 
     @property
-    def pending_review(self) -> int:
+    def pending_review_count(self) -> int:
         """待审计条目的类别数，供命令行摘要使用。"""
         return len(self.pending_reviews)
 
@@ -206,8 +211,8 @@ def ingest(
     """把一个目录里的 PDF 入库，按文件名排序处理。
 
     ``limit`` 只处理前 N 篇，用于扩大语料前快速验证。注入了
-    ``deps.state_store`` 时，已完成的文献直接跳过；被中断的文献没有完成
-    记录，下次运行只补做这些。
+    ``deps.state_store`` 时，按当前提示词与本体处理完成的文献直接跳过；
+    提示词或本体变了就重做。被中断的文献没有完成记录，下次运行只补做这些。
     """
     started_at = datetime.now(UTC)
     root = Path(source_dir)
@@ -229,9 +234,11 @@ def ingest(
     if limit is not None:
         paths = paths[:limit]
 
+    fingerprint = extraction_fingerprint(ontology)
     model_calls: list[ModelCallRecord] = []
     documents = tuple(
-        _ingest_document(path, deps, ontology, model_calls) for path in paths
+        _ingest_document(path, deps, ontology, fingerprint, model_calls)
+        for path in paths
     )
     return IngestReport(
         documents=documents,
@@ -244,6 +251,7 @@ def ingest(
             model=describe_model(deps.llm),
             ontology_version=ontology.version,
             ontology_sha256=ontology_fingerprint(),
+            prompt_sha256=fingerprint,
         ),
     )
 
@@ -252,24 +260,29 @@ def _ingest_document(
     path: Path,
     deps: IngestDeps,
     ontology: Ontology,
+    fingerprint: str,
     model_calls: list[ModelCallRecord],
 ) -> DocumentReport:
     doc_id = ""
     attempts = 0
+    warnings: tuple[str, ...] = ()
     try:
         doc_id = _doc_id(path.read_bytes())
         previous = _previous_state(deps, doc_id)
-        if previous is not None and previous.settled:
+        if previous is not None and previous.is_current(fingerprint):
             return _skipped_report(path, doc_id, previous)
 
         # 先记进行中再干活：进程被中断时这篇只剩「处理中」，下次会重做。
         _record_state(
             deps,
             DocumentProcessingState(
-                doc_id=doc_id, status=DocumentStatus.PROCESSING
+                doc_id=doc_id,
+                status=DocumentStatus.PROCESSING,
+                fingerprint=fingerprint,
             ),
         )
         parsed = deps.parser.parse(path)
+        warnings = parsed.warnings
         quarantine_reason = scanned_document_reason(parsed)
         if quarantine_reason is not None:
             # 扫描件隔离在抽取之前：不调模型、不写图，也不产出空证据段。
@@ -279,6 +292,7 @@ def _ingest_document(
                     doc_id=doc_id,
                     status=DocumentStatus.QUARANTINED,
                     reason=quarantine_reason,
+                    fingerprint=fingerprint,
                 ),
             )
             return DocumentReport(
@@ -288,10 +302,14 @@ def _ingest_document(
                 entities=0,
                 relations=0,
                 quarantine_reason=quarantine_reason,
+                warnings=warnings,
             )
 
         document_type = detect_document_type(parsed)
         segments = build_evidence_segments(doc_id, parsed, document_type)
+        warnings = warnings + tuple(
+            warning for segment in segments for warning in segment.warnings
+        )
         if not segments:
             raise IngestError("未解析出可切分的文字，无法产出证据段")
 
@@ -325,6 +343,7 @@ def _ingest_document(
                     doc_id=doc_id,
                     status=DocumentStatus.FAILED,
                     reason=message,
+                    fingerprint=fingerprint,
                 ),
             )
         return DocumentReport(
@@ -335,6 +354,7 @@ def _ingest_document(
             relations=0,
             error=message,
             extraction_attempts=attempts,
+            warnings=warnings,
         )
 
     _record_state(
@@ -345,6 +365,7 @@ def _ingest_document(
             evidence_segments=len(segments),
             entities=len(validated.entities),
             relations=len(validated.relations),
+            fingerprint=fingerprint,
         ),
     )
     return DocumentReport(
@@ -358,6 +379,7 @@ def _ingest_document(
         document_type=document_type,
         extraction_attempts=attempts,
         pending=validated.pending,
+        warnings=warnings,
     )
 
 
@@ -409,13 +431,14 @@ def _skipped_report(
     return DocumentReport(
         path=path,
         doc_id=doc_id,
-        evidence_segments=0,
-        entities=0,
-        relations=0,
+        evidence_segments=state.evidence_segments,
+        entities=state.entities,
+        relations=state.relations,
         quarantine_reason=(
             state.reason if state.status == DocumentStatus.QUARANTINED else None
         ),
         skipped=True,
+        prior_status=state.status,
     )
 
 
@@ -427,19 +450,20 @@ def _doc_id(content: bytes) -> str:
 def _build_batch(
     doc_id: str,
     segments: tuple[EvidenceSegment, ...],
-    entities: tuple[ExtractedEntity, ...],
+    entities: tuple[ValidatedEntity, ...],
     relations: tuple[ExtractedRelation, ...],
 ) -> GraphBatch:
     concepts: list[ConceptNode] = []
     links: list[ConceptEvidenceLink] = []
     concept_by_name: dict[str, ConceptNode] = {}
 
-    for index, entity in enumerate(entities):
+    for entity in entities:
         concept = ConceptNode(
-            id=f"{doc_id}:concept:{index}",
+            id=f"{doc_id}:concept:{entity.key}",
             name=entity.name,
             type=entity.type,
             doc_id=doc_id,
+            attributes=dict(entity.attributes),
         )
         concepts.append(concept)
         concept_by_name.setdefault(entity.name, concept)
@@ -447,10 +471,11 @@ def _build_batch(
             links.append(
                 ConceptEvidenceLink(
                     concept_id=concept.id,
-                    evidence_id=evidence_id,
-                    evidence_ids=(evidence_id,),
-                    confidence=entity.confidence,
-                    source="extracted",
+                    provenance=Provenance(
+                        evidence_ids=(evidence_id,),
+                        confidence=entity.confidence,
+                        source="extracted",
+                    ),
                 )
             )
 
@@ -459,15 +484,22 @@ def _build_batch(
         head = concept_by_name.get(relation.head)
         tail = concept_by_name.get(relation.tail)
         if head is None or tail is None:
-            continue
+            # 端点缺失是数据错误（AGENTS.md 第 5 条），不得静默丢边；
+            # 抛出让本篇记为失败，报告里能看见是哪条关系出的问题。
+            raise IngestError(
+                f"关系 {relation.type} 的端点未写入概念节点："
+                f"{relation.head} → {relation.tail}"
+            )
         graph_relations.append(
             ConceptRelation(
                 head_id=head.id,
                 type=relation.type,
                 tail_id=tail.id,
-                evidence_ids=tuple(relation.evidence_ids),
-                confidence=relation.confidence,
-                source="extracted",
+                provenance=Provenance(
+                    evidence_ids=tuple(relation.evidence_ids),
+                    confidence=relation.confidence,
+                    source="extracted",
+                ),
             )
         )
 

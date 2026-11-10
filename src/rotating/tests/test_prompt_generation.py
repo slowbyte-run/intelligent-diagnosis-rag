@@ -120,3 +120,13 @@ def test_prompt_lists_every_type_and_relation_of_the_real_ontology() -> None:
         assert definition.label in prompt
     assert segment.id in prompt
     assert segment.text in prompt
+
+
+def test_prompt_asks_for_location_and_damage_form_with_allowed_values() -> None:
+    prompt = build_extraction_prompt(load_ontology(), (evidence_segment(),))
+
+    # 这两个属性在提示词里必须既是「取值清单」也是「输出字段」，否则模型无从填。
+    assert '"location"' in prompt
+    assert '"damage_form"' in prompt
+    assert "outer_race（外圈）" in prompt
+    assert "rolling_contact_fatigue（滚动接触疲劳）" in prompt

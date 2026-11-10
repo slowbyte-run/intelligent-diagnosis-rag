@@ -31,11 +31,21 @@ class DocumentProcessingState:
     entities: int = 0
     relations: int = 0
     reason: str | None = None
+    # 抽取依据（提示词 + 本体）的指纹；已完成文献只有在指纹一致时可跳过。
+    fingerprint: str | None = None
 
-    @property
-    def settled(self) -> bool:
-        """是否已处理到不需要再跑：已入库，或已确定要隔离。"""
-        return self.status in (DocumentStatus.COMPLETED, DocumentStatus.QUARANTINED)
+    def is_current(self, fingerprint: str) -> bool:
+        """当前抽取依据下这篇文献是否可以直接跳过。
+
+        隔离判定与提示词、本体无关，永远保持有效；已完成的文献必须指纹
+        一致，改了提示词或本体就重新抽取。
+        """
+        if self.status is DocumentStatus.QUARANTINED:
+            return True
+        return (
+            self.status is DocumentStatus.COMPLETED
+            and self.fingerprint == fingerprint
+        )
 
 
 class IngestStateStore(Protocol):

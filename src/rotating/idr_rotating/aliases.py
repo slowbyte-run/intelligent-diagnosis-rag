@@ -1,8 +1,8 @@
 """别名归一：把文献里的同义术语收拢到本体定义的规范实例与规范类型。
 
 归一表完全由本体 YAML 推导。同一个别名若在本体里指向多个实例（如「塑性变形」
-既可能是轴承过载塑性变形，也可能是齿面塑性变形），本模块不做猜测，交由待审
-队列或人工处理。
+既可能是轴承过载塑性变形，也可能是齿面塑性变形），本模块不做猜测：
+``lookup_entity`` 返回全部候选，抽取校验把歧义项送进待审队列，由人工裁决。
 """
 
 from __future__ import annotations
@@ -57,10 +57,14 @@ class AliasResolver:
             for term in (relation_id, relation.label):
                 _add(self._relation_types, normalize_term(term), relation_id)
 
-    def resolve_entity(
+    def lookup_entity(
         self, name: str, *, entity_type: str | None = None
-    ) -> CanonicalEntity | None:
-        """把实体名解析为规范实例；名字未知或别名有歧义时返回 None。"""
+    ) -> tuple[CanonicalEntity, ...]:
+        """名字对应的全部规范实例；调用方据数量区分「未知」与「歧义」。
+
+        零个候选是本体里没有这个术语，一个候选可以归一，多个候选必须由
+        人工或待审队列裁决，不能猜。
+        """
         candidates = self._entities.get(normalize_term(name), ())
         if entity_type is not None:
             candidates = tuple(
@@ -68,6 +72,13 @@ class AliasResolver:
                 for candidate in candidates
                 if candidate.type == entity_type
             )
+        return candidates
+
+    def resolve_entity(
+        self, name: str, *, entity_type: str | None = None
+    ) -> CanonicalEntity | None:
+        """把实体名解析为唯一规范实例；名字未知或别名有歧义时返回 None。"""
+        candidates = self.lookup_entity(name, entity_type=entity_type)
         return candidates[0] if len(candidates) == 1 else None
 
     def resolve_type(self, name: str) -> str | None:
