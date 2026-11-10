@@ -43,6 +43,16 @@
 - 依赖用 `uv` 管理，提交 `uv.lock`。
 - 验证脚本时使用显式解释器路径，不依赖隐式激活。
 
+### 语料目录（`data/` 整体已 gitignore）
+
+| 路径 | 用途 | 可否重建 |
+|---|---|---|
+| `data/input/` | 原始 PDF（论文与专利混放），只读，人工投放 | 否，需备份 |
+| `data/output/quarantine/` | 解析失败或被隔离的文档及其原因 | 是 |
+| `data/output/reports/` | 每次入库的报告 | 是 |
+
+已处理文档的入库状态存 Postgres，不落文件；`data/` 下不放状态。
+
 ## Agent skills
 
 ### Issue tracker
