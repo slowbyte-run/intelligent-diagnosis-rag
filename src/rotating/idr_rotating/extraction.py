@@ -175,9 +175,24 @@ def validate_extraction(
             )
             continue
 
-        canonical = resolver.resolve_entity(
+        candidates = resolver.lookup_entity(
             entity.name, entity_type=canonical_type
         )
+        if len(candidates) > 1:
+            rejected_entities += 1
+            pending.append(
+                _observation(
+                    kind=PendingKind.ENTITY,
+                    value=canonical_type,
+                    reason=RejectionReason.AMBIGUOUS_ALIAS,
+                    doc_id=doc_id,
+                    name=entity.name.strip(),
+                    evidence_ids=entity.evidence_ids,
+                    evidence_text=evidence_text,
+                )
+            )
+            continue
+        canonical = candidates[0] if candidates else None
         name = canonical.label if canonical is not None else entity.name.strip()
 
         attributes, invalid_attribute = _validated_attributes(

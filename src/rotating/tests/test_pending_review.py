@@ -232,3 +232,54 @@ def test_batch_report_merges_pending_frequency_across_documents(
         first_doc_id,
         second_doc_id,
     }
+
+
+def test_ambiguous_alias_is_queued_instead_of_stored_as_raw_name(
+    tmp_path: Path,
+) -> None:
+    content = b"%PDF-1.4 ambiguous alias fixture"
+    write_pdf(tmp_path, "ambiguous.pdf", content)
+    doc_id = hashlib.sha256(content).hexdigest()[:16]
+    text = "塑性变形在本体里同时指向轴承与齿面两个实例。"
+    segment_id = f"ev:{doc_id}:1:0-{len(text)}"
+    response = json.dumps(
+        {
+            "entities": [
+                {
+                    "name": "塑性变形",
+                    "type": "fault_mode",
+                    "evidence_ids": [segment_id],
+                    "confidence": 0.9,
+                }
+            ],
+            "relations": [],
+        },
+        ensure_ascii=False,
+    )
+    graph_store = FakeGraphStore()
+
+    report = ingest(
+        tmp_path,
+        deps=IngestDeps(
+            llm=FakeLLM(response),
+            parser=FakeParser(
+                [ParsedPage(number=1, text=text, bbox=BBox(0.0, 0.0, 595.0, 842.0))]
+            ),
+            graph_store=graph_store,
+            embedder=FakeEmbedder(),
+            vector_store=FakeVectorStore(),
+        ),
+    )
+
+    document = report.documents[0]
+    assert document.error is None
+    assert document.entities == 0, "歧义别名不得以原文名字入库"
+    assert document.rejected_entities == 1
+    assert graph_store.batches[0].concepts == ()
+
+    (review,) = document.pending_reviews
+    assert review.kind is PendingKind.ENTITY
+    assert review.reason is RejectionReason.AMBIGUOUS_ALIAS
+    assert review.value == "fault_mode"
+    assert "塑性变形" in review.label
+    assert review.examples[0].text == text

@@ -27,6 +27,7 @@ class RejectionReason(StrEnum):
 
     TYPE_NOT_IN_ONTOLOGY = "type_not_in_ontology"
     ATTRIBUTE_NOT_IN_ONTOLOGY = "attribute_not_in_ontology"
+    AMBIGUOUS_ALIAS = "ambiguous_alias"
     MISSING_EVIDENCE = "missing_evidence"
     UNKNOWN_EVIDENCE = "unknown_evidence"
     UNKNOWN_RELATION_ENDPOINT = "unknown_relation_endpoint"
