@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
 import json
 from pathlib import Path
 
@@ -13,6 +14,10 @@ from idr_core.models import BBox, CharSpan
 from idr_core.parsing import ParsedPage
 from idr_core.vector_store import VectorDimensionError
 from idr_rotating import IngestDeps, IngestReport, OntologyError, ingest
+from idr_rotating.extraction import (
+    ExtractedRelation,
+    ValidatedExtraction,
+)
 
 from fakes import (
     FailingVectorStore,
@@ -530,3 +535,53 @@ def test_concept_node_ids_follow_concept_identity_not_extraction_order(
         f"{doc_id}:concept:bearing_outer_race_fatigue_spalling"
     )
     assert first_ids["新概念甲"] == f"{doc_id}:concept:symptom:新概念甲"
+
+
+def test_relation_endpoint_missing_from_validated_entities_fails_the_document(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """校验阶段放行了不存在的端点时，入库必须报数据错误而不是静默丢边。"""
+    content = b"%PDF-1.4 dangling relation"
+    write_pdf(tmp_path, "paper.pdf", content)
+    doc_id = content_doc_id(content)
+    text = "外圈剥落表现为 BPFO 倍频振动，能量集中在高频段。"
+    segment_id = evidence_id(doc_id, 1, text)
+    relation = ExtractedRelation(
+        head="幽灵甲",
+        type="indicated_by",
+        tail="幽灵乙",
+        evidence_ids=[segment_id],
+        confidence=0.9,
+    )
+
+    def dangling_validation(*args: object, **kwargs: object) -> ValidatedExtraction:
+        return ValidatedExtraction(
+            entities=(),
+            relations=(relation,),
+            rejected_entities=0,
+            rejected_relations=0,
+        )
+
+    ingest_module = importlib.import_module("idr_rotating.ingest")
+    monkeypatch.setattr(ingest_module, "validate_extraction", dangling_validation)
+    graph_store = FakeGraphStore()
+
+    report = ingest(
+        tmp_path,
+        deps=IngestDeps(
+            llm=FakeLLM('{"entities": [], "relations": []}'),
+            parser=FakeParser(
+                [ParsedPage(number=1, text=text, bbox=BBox(0.0, 0.0, 595.0, 842.0))]
+            ),
+            graph_store=graph_store,
+            embedder=FakeEmbedder(),
+            vector_store=FakeVectorStore(),
+        ),
+    )
+
+    document = report.documents[0]
+    assert document.error is not None, "端点缺失是数据错误，不是可以忽略的分支"
+    assert "幽灵甲" in document.error
+    assert "幽灵乙" in document.error
+    assert report.failed == 1
+    assert graph_store.batches == []

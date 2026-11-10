@@ -460,7 +460,12 @@ def _build_batch(
         head = concept_by_name.get(relation.head)
         tail = concept_by_name.get(relation.tail)
         if head is None or tail is None:
-            continue
+            # 端点缺失是数据错误（AGENTS.md 第 5 条），不得静默丢边；
+            # 抛出让本篇记为失败，报告里能看见是哪条关系出的问题。
+            raise IngestError(
+                f"关系 {relation.type} 的端点未写入概念节点："
+                f"{relation.head} → {relation.tail}"
+            )
         graph_relations.append(
             ConceptRelation(
                 head_id=head.id,
