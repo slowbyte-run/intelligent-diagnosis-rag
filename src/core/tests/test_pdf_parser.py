@@ -59,14 +59,14 @@ def one_page_pdf_with_lines(lines: list[str]) -> bytes:
 
 def test_parser_returns_text_page_with_bbox(tmp_path: Path) -> None:
     path = tmp_path / "tiny.pdf"
-    path.write_bytes(one_page_pdf("Outer race spalling"))
+    path.write_bytes(one_page_pdf("Sample line of text"))
 
     parsed = PdfTextParser().parse(path)
 
     assert len(parsed.pages) == 1
     page = parsed.pages[0]
     assert page.number == 1
-    assert "Outer race spalling" in page.text
+    assert "Sample line of text" in page.text
     assert (page.bbox.x0, page.bbox.y0, page.bbox.x1, page.bbox.y1) == (
         0.0,
         0.0,
@@ -83,17 +83,17 @@ def test_parser_exposes_line_geometry_for_segment_localization(
     path = tmp_path / "lines.pdf"
     path.write_bytes(
         one_page_pdf_with_lines(
-            ["Outer race spalling occurs", "at the BPFO frequency."]
+            ["First line of text occurs", "at the measured frequency."]
         )
     )
 
     parsed = PdfTextParser().parse(path)
 
     page = parsed.pages[0]
-    assert page.text == "Outer race spalling occurs\nat the BPFO frequency."
+    assert page.text == "First line of text occurs\nat the measured frequency."
     assert [line.text for line in page.lines] == [
-        "Outer race spalling occurs",
-        "at the BPFO frequency.",
+        "First line of text occurs",
+        "at the measured frequency.",
     ]
 
     first, second = page.lines
