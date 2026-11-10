@@ -41,9 +41,9 @@ from idr_rotating.document import (
     scanned_document_reason,
 )
 from idr_rotating.extraction import (
-    ExtractedEntity,
     ExtractedRelation,
     ExtractionError,
+    ValidatedEntity,
     extract_with_retry,
     validate_extraction,
 )
@@ -427,16 +427,16 @@ def _doc_id(content: bytes) -> str:
 def _build_batch(
     doc_id: str,
     segments: tuple[EvidenceSegment, ...],
-    entities: tuple[ExtractedEntity, ...],
+    entities: tuple[ValidatedEntity, ...],
     relations: tuple[ExtractedRelation, ...],
 ) -> GraphBatch:
     concepts: list[ConceptNode] = []
     links: list[ConceptEvidenceLink] = []
     concept_by_name: dict[str, ConceptNode] = {}
 
-    for index, entity in enumerate(entities):
+    for entity in entities:
         concept = ConceptNode(
-            id=f"{doc_id}:concept:{index}",
+            id=f"{doc_id}:concept:{entity.key}",
             name=entity.name,
             type=entity.type,
             doc_id=doc_id,

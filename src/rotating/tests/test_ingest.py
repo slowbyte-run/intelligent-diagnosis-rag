@@ -474,3 +474,59 @@ def test_malformed_ontology_fails_before_any_document_is_processed(
 
     assert llm.prompts == []
     assert graph_store.batches == []
+
+
+def test_concept_node_ids_follow_concept_identity_not_extraction_order(
+    tmp_path: Path,
+) -> None:
+    content = b"%PDF-1.4 concept identity"
+    write_pdf(tmp_path, "paper.pdf", content)
+    doc_id = content_doc_id(content)
+    text = "外圈剥落表现为 BPFO 倍频振动，新概念甲也出现了。"
+    segment_id = evidence_id(doc_id, 1, text)
+
+    def entity(name: str, type_: str, confidence: float) -> dict[str, object]:
+        return {
+            "name": name,
+            "type": type_,
+            "evidence_ids": [segment_id],
+            "confidence": confidence,
+        }
+
+    entities = [
+        entity("外圈剥落", "fault_mode", 0.9),
+        entity("BPFO 倍频", "symptom", 0.8),
+        entity("新概念甲", "symptom", 0.7),
+    ]
+    responses = [
+        json.dumps({"entities": entities, "relations": []}, ensure_ascii=False),
+        json.dumps(
+            {"entities": list(reversed(entities)), "relations": []},
+            ensure_ascii=False,
+        ),
+    ]
+    graph_store = FakeGraphStore()
+    deps = IngestDeps(
+        llm=FakeLLM(responses),
+        parser=FakeParser(
+            [ParsedPage(number=1, text=text, bbox=BBox(0.0, 0.0, 595.0, 842.0))]
+        ),
+        graph_store=graph_store,
+        embedder=FakeEmbedder(),
+        vector_store=FakeVectorStore(),
+    )
+
+    ingest(tmp_path, deps=deps)
+    ingest(tmp_path, deps=deps)
+
+    first_ids = {concept.name: concept.id for concept in graph_store.batches[0].concepts}
+    second_ids = {
+        concept.name: concept.id for concept in graph_store.batches[1].concepts
+    }
+    assert first_ids == second_ids, "抽取顺序变化不得改变概念节点 ID"
+
+    # 已解析到规范实例的概念用本体 ID，未解析的概念用归一后的标签。
+    assert first_ids["轴承外圈疲劳剥落"] == (
+        f"{doc_id}:concept:bearing_outer_race_fatigue_spalling"
+    )
+    assert first_ids["新概念甲"] == f"{doc_id}:concept:symptom:新概念甲"

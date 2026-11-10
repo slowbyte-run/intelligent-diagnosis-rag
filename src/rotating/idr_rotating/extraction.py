@@ -61,8 +61,23 @@ class Extraction(BaseModel):
 
 
 @dataclass(frozen=True, slots=True)
+class ValidatedEntity:
+    """通过本体校验的实体。
+
+    ``key`` 是概念身份：解析到规范实例时就是本体 ID，否则是「类型 + 归一标签」。
+    概念节点 ID 由它推导，因此抽取顺序变化不会改变节点 ID。
+    """
+
+    name: str
+    type: str
+    evidence_ids: tuple[str, ...]
+    confidence: float
+    key: str
+
+
+@dataclass(frozen=True, slots=True)
 class ValidatedExtraction:
-    entities: tuple[ExtractedEntity, ...]
+    entities: tuple[ValidatedEntity, ...]
     relations: tuple[ExtractedRelation, ...]
     rejected_entities: int
     rejected_relations: int
@@ -75,6 +90,7 @@ class _EntityAccumulator:
     type: str
     evidence_ids: list[str]
     confidence: float
+    key: str
 
 
 @dataclass(slots=True)
@@ -187,11 +203,12 @@ def validate_extraction(
         raw_to_canonical.setdefault(name, set()).add(name)
 
     accepted_entities = tuple(
-        ExtractedEntity(
+        ValidatedEntity(
             name=accumulator.name,
             type=accumulator.type,
-            evidence_ids=accumulator.evidence_ids,
+            evidence_ids=tuple(accumulator.evidence_ids),
             confidence=accumulator.confidence,
+            key=accumulator.key,
         )
         for accumulator in entities.values()
     )
@@ -333,6 +350,7 @@ def _merge_entity(
             type=canonical_type,
             evidence_ids=list(evidence_ids),
             confidence=entity.confidence,
+            key=key,
         )
         return
     _extend_unique(accumulator.evidence_ids, evidence_ids)
