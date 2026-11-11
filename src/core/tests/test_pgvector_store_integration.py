@@ -124,3 +124,42 @@ def test_table_stores_vectors_at_the_fixed_dimension(store: PgVectorStore) -> No
         ).fetchone()
 
     assert row == (f"vector({EMBEDDING_DIM})",)
+
+
+def test_search_similar_returns_nearest_evidence_in_distance_order(
+    store: PgVectorStore, evidence_ids: list[str]
+) -> None:
+    """顺序扫描按余弦距离升序取前 k 条；查询向量自己排第一。"""
+    vectors = [deterministic_vector(index) for index in range(len(evidence_ids))]
+    store.upsert_evidence_vectors(evidence_ids=evidence_ids, vectors=vectors)
+
+    matches = store.search_similar(vectors[0], limit=2)
+
+    assert len(matches) == 2
+    assert matches[0].evidence_id == evidence_ids[0]
+    assert matches[0].distance == pytest.approx(0.0, abs=1e-5)
+    assert matches[0].distance <= matches[1].distance
+    assert {match.evidence_id for match in matches} <= set(evidence_ids)
+
+
+def test_search_similar_rejects_a_query_vector_with_unexpected_dimension(
+    store: PgVectorStore,
+) -> None:
+    with pytest.raises(VectorDimensionError) as error:
+        store.search_similar([0.5] * (EMBEDDING_DIM - 1), limit=3)
+
+    assert str(EMBEDDING_DIM) in str(error.value)
+
+
+def test_vector_table_has_no_approximate_index(store: PgVectorStore) -> None:
+    """ADR：6806 条向量走顺序扫描，不建 HNSW/IVFFlat；建了索引要在这里被发现。"""
+    store.get_evidence_vector("it-t6:schema-probe")
+
+    with psycopg.connect(DATABASE_URL) as connection:
+        rows = connection.execute(
+            "SELECT indexdef FROM pg_indexes WHERE tablename = %s", (TABLE,)
+        ).fetchall()
+
+    definitions = " ".join(str(row[0]).lower() for row in rows)
+    assert "hnsw" not in definitions
+    assert "ivfflat" not in definitions
