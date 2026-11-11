@@ -5,6 +5,8 @@
 记录成本与复现模型组合。测试从不调用真实模型，只验证接线。
 """
 
+from collections.abc import Mapping
+
 from openai import OpenAI
 
 from idr_core.llm import LLMResponse, ModelDescriptor
@@ -19,9 +21,14 @@ class OpenAICompatibleLLM:
         model: str,
         timeout_seconds: float = 120.0,
         temperature: float = 0.0,
+        extra_headers: Mapping[str, str] | None = None,
     ) -> None:
+        self._extra_headers = dict(extra_headers or {})
         self._client = OpenAI(
-            base_url=base_url, api_key=api_key, timeout=timeout_seconds
+            base_url=base_url,
+            api_key=api_key,
+            timeout=timeout_seconds,
+            default_headers=self._extra_headers or None,
         )
         self._base_url = base_url
         self._model = model
@@ -57,5 +64,6 @@ class OpenAICompatibleLLM:
                 "base_url": self._base_url,
                 "temperature": self._temperature,
                 "response_format": "json_object",
+                "extra_headers": ",".join(sorted(self._extra_headers)),
             },
         )

@@ -119,6 +119,7 @@ def build_deps(config: Config) -> IngestDeps:
             base_url=config.deepseek_base_url,
             api_key=config.deepseek_api_key,
             model=config.deepseek_model,
+            extra_headers=config.llm_extra_headers,
         ),
         parser=PdfTextParser(),
         graph_store=Neo4jGraphStore(
