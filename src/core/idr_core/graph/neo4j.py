@@ -33,6 +33,27 @@ class Neo4jGraphStore:
 
     @staticmethod
     def _write_batch(tx: ManagedTransaction, batch: GraphBatch) -> None:
+        # 文档替换语义：先删这篇文献上一次贡献的节点与边，再写本次结果。
+        # 共享概念节点不带 doc_id，不会被删；其他文献的节点与边也不受影响。
+        tx.run(
+            """
+            MATCH (node)
+            WHERE node.doc_id = $doc_id
+            DETACH DELETE node
+            """,
+            doc_id=batch.doc_id,
+        ).consume()
+        # 指向共享概念节点的边不在上面的 DETACH 范围内（两端都存活），
+        # 必须按边自身的 doc_id 单独删除，否则重跑会叠加重复边。
+        tx.run(
+            """
+            MATCH ()-[edge]->()
+            WHERE edge.doc_id = $doc_id
+            DELETE edge
+            """,
+            doc_id=batch.doc_id,
+        ).consume()
+
         tx.run(
             """
             UNWIND $rows AS row
@@ -47,6 +68,8 @@ class Neo4jGraphStore:
                     "id": concept.id,
                     "name": concept.name,
                     "type": concept.type,
+                    # 共享概念的 doc_id 为 null，SET 会移除该属性，
+                    # 这正是「共享节点不属于任何单篇文献」在图里的表达。
                     "doc_id": concept.doc_id,
                     "attributes": dict(concept.attributes),
                 }
@@ -72,15 +95,17 @@ class Neo4jGraphStore:
             UNWIND $rows AS row
             MATCH (concept:Concept {id: row.concept_id})
             MATCH (evidence:Evidence {id: row.evidence_id})
-            MERGE (concept)-[edge:EVIDENCED_BY]->(evidence)
+            MERGE (concept)-[edge:EVIDENCED_BY {doc_id: row.doc_id}]->(evidence)
             SET edge.evidence_ids = row.evidence_ids,
                 edge.confidence = row.confidence,
-                edge.source = row.source
+                edge.source = row.source,
+                edge.doc_id = row.doc_id
             """,
             rows=[
                 {
                     "concept_id": link.concept_id,
                     "evidence_id": link.evidence_id,
+                    "doc_id": link.provenance.doc_id,
                     "evidence_ids": list(link.provenance.evidence_ids),
                     "confidence": link.provenance.confidence,
                     "source": link.provenance.source,
@@ -97,6 +122,7 @@ class Neo4jGraphStore:
                 {
                     "head_id": relation.head_id,
                     "tail_id": relation.tail_id,
+                    "doc_id": relation.provenance.doc_id,
                     "evidence_ids": list(relation.provenance.evidence_ids),
                     "confidence": relation.provenance.confidence,
                     "source": relation.provenance.source,
@@ -105,16 +131,18 @@ class Neo4jGraphStore:
 
         for relation_type, rows in rows_by_type.items():
             # 关系类型已过白名单正则，才能安全插值；Neo4j 不支持参数化关系类型。
+            # MERGE 带上 doc_id：同一对概念在不同文献里的断言保留为并行边。
             query = cast(
                 LiteralString,
                 f"""
                 UNWIND $rows AS row
                 MATCH (head:Concept {{id: row.head_id}})
                 MATCH (tail:Concept {{id: row.tail_id}})
-                MERGE (head)-[edge:{relation_type}]->(tail)
+                MERGE (head)-[edge:{relation_type} {{doc_id: row.doc_id}}]->(tail)
                 SET edge.evidence_ids = row.evidence_ids,
                     edge.confidence = row.confidence,
-                    edge.source = row.source
+                    edge.source = row.source,
+                    edge.doc_id = row.doc_id
                 """,
             )
             tx.run(query, rows=rows).consume()

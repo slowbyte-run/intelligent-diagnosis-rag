@@ -114,6 +114,9 @@ class ValidatedEntity:
 
     ``key`` 是概念身份：解析到规范实例时就是本体 ID，否则是「类型 + 归一标签」。
     概念节点 ID 由它推导，因此抽取顺序变化不会改变节点 ID。
+
+    ``canonical`` 标记 ``key`` 是否本体规范实例：只有规范实例允许跨文献共享
+    一个概念节点，自由词的身份依赖具体文献。
     """
 
     name: str
@@ -121,6 +124,7 @@ class ValidatedEntity:
     evidence_ids: tuple[str, ...]
     confidence: float
     key: str
+    canonical: bool = False
     attributes: dict[str, str] = field(default_factory=dict)
 
 
@@ -140,6 +144,7 @@ class _EntityAccumulator:
     evidence_ids: list[str]
     confidence: float
     key: str
+    canonical: bool = False
     attributes: dict[str, str] = field(default_factory=dict)
 
 
@@ -219,6 +224,22 @@ def validate_extraction(
                 )
             )
             continue
+        if ontology.entity_types[canonical_type].internal:
+            # 内部类型（如 evidence）由流水线维护，模型输出属于越界抽取；
+            # 进待审保证可见，但不因此判整篇失败。
+            rejected_entities += 1
+            pending.append(
+                _observation(
+                    kind=PendingKind.ENTITY,
+                    value=canonical_type,
+                    reason=RejectionReason.INTERNAL_TYPE,
+                    doc_id=doc_id,
+                    name=entity.name.strip(),
+                    evidence_ids=entity.evidence_ids,
+                    evidence_text=evidence_text,
+                )
+            )
+            continue
 
         candidates = resolver.lookup_entity(
             entity.name, entity_type=canonical_type
@@ -290,6 +311,7 @@ def validate_extraction(
             evidence_ids,
             entity,
             attributes,
+            canonical=canonical is not None,
         )
         raw_to_canonical.setdefault(entity.name.strip(), set()).add(name)
         raw_to_canonical.setdefault(name, set()).add(name)
@@ -301,6 +323,7 @@ def validate_extraction(
             evidence_ids=tuple(accumulator.evidence_ids),
             confidence=accumulator.confidence,
             key=accumulator.key,
+            canonical=accumulator.canonical,
             attributes=dict(accumulator.attributes),
         )
         for accumulator in entities.values()
@@ -333,6 +356,21 @@ def validate_extraction(
                     kind=PendingKind.RELATION,
                     value=relation.type,
                     reason=RejectionReason.TYPE_NOT_IN_ONTOLOGY,
+                    doc_id=doc_id,
+                    name=_relation_name(relation),
+                    evidence_ids=relation.evidence_ids,
+                    evidence_text=evidence_text,
+                )
+            )
+            continue
+        if ontology.relation_types[relation_type].internal:
+            # 同实体类型：内部关系由流水线的证据层维护，不能让模型直接产边。
+            rejected_relations += 1
+            pending.append(
+                _observation(
+                    kind=PendingKind.RELATION,
+                    value=relation_type,
+                    reason=RejectionReason.INTERNAL_TYPE,
                     doc_id=doc_id,
                     name=_relation_name(relation),
                     evidence_ids=relation.evidence_ids,
@@ -436,6 +474,8 @@ def _merge_entity(
     evidence_ids: tuple[str, ...],
     entity: ExtractedEntity,
     attributes: Mapping[str, str],
+    *,
+    canonical: bool,
 ) -> None:
     accumulator = entities.get(key)
     if accumulator is None:
@@ -445,6 +485,7 @@ def _merge_entity(
             evidence_ids=list(evidence_ids),
             confidence=entity.confidence,
             key=key,
+            canonical=canonical,
             attributes=dict(attributes),
         )
         return
@@ -541,6 +582,7 @@ def merge_validated_extractions(
                 evidence_ids=tuple(accumulator.evidence_ids),
                 confidence=accumulator.confidence,
                 key=accumulator.key,
+                canonical=accumulator.canonical,
                 attributes=dict(accumulator.attributes),
             )
             for accumulator in entities.values()
@@ -572,6 +614,7 @@ def _merge_validated_entity(
             evidence_ids=list(entity.evidence_ids),
             confidence=entity.confidence,
             key=entity.key,
+            canonical=entity.canonical,
             attributes=dict(entity.attributes),
         )
         return

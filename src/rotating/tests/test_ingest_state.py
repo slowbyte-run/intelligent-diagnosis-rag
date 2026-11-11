@@ -314,3 +314,28 @@ def test_skipped_documents_carry_their_previously_recorded_counts(
         1,
     ), "跳过的文献必须在报告里带回此前的计数"
     assert second.evidence_segments == 1
+
+
+def test_extraction_contract_change_invalidates_completed_documents(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """图谱身份与边归属规则也是抽取契约：契约版本变了就要重抽。"""
+    write_pdf(tmp_path, "paper.pdf")
+    llm = ScriptedLLM([EMPTY_EXTRACTION, EMPTY_EXTRACTION])
+    state_store = FakeStateStore()
+    deps = make_deps(llm=llm, state_store=state_store)
+
+    first = ingest(tmp_path, deps=deps)
+    second = ingest(tmp_path, deps=deps)
+    assert first.documents[0].skipped is False
+    assert second.documents[0].skipped is True
+    assert len(llm.prompts) == 1
+
+    # 模拟旧契约下完成的状态：当前契约版本参与指纹，必须触发重抽。
+    monkeypatch.setattr(
+        "idr_rotating.prompts.EXTRACTION_CONTRACT_VERSION", "previous"
+    )
+    third = ingest(tmp_path, deps=deps)
+
+    assert third.documents[0].skipped is False
+    assert len(llm.prompts) == 2

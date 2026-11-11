@@ -103,3 +103,33 @@ def test_known_top_level_sections_are_all_parsed() -> None:
     assert ontology.updated is not None
     assert ontology.standards
     assert ontology.edge_properties["confidence"] == "置信度，0–1，抽取时的模型自评"
+
+
+def test_duplicate_instance_id_across_entity_types_fails_during_load(
+    tmp_path: Path,
+) -> None:
+    """规范实例 ID 是跨文献的概念身份，重名会让两个类型悄悄合成一个节点。"""
+    path = tmp_path / "duplicate-instance.yaml"
+    path.write_text(
+        """
+version: 0.2.0
+domain: rotating
+entity_types:
+  alpha:
+    label: 甲类
+  beta:
+    label: 乙类
+relation_types: {}
+instances:
+  alpha:
+    - id: shared_identity
+      label: 共享身份
+  beta:
+    - id: shared_identity
+      label: 共享身份
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(OntologyError, match="全局唯一"):
+        load_ontology(path)
