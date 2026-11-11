@@ -1,5 +1,7 @@
 """抽取：模型输出经 Pydantic 解析、别名归一与本体校验后才允许入库。
 
+- 长文献按段数与字符数上限分批调用模型，每批单独校验引用，再按概念身份键
+  合并实体与关系。
 - 解析失败有界重试；重试仍失败时抛出带尝试次数的 ``ExtractionError``，
   由入库门面记录原因并继续处理下一篇，不中断整批。
 - 类型或关系越界不抛异常，而是进入待审队列；静默丢弃是禁止的。
@@ -13,6 +15,7 @@ from dataclasses import dataclass, field
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from idr_core.llm import LLMClient
+from idr_core.models import EvidenceSegment
 from idr_rotating.aliases import AliasResolver, CanonicalEntity, normalize_term
 from idr_rotating.ontology import Ontology
 from idr_rotating.pending import (
@@ -25,6 +28,15 @@ from idr_rotating.pending import (
 
 DEFAULT_MAX_ATTEMPTS = 3
 
+# 单次模型调用可见的证据段上限，段数与字符数必须同时满足。
+#
+# 真实语料上单篇论文可达 600 多段、两万多 prompt token；整篇一次调用时模型
+# 只能挤出十几个实体，概念间关系几乎为零。40 段按本语料约 1.2k–1.5k 字符，
+# 单次调用仍能看到相邻段落，又不至于长到被模型忽略；6000 字符是长段落
+# （专利常见）的兜底，防止少量长段再次把提示词撑大。
+MAX_BATCH_SEGMENTS = 40
+MAX_BATCH_CHARS = 6_000
+
 
 class ExtractionError(RuntimeError):
     """模型输出不是约定的 JSON 结构；``attempts`` 记录已尝试次数。"""
@@ -32,6 +44,39 @@ class ExtractionError(RuntimeError):
     def __init__(self, message: str, *, attempts: int = 1) -> None:
         super().__init__(message)
         self.attempts = attempts
+
+
+def batch_segments(
+    segments: Sequence[EvidenceSegment],
+    *,
+    max_segments: int = MAX_BATCH_SEGMENTS,
+    max_chars: int = MAX_BATCH_CHARS,
+) -> tuple[tuple[EvidenceSegment, ...], ...]:
+    """按段数与字符数双上限切分证据段，保持文档顺序。
+
+    单个证据段超过字符上限时独占一批：切分证据段会改变它的标识与定位，
+    而证据段是引用回溯的最小单位。这种批会超过字符上限，但不丢段，也不
+    把一条引用拆成两条。
+    """
+    if max_segments < 1 or max_chars < 1:
+        raise ValueError("批次上限必须是正整数")
+
+    batches: list[tuple[EvidenceSegment, ...]] = []
+    current: list[EvidenceSegment] = []
+    current_chars = 0
+    for segment in segments:
+        size = len(segment.text)
+        if current and (
+            len(current) >= max_segments or current_chars + size > max_chars
+        ):
+            batches.append(tuple(current))
+            current = []
+            current_chars = 0
+        current.append(segment)
+        current_chars += size
+    if current:
+        batches.append(tuple(current))
+    return tuple(batches)
 
 
 class ExtractedEntity(BaseModel):
@@ -407,6 +452,157 @@ def _merge_entity(
     accumulator.confidence = max(accumulator.confidence, entity.confidence)
     for attribute, value in attributes.items():
         accumulator.attributes.setdefault(attribute, value)
+
+
+def merge_validated_extractions(
+    parts: Sequence[ValidatedExtraction],
+    *,
+    doc_id: str,
+    evidence_text: Mapping[str, str],
+) -> ValidatedExtraction:
+    """合并各批的校验结果：实体按身份键去重并累计证据，关系按三元组去重。
+
+    每批已单独校验过引用；合并时把关系端点从批内写法归到首个规范名，再按
+    全局概念集检查歧义：同一原名在不同批次落到不同类型时，关系进入待审
+    队列，而不是被接到错误节点。端点完全缺失仍由写图前的数据错误检查拦下。
+    """
+    entities: dict[str, _EntityAccumulator] = {}
+    # 关系保留批次内「名字 -> 身份键」的映射：同一概念在不同批次可能写成
+    # 大小写或空白不同的形式，合并后必须归到首个规范名，否则写图时端点丢失。
+    relations: list[tuple[ExtractedRelation, dict[str, str]]] = []
+    pending: list[PendingObservation] = []
+    rejected_entities = 0
+    rejected_relations = 0
+
+    for part in parts:
+        rejected_entities += part.rejected_entities
+        rejected_relations += part.rejected_relations
+        pending.extend(part.pending)
+        names_to_keys = {
+            entity.name: entity.key for entity in part.entities
+        }
+        for entity in part.entities:
+            _merge_validated_entity(entities, entity)
+        relations.extend(
+            (relation, names_to_keys) for relation in part.relations
+        )
+
+    types_by_name: dict[str, set[str]] = {}
+    for entity in entities.values():
+        types_by_name.setdefault(entity.name, set()).add(entity.type)
+
+    merged_relations: dict[tuple[str, str, str], _RelationAccumulator] = {}
+    for relation, names_to_keys in relations:
+        head = _merged_endpoint_name(
+            relation.head, names_to_keys, entities
+        )
+        tail = _merged_endpoint_name(
+            relation.tail, names_to_keys, entities
+        )
+        ambiguous = _ambiguous_endpoint(
+            head, types_by_name
+        ) or _ambiguous_endpoint(tail, types_by_name)
+        if ambiguous:
+            rejected_relations += 1
+            pending.append(
+                _observation(
+                    kind=PendingKind.RELATION,
+                    value=relation.type,
+                    reason=RejectionReason.UNKNOWN_RELATION_ENDPOINT,
+                    doc_id=doc_id,
+                    name=_relation_name(relation),
+                    evidence_ids=relation.evidence_ids,
+                    evidence_text=evidence_text,
+                )
+            )
+            continue
+
+        key = (head, relation.type, tail)
+        accumulator = merged_relations.get(key)
+        if accumulator is None:
+            merged_relations[key] = _RelationAccumulator(
+                head=head,
+                type=relation.type,
+                tail=tail,
+                evidence_ids=list(relation.evidence_ids),
+                confidence=relation.confidence,
+            )
+        else:
+            _extend_unique(accumulator.evidence_ids, relation.evidence_ids)
+            accumulator.confidence = max(
+                accumulator.confidence, relation.confidence
+            )
+
+    return ValidatedExtraction(
+        entities=tuple(
+            ValidatedEntity(
+                name=accumulator.name,
+                type=accumulator.type,
+                evidence_ids=tuple(accumulator.evidence_ids),
+                confidence=accumulator.confidence,
+                key=accumulator.key,
+                attributes=dict(accumulator.attributes),
+            )
+            for accumulator in entities.values()
+        ),
+        relations=tuple(
+            ExtractedRelation(
+                head=accumulator.head,
+                type=accumulator.type,
+                tail=accumulator.tail,
+                evidence_ids=accumulator.evidence_ids,
+                confidence=accumulator.confidence,
+            )
+            for accumulator in merged_relations.values()
+        ),
+        rejected_entities=rejected_entities,
+        rejected_relations=rejected_relations,
+        pending=tuple(pending),
+    )
+
+
+def _merge_validated_entity(
+    entities: dict[str, _EntityAccumulator], entity: ValidatedEntity
+) -> None:
+    accumulator = entities.get(entity.key)
+    if accumulator is None:
+        entities[entity.key] = _EntityAccumulator(
+            name=entity.name,
+            type=entity.type,
+            evidence_ids=list(entity.evidence_ids),
+            confidence=entity.confidence,
+            key=entity.key,
+            attributes=dict(entity.attributes),
+        )
+        return
+    _extend_unique(accumulator.evidence_ids, entity.evidence_ids)
+    accumulator.confidence = max(accumulator.confidence, entity.confidence)
+    for attribute, value in entity.attributes.items():
+        accumulator.attributes.setdefault(attribute, value)
+
+
+def _merged_endpoint_name(
+    name: str,
+    names_to_keys: Mapping[str, str],
+    entities: Mapping[str, _EntityAccumulator],
+) -> str:
+    """把批次内的概念名映射到合并后的规范名。
+
+    批次内没有这个名字时原样返回，交给写图前的数据错误检查拦下，不在这里
+    把关系悄悄改接到同名的另一个概念上。
+    """
+    key = names_to_keys.get(name)
+    if key is None:
+        return name
+    accumulator = entities.get(key)
+    return name if accumulator is None else accumulator.name
+
+
+def _ambiguous_endpoint(
+    name: str, types_by_name: Mapping[str, set[str]]
+) -> bool:
+    """同名概念在合并后落到多个类型时，关系端点无法唯一确定。"""
+    return len(types_by_name.get(name, set())) > 1
 
 
 def _validated_attributes(

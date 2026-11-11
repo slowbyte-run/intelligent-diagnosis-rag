@@ -31,14 +31,14 @@ class DocumentProcessingState:
     entities: int = 0
     relations: int = 0
     reason: str | None = None
-    # 抽取依据（提示词 + 本体）的指纹；已完成文献只有在指纹一致时可跳过。
+    # 抽取依据的指纹；已完成文献只有在指纹一致时可跳过。
     fingerprint: str | None = None
 
     def is_current(self, fingerprint: str) -> bool:
         """当前抽取依据下这篇文献是否可以直接跳过。
 
-        隔离判定与提示词、本体无关，永远保持有效；已完成的文献必须指纹
-        一致，改了提示词或本体就重新抽取。
+        隔离判定与抽取依据无关，永远保持有效；已完成的文献必须指纹一致，
+        抽取依据变了就重新抽取。
         """
         if self.status is DocumentStatus.QUARANTINED:
             return True

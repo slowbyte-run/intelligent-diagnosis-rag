@@ -45,7 +45,10 @@ from idr_rotating.extraction import (
     ExtractedRelation,
     ExtractionError,
     ValidatedEntity,
+    ValidatedExtraction,
+    batch_segments,
     extract_with_retry,
+    merge_validated_extractions,
     validate_extraction,
 )
 from idr_rotating.ontology import (
@@ -134,7 +137,8 @@ class RunMetadata:
     model: ModelDescriptor | None
     ontology_version: str
     ontology_sha256: str
-    # 生成抽取提示词的「模板 + 本体」指纹，与处理状态里的跳过判定同源。
+    # 抽取依据的「提示词模板 + 本体 + 分批参数」指纹，与处理状态里的
+    # 跳过判定同源。
     prompt_sha256: str
 
 
@@ -313,14 +317,12 @@ def _ingest_document(
         if not segments:
             raise IngestError("未解析出可切分的文字，无法产出证据段")
 
-        prompt = build_extraction_prompt(ontology, segments)
         recording_llm = _CallRecordingLLM(deps.llm, doc_id, model_calls)
-        extraction, attempts = extract_with_retry(recording_llm, prompt)
-        validated = validate_extraction(
-            extraction,
+        validated, attempts = _extract_batches(
+            recording_llm,
             ontology,
             doc_id=doc_id,
-            evidence_text={segment.id: segment.text for segment in segments},
+            segments=segments,
         )
         # 先写向量、再写图：向量失败时这篇文献的图谱数据一行都不会落库。
         # 两个存储跨不了服务事务，图存储自身按文档事务写入，因此不会半完成。
@@ -380,6 +382,54 @@ def _ingest_document(
         extraction_attempts=attempts,
         pending=validated.pending,
         warnings=warnings,
+    )
+
+
+def _extract_batches(
+    llm: LLMClient,
+    ontology: Ontology,
+    *,
+    doc_id: str,
+    segments: tuple[EvidenceSegment, ...],
+) -> tuple[ValidatedExtraction, int]:
+    """逐批抽取并合并；任何一批重试后仍失败，整篇失败并指明是哪一批。
+
+    每批单独校验证据引用：引用了本批之外证据段的抽取照旧判失败，不会因为
+    同一篇文献的其他批次引用过就放行。
+    """
+    batches = batch_segments(segments)
+    parts: list[ValidatedExtraction] = []
+    attempts = 0
+    for position, batch in enumerate(batches, start=1):
+        try:
+            extraction, batch_attempts = extract_with_retry(
+                llm, build_extraction_prompt(ontology, batch)
+            )
+        except ExtractionError as error:
+            attempts += error.attempts
+            # 失败批次之前的抽取结果不落库：一篇文献要么完整入库，要么整篇
+            # 记为失败并在下次运行重试，避免图谱里留下没有报告的半份知识。
+            raise ExtractionError(
+                f"第 {position}/{len(batches)} 批抽取失败"
+                f"（累计尝试 {attempts} 次）：{error}",
+                attempts=attempts,
+            ) from None
+        attempts += batch_attempts
+        parts.append(
+            validate_extraction(
+                extraction,
+                ontology,
+                doc_id=doc_id,
+                evidence_text={segment.id: segment.text for segment in batch},
+            )
+        )
+    return (
+        merge_validated_extractions(
+            parts,
+            doc_id=doc_id,
+            evidence_text={segment.id: segment.text for segment in segments},
+        ),
+        attempts,
     )
 
 
