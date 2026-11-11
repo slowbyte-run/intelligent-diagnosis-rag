@@ -10,6 +10,8 @@ import pytest
 
 from idr_core.documents import DocumentNames, document_id
 from idr_core.graph import Concept, EvidenceRecord, FactEdge
+from idr_core.llm.rerank import RerankResponse, RerankScore
+from idr_core.vector_store import VectorMatch
 from idr_rotating import AskDeps
 
 from idr_cli.ask import CorpusDocumentNames, run_ask
@@ -175,8 +177,10 @@ def test_ask_prints_machine_readable_json(
             "document": "论文A.pdf",
             "page": 4,
             "text": "外圈剥落会在频谱上出现 BPFO 及其倍频。",
+            "score": None,
         }
     ]
+    assert payload["model_calls"] == []
 
 
 def test_ask_prints_the_reason_for_an_empty_answer(
@@ -247,6 +251,130 @@ def test_main_dispatches_ask_subcommand(
     assert exit_code == 0
     assert received == [tmp_path]
     assert "检索路径：图命中" in output
+
+
+class FakeEmbedder:
+    def embed(self, texts: Sequence[str]) -> list[list[float]]:
+        return [[0.1, 0.2] for _ in texts]
+
+
+class FakeVectorReader:
+    def __init__(self, evidence_ids: Sequence[str]) -> None:
+        self._evidence_ids = tuple(evidence_ids)
+
+    def search_similar(
+        self, vector: Sequence[float], *, limit: int
+    ) -> tuple[VectorMatch, ...]:
+        return tuple(
+            VectorMatch(evidence_id=evidence_id, distance=0.1)
+            for evidence_id in self._evidence_ids[:limit]
+        )
+
+
+class FakeReranker:
+    def __init__(self, score: float = 0.83) -> None:
+        self._score = score
+
+    def rerank(self, query: str, documents: Sequence[str]) -> RerankResponse:
+        return RerankResponse(
+            scores=tuple(
+                RerankScore(index=index, score=self._score)
+                for index, _ in enumerate(documents)
+            ),
+            model="fake-rerank",
+            input_tokens=9,
+            output_tokens=0,
+        )
+
+
+def deps_with_vector_only_basis() -> AskDeps:
+    segment = EvidenceRecord(
+        id=EVIDENCE_ID,
+        doc_id=DOC_ID,
+        page=4,
+        text="周期性冲击通常来自滚动体缺陷，需要用包络解调确认。",
+    )
+    return AskDeps(
+        graph_store=FakeGraphReader(evidence=(segment,)),
+        document_names=FakeDocumentNames({DOC_ID: "论文A.pdf"}),
+        embedder=FakeEmbedder(),
+        vector_store=FakeVectorReader([EVIDENCE_ID]),
+        reranker=FakeReranker(),
+    )
+
+
+def test_ask_prints_reranked_evidence_for_the_vector_path(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = run_ask(
+        "振动信号里出现周期性冲击应该检查什么",
+        deps=deps_with_vector_only_basis(),
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "检索路径：向量兜底" in output
+    assert "文献证据（图路径未命中，按重排相关度排序）：" in output
+    assert (
+        "1. 论文A.pdf 第 4 页（相关度 0.83）："
+        "周期性冲击通常来自滚动体缺陷，需要用包络解调确认。" in output
+    )
+
+
+def test_build_ask_deps_wires_graph_vectors_embedder_and_reranker(
+    tmp_path: Path,
+) -> None:
+    """真实依赖必须一次接齐：少接一件，向量兜底就永远不会发生。"""
+    from idr_core.config import load_config
+    from idr_core.llm.embedding import OpenAICompatibleEmbedder
+    from idr_core.llm.rerank import OpenAICompatibleReranker
+    from idr_core.vector_store.pgvector import PgVectorStore
+
+    from idr_cli.ask import build_ask_deps
+
+    config = load_config(
+        {
+            "DEEPSEEK_BASE_URL": "https://example.invalid",
+            "DEEPSEEK_API_KEY": "sk-test",
+            "DEEPSEEK_MODEL": "test-model",
+            "SILICONFLOW_BASE_URL": "https://example.invalid/v1",
+            "SILICONFLOW_API_KEY": "sk-test",
+            "EMBEDDING_MODEL": "test-embedding",
+            "EMBEDDING_DIM": "1024",
+            "NEO4J_URI": "bolt://127.0.0.1:1",
+            "NEO4J_USER": "neo4j",
+            "NEO4J_PASSWORD": "secret",
+            "DATABASE_URL": "postgresql://idr:secret@127.0.0.1:1/idr",
+        }
+    )
+
+    deps = build_ask_deps(config, tmp_path)
+
+    assert isinstance(deps.embedder, OpenAICompatibleEmbedder)
+    assert isinstance(deps.vector_store, PgVectorStore)
+    assert isinstance(deps.reranker, OpenAICompatibleReranker)
+    assert deps.document_names is not None
+    assert deps.document_names.name_for("not-a-real-id") is None
+
+
+def test_ask_reports_a_broken_retrieval_configuration(
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import idr_cli.ask as ask_module
+    from idr_rotating import RetrievalSettingsError
+
+    def blow_up(question: str, *, deps: AskDeps) -> object:
+        raise RetrievalSettingsError("检索配置读取失败：missing.yaml")
+
+    monkeypatch.setattr(ask_module, "ask", blow_up)
+
+    exit_code = run_ask("今天天气怎么样", deps=deps_with_one_fact())
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "检索配置错误" in captured.err
+    assert "missing.yaml" in captured.err
 
 
 def deps_with_two_hop_chain() -> AskDeps:

@@ -1,0 +1,11 @@
+# 检索参数。改动这里等于改检索行为，提交信息里要写清依据。
+#
+# 向量兜底的阈值是**初值，未经金标准集校准**（校准在 #17）：先用它把链路跑
+# 通、把评估基线跑出来，再按基线覆写，而不是凭手感天天调。
+#
+# vector_top_k         向量召回候选数（顺序扫描取最近的 k 段证据）
+# vector_min_rerank_score  重排分数低于它的候选不进答案，也是「拒答」的判据
+# vector_max_results   一次回答最多列出的证据段数
+vector_top_k: 20
+vector_min_rerank_score: 0.35
+vector_max_results: 5

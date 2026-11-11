@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
 from idr_core.embedding import EmbeddingError
+from idr_core.llm import UNKNOWN_MODEL, EmbeddingResponse, embed_texts
 from idr_core.llm.embedding import OpenAICompatibleEmbedder
 
 
@@ -81,3 +83,59 @@ def test_embed_without_texts_does_not_call_the_service() -> None:
 
     assert embedder.embed([]) == []
     assert client.embeddings.requests == []
+
+
+def test_embed_with_usage_reports_the_model_and_token_count() -> None:
+    response = SimpleNamespace(
+        model="test-embedding",
+        data=[SimpleNamespace(index=0, embedding=[1.0, 2.0])],
+        usage=SimpleNamespace(prompt_tokens=17, total_tokens=17),
+    )
+    embedder, _ = embedder_with(response)
+
+    result = embedder.embed_with_usage(["一段"])
+
+    assert result == EmbeddingResponse(
+        vectors=[[1.0, 2.0]], model="test-embedding", input_tokens=17
+    )
+    assert embedder.embed(["一段"]) == [[1.0, 2.0]]
+
+
+def test_embed_with_usage_reports_unknown_usage_when_the_service_omits_it() -> None:
+    response = SimpleNamespace(
+        data=[SimpleNamespace(index=0, embedding=[1.0, 2.0])]
+    )
+    embedder, _ = embedder_with(response)
+
+    result = embedder.embed_with_usage(["一段"])
+
+    assert (result.model, result.input_tokens) == (None, None)
+
+
+def test_embed_texts_records_a_cost_record_for_a_plain_embedder() -> None:
+    class PlainEmbedder:
+        def embed(self, texts: Sequence[str]) -> list[list[float]]:
+            return [[0.0, 0.0] for _ in texts]
+
+    vectors, call = embed_texts(PlainEmbedder(), ["一段"])
+
+    assert vectors == [[0.0, 0.0]]
+    assert call.model == UNKNOWN_MODEL
+    assert (call.input_tokens, call.output_tokens) == (None, None)
+    assert call.elapsed_seconds >= 0.0
+
+
+def test_embed_texts_prefers_the_instrumented_client() -> None:
+    response = SimpleNamespace(
+        model="test-embedding",
+        data=[SimpleNamespace(index=0, embedding=[1.0, 2.0])],
+        usage=SimpleNamespace(prompt_tokens=17, total_tokens=17),
+    )
+    embedder, _ = embedder_with(response)
+
+    _, call = embed_texts(embedder, ["一段"])
+
+    assert call.model == "test-embedding"
+    assert call.input_tokens == 17
+    assert call.output_tokens is None
+    assert call.elapsed_seconds >= 0.0
