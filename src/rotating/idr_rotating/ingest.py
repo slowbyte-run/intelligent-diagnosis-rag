@@ -503,16 +503,27 @@ def _build_batch(
     entities: tuple[ValidatedEntity, ...],
     relations: tuple[ExtractedRelation, ...],
 ) -> GraphBatch:
+    """把一篇文献的校验结果转成写图批次。
+
+    概念节点 ID 分两种作用域：解析到本体规范实例的概念用共享 ID
+    ``concept:{实例 ID}``，不带 ``doc_id``，因此可以跨文献合并；自由词在
+    本文献内用 ``{doc_id}:concept:{key}``，带 ``doc_id``，重跑本文献时随
+    文档作用域节点一起被替换。所有边都带 ``doc_id``，按文献归属删除。
+    """
     concepts: list[ConceptNode] = []
     links: list[ConceptEvidenceLink] = []
     concept_by_name: dict[str, ConceptNode] = {}
 
     for entity in entities:
         concept = ConceptNode(
-            id=f"{doc_id}:concept:{entity.key}",
+            id=(
+                f"concept:{entity.key}"
+                if entity.canonical
+                else f"{doc_id}:concept:{entity.key}"
+            ),
             name=entity.name,
             type=entity.type,
-            doc_id=doc_id,
+            doc_id=None if entity.canonical else doc_id,
             attributes=dict(entity.attributes),
         )
         concepts.append(concept)
@@ -522,6 +533,7 @@ def _build_batch(
                 ConceptEvidenceLink(
                     concept_id=concept.id,
                     provenance=Provenance(
+                        doc_id=doc_id,
                         evidence_ids=(evidence_id,),
                         confidence=entity.confidence,
                         source="extracted",
@@ -546,6 +558,7 @@ def _build_batch(
                 type=relation.type,
                 tail_id=tail.id,
                 provenance=Provenance(
+                    doc_id=doc_id,
                     evidence_ids=tuple(relation.evidence_ids),
                     confidence=relation.confidence,
                     source="extracted",

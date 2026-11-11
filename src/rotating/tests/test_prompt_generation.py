@@ -106,20 +106,41 @@ def test_prompt_changes_when_the_ontology_file_changes(tmp_path: Path) -> None:
         assert token not in prompt_alpha
 
 
-def test_prompt_lists_every_type_and_relation_of_the_real_ontology() -> None:
+def test_prompt_lists_every_public_type_and_relation_of_the_real_ontology() -> None:
     ontology = load_ontology()
     segment = evidence_segment()
 
     prompt = build_extraction_prompt(ontology, (segment,))
 
     for type_id, definition in ontology.entity_types.items():
+        if definition.internal:
+            continue
         assert type_id in prompt
         assert definition.label in prompt
     for relation_id, definition in ontology.relation_types.items():
+        if definition.internal:
+            continue
         assert relation_id in prompt
         assert definition.label in prompt
     assert segment.id in prompt
     assert segment.text in prompt
+
+
+def test_internal_types_are_not_offered_to_the_model() -> None:
+    """证据段这类内部类型由流水线维护，不能出现在抽取提示词里。"""
+    ontology = load_ontology()
+    prompt = build_extraction_prompt(ontology, (evidence_segment(),))
+
+    # 提示词以「- [类型标识]」列出可抽取类型；内部类型不能出现在清单中。
+    assert "[evidence]" not in prompt
+    assert "[evidenced_by]" not in prompt
+    assert "doc_id" not in prompt
+
+    # 声明是显式的：内部类型仍在本体里，只是不参与模型抽取。
+    assert ontology.entity_types["evidence"].internal is True
+    assert ontology.relation_types["evidenced_by"].internal is True
+    assert ontology.entity_types["fault_mode"].internal is False
+    assert ontology.relation_types["indicated_by"].internal is False
 
 
 def test_prompt_asks_for_location_and_damage_form_with_allowed_values() -> None:

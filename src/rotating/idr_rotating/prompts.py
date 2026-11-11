@@ -15,6 +15,11 @@ from idr_rotating.ontology import (
     ontology_fingerprint,
 )
 
+# 抽取契约版本：图谱身份、边归属等「抽取结果如何落图」的规则变化时递增。
+# 此前的隐式契约记为 "1"；引入本常量（跨文献概念合并取 "2"）后，这类
+# 规则变化不必依赖本体或提示词恰好也变动，就能让已完成文献重抽。
+EXTRACTION_CONTRACT_VERSION = "2"
+
 
 def build_extraction_prompt(
     ontology: Ontology, segments: tuple[EvidenceSegment, ...]
@@ -57,6 +62,7 @@ def _entity_type_lines(ontology: Ontology) -> str:
     lines = [
         _definition_line(type_id, definition)
         for type_id, definition in ontology.entity_types.items()
+        if not definition.internal
     ]
     return "\n".join(lines) if lines else "（本体没有定义实体类型）"
 
@@ -76,7 +82,7 @@ def _definition_line(type_id: str, definition: EntityTypeDef) -> str:
 def _instance_lines(ontology: Ontology) -> str:
     lines: list[str] = []
     for type_id, instances in ontology.instances.items():
-        if not instances:
+        if not instances or ontology.entity_types[type_id].internal:
             continue
         label = ontology.entity_types[type_id].label
         lines.append(f"【{label} {type_id}】")
@@ -93,6 +99,8 @@ def _instance_lines(ontology: Ontology) -> str:
 def _relation_lines(ontology: Ontology) -> str:
     lines: list[str] = []
     for relation_id, definition in ontology.relation_types.items():
+        if definition.internal:
+            continue
         details: list[str] = []
         if definition.description:
             details.append(definition.description)
@@ -108,6 +116,8 @@ def _relation_lines(ontology: Ontology) -> str:
 def _attribute_value_lines(ontology: Ontology) -> str:
     lines: list[str] = []
     for type_id, definition in ontology.entity_types.items():
+        if definition.internal:
+            continue
         for attribute in definition.attributes:
             values = ontology.attribute_values(attribute)
             if not values:
@@ -124,13 +134,14 @@ def _attribute_value_lines(ontology: Ontology) -> str:
 def extraction_fingerprint(ontology: Ontology) -> str:
     """提示词模板、本体内容与分批参数的组合指纹。
 
-    改提示词、本体或分批上限都会改变它。分批决定模型每次实际看到多少
-    证据段，同一提示词下换分批参数也必须让已完成文献重抽，否则旧的单批
-    结果会被状态存储一直跳过。指纹写进处理状态：已完成文献只有在指纹
-    不变时才允许跳过，否则重新抽取。
+    改提示词、本体、分批上限或抽取契约版本都会改变它。分批决定模型每次
+    实际看到多少证据段，同一提示词下换分批参数也必须让已完成文献重抽；
+    抽取契约版本覆盖「抽取结果如何落图」这类不一定出现在提示词里的规则。
+    指纹写进处理状态：已完成文献只有在指纹不变时才允许跳过，否则重新抽取。
     """
     skeleton = build_extraction_prompt(ontology, ())
     digest = hashlib.sha256(skeleton.encode("utf-8"))
+    digest.update(f"contract:{EXTRACTION_CONTRACT_VERSION}".encode("ascii"))
     digest.update(ontology_fingerprint().encode("ascii"))
     digest.update(
         f"batch:{MAX_BATCH_SEGMENTS}:{MAX_BATCH_CHARS}".encode("ascii")

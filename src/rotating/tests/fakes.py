@@ -8,9 +8,14 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from idr_core.embedding import EMBEDDING_DIM
-from idr_core.graph import GraphBatch
+from idr_core.graph import (
+    ConceptEvidenceLink,
+    ConceptNode,
+    ConceptRelation,
+    GraphBatch,
+)
 from idr_core.llm import LLMResponse, ModelDescriptor
-from idr_core.models import BBox, CharSpan
+from idr_core.models import BBox, CharSpan, EvidenceSegment
 from idr_core.parsing import ParsedDocument, ParsedLine, ParsedPage
 from idr_core.state import DocumentProcessingState
 
@@ -256,13 +261,56 @@ class FailingVectorStore:
 
 
 class FakeGraphStore:
-    """把写入批次留在内存里，供测试断言图谱内容。"""
+    """内存图谱：按与 Neo4j 适配器相同的「文档替换」契约应用每个写入批次。
+
+    - 写入前删掉 ``doc_id`` 等于本文档的节点（概念与证据段）与边；
+    - 跨文献共享的概念节点没有 ``doc_id``，不会被删；
+    - 同一对概念在不同文献里的断言各自保留一条并行边。
+
+    ``batches`` 保留原始批次，供只关心中间产物的既有测试读取。
+    """
 
     def __init__(self) -> None:
         self.batches: list[GraphBatch] = []
+        self.concepts: dict[str, ConceptNode] = {}
+        self.evidence: dict[str, EvidenceSegment] = {}
+        self.relations: list[ConceptRelation] = []
+        self.evidence_links: list[ConceptEvidenceLink] = []
 
     def write_document(self, batch: GraphBatch) -> None:
         self.batches.append(batch)
+        self.concepts = {
+            concept_id: concept
+            for concept_id, concept in self.concepts.items()
+            if concept.doc_id != batch.doc_id
+        }
+        self.evidence = {
+            evidence_id: segment
+            for evidence_id, segment in self.evidence.items()
+            if segment.doc_id != batch.doc_id
+        }
+        self.relations = [
+            relation
+            for relation in self.relations
+            if relation.provenance.doc_id != batch.doc_id
+        ]
+        self.evidence_links = [
+            link
+            for link in self.evidence_links
+            if link.provenance.doc_id != batch.doc_id
+        ]
+        self.concepts.update({concept.id: concept for concept in batch.concepts})
+        self.evidence.update({segment.id: segment for segment in batch.evidence})
+        self.relations.extend(batch.relations)
+        self.evidence_links.extend(batch.evidence_links)
+
+    def evidence_ids_for(self, concept_id: str) -> set[str]:
+        """某概念节点当前挂着的全部证据段标识。"""
+        return {
+            link.evidence_id
+            for link in self.evidence_links
+            if link.concept_id == concept_id
+        }
 
 
 class FakeStateStore:

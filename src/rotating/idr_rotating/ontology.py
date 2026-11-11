@@ -41,6 +41,9 @@ class EntityTypeDef(BaseModel):
     aliases: list[str] = Field(default_factory=list)
     attributes: dict[str, str] = Field(default_factory=dict)
     external_code: str | None = None
+    # 内部类型由流水线自己维护（如证据段），不进入抽取提示词，
+    # 模型输出内部类型视为越界抽取。
+    internal: bool = False
 
 
 class RelationTypeDef(BaseModel):
@@ -50,6 +53,8 @@ class RelationTypeDef(BaseModel):
     domain: list[str]
     range: list[str]
     description: str = ""
+    # 内部关系同样不面向模型：证据边由写入层按抽取出的 evidence_ids 建立。
+    internal: bool = False
 
 
 class InstanceDef(BaseModel):
@@ -103,9 +108,19 @@ class Ontology(BaseModel):
                     raise ValueError(
                         f"关系 {relation_id} 引用了未定义的实体类型 {entity_type}"
                     )
-        for entity_type in self.instances:
+        seen_instances: dict[str, str] = {}
+        for entity_type, instances in self.instances.items():
             if entity_type not in self.entity_types:
                 raise ValueError(f"实例分组 {entity_type} 不是已定义的实体类型")
+            for instance in instances:
+                previous = seen_instances.get(instance.id)
+                if previous is not None:
+                    raise ValueError(
+                        f"规范实例 ID {instance.id} 同时出现在 {previous} 与 "
+                        f"{entity_type}；概念节点以实例 ID 作为跨文献身份，"
+                        "必须全局唯一"
+                    )
+                seen_instances[instance.id] = entity_type
         return self
 
 

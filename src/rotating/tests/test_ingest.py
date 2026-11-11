@@ -534,9 +534,9 @@ def test_concept_node_ids_follow_concept_identity_not_extraction_order(
     }
     assert first_ids == second_ids, "抽取顺序变化不得改变概念节点 ID"
 
-    # 已解析到规范实例的概念用本体 ID，未解析的概念用归一后的标签。
+    # 规范实例用跨文献共享的本体 ID；自由词限定在本文献内。
     assert first_ids["轴承外圈疲劳剥落"] == (
-        f"{doc_id}:concept:bearing_outer_race_fatigue_spalling"
+        "concept:bearing_outer_race_fatigue_spalling"
     )
     assert first_ids["新概念甲"] == f"{doc_id}:concept:symptom:新概念甲"
 

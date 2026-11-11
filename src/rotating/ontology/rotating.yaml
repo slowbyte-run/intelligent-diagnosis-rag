@@ -9,9 +9,9 @@
 #   3. 无标准可依的类别（转子、结构）自建，并如实标注 source: 自建。
 #   4. ISO 标准为付费版权文本：只借用术语与条款号，不复制其表格结构。
 
-version: 0.1.0
+version: 0.2.0
 domain: rotating
-updated: 2026-11-10
+updated: 2026-11-11
 
 standards:
   - id: ISO 15243:2017
@@ -76,6 +76,8 @@ entity_types:
     aliases: [检测方法, 诊断手段, 测试方法, 检查方法]
     external_code: null
 
+  # 内部类型：由流水线根据证据段的真实定位写入，模型不得抽取。
+  # internal: true 的类型不进入抽取提示词，模型输出会被拒入待审队列。
   evidence:
     label: 证据段
     description: 文献原文段落及其定位信息，是引用回溯的最小单位
@@ -86,6 +88,7 @@ entity_types:
       bbox: 版面坐标
       charspan: 字符区间
     external_code: null
+    internal: true
 
 # ---------------------------------------------------------------------------
 
@@ -149,11 +152,13 @@ relation_types:
     domain: [fault_mode]
     range: [fault_mode]
     description: 频谱或现象上容易混淆的故障模式，对称关系
+  # 内部关系：概念到证据段的边由写入层建立，不让模型直接产出。
   evidenced_by:
     label: 依据于
     domain: [equipment_class, component, fault_mode, fault_cause, symptom, detection_method]
     range: [evidence]
     description: 该概念或论断的文献出处
+    internal: true
 
 # 边的属性约定
 edge_properties:

@@ -32,6 +32,8 @@ class RejectionReason(StrEnum):
     UNKNOWN_EVIDENCE = "unknown_evidence"
     UNKNOWN_RELATION_ENDPOINT = "unknown_relation_endpoint"
     DOMAIN_RANGE_MISMATCH = "domain_range_mismatch"
+    # 类型/关系在「内部」段声明：属于流水线自己维护的证据层，模型不得抽取。
+    INTERNAL_TYPE = "internal_type"
 
 
 @dataclass(frozen=True, slots=True)
