@@ -7,6 +7,7 @@ from pathlib import Path
 
 from idr_core.config import Config, ConfigError, load_config
 from idr_cli.ask import DEFAULT_SOURCE_DIR, build_ask_deps, run_ask
+from idr_cli.calibrate import run_calibrate
 from idr_cli.doctor import run_doctor
 from idr_cli.eval import run_eval
 from idr_cli.ingest import build_deps, run_ingest
@@ -80,6 +81,33 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_SOURCE_DIR,
         help=f"源 PDF 目录，用于引用回源校验，默认 {DEFAULT_SOURCE_DIR}",
     )
+    calibrate_command = commands.add_parser(
+        "calibrate",
+        help="用金标准集校准向量兜底阈值，输出推荐值并可选写回配置",
+    )
+    calibrate_command.add_argument(
+        "--golden",
+        type=Path,
+        default=None,
+        help="金标准集 JSON，默认使用领域包内的 golden_questions.json",
+    )
+    calibrate_command.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="检索配置路径，默认使用领域包内的 config/retrieval.yaml",
+    )
+    calibrate_command.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="校准报告输出文件，默认 data/output/reports/calibration-<时间戳>.json",
+    )
+    calibrate_command.add_argument(
+        "--write",
+        action="store_true",
+        help="把推荐阈值与校准标记写回检索配置（保留注释）",
+    )
     return parser
 
 
@@ -138,6 +166,21 @@ def main(
             corpus_dir=Path(arguments.corpus_dir),
             golden_path=arguments.golden,
             out_path=arguments.out,
+        )
+
+    if arguments.command == "calibrate":
+        try:
+            config = load_config()
+            calibrate_deps = ask_deps_factory(config, DEFAULT_SOURCE_DIR)
+        except ConfigError as error:
+            print(f"配置错误：{error}", file=sys.stderr)
+            return 1
+        return run_calibrate(
+            deps=calibrate_deps,
+            golden_path=arguments.golden,
+            out_path=arguments.out,
+            settings_path=arguments.config,
+            write_config=arguments.write,
         )
 
     raise AssertionError(f"未实现的命令：{arguments.command}")

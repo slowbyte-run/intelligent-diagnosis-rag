@@ -12,13 +12,16 @@
 2. **图没有依据时落向量**：``vector_recall`` 顺序扫描 pgvector 取候选、过重排、
    过阈值，答案标 ``AnswerPath.VECTOR``，``facts`` 为空，证据段直接进
    ``citations`` 并带上重排分数。
-3. **两边都没有依据才拒答**：``detail`` 分别写清图路径缺在哪、向量兜底差多少。
+3. **两边都没有依据才拒答**：``detail`` 分别写清图路径缺在哪、向量兜底差多少；
+   ``refusal_reason`` 区分 ``no_concept``（概念没识别出来）与 ``no_evidence``
+   （识别了但没有依据），用户据此知道该换问法还是该补语料。
+
+拒答是一个决定，不是降级：阈值来自配置（``vector_min_rerank_score``，校准方法
+见 ``docs/retrieval-calibration.md``），低于阈值不答题；拒答答案的 ``facts`` 与
+``citations`` 恒为空，由 ``Answer`` 的值对象不变量守住。
 
 歧义问题不兜底：问句同时指向多个同样具体的概念时，向量召回分不清该答哪一个，
 兜底只会把歧义藏进一个像模像样的答案里。
-
-线索留在这里，不要在本版展开：拒答判据与阈值校准（#17）——``_refusal`` 的
-措辞与阈值来源在同一个出口。
 
 答案必须带引用（AGENTS.md 第 6 条）：没有证据段的事实、或路径上有一步
 拿不到证据的结论，在组装阶段就被排除，不进入 ``facts``。
@@ -37,7 +40,13 @@ from idr_core.graph import (
 from idr_core.llm import ModelCall
 from idr_core.llm.rerank import Reranker
 from idr_core.vector_store import VectorReader
-from idr_rotating.answer import Answer, AnswerPath, Citation, Fact
+from idr_rotating.answer import (
+    Answer,
+    AnswerPath,
+    Citation,
+    Fact,
+    RefusalReason,
+)
 from idr_rotating.linking import ConceptMatch, link_question
 from idr_rotating.ontology import Ontology, load_ontology
 from idr_rotating.retrieval import RetrievalSettings, load_retrieval_settings
@@ -82,6 +91,7 @@ def ask(question: str, *, deps: AskDeps) -> Answer:
                 matches=matches,
                 focus=None,
                 detail="本体别名表没有在问题中匹配到概念，无法定位检索起点。",
+                reason=RefusalReason.NO_CONCEPT,
             ),
         )
 
@@ -95,6 +105,7 @@ def ask(question: str, *, deps: AskDeps) -> Answer:
                 matches=matches,
                 focus=None,
                 detail="命中的概念不在本次图检索的关系范围内，无法取事实。",
+                reason=RefusalReason.NO_EVIDENCE,
             ),
         )
 
@@ -108,6 +119,7 @@ def ask(question: str, *, deps: AskDeps) -> Answer:
             focus=None,
             detail=f"问题同时命中了多个同等具体的概念（{names}），"
             "不确定以哪个作为检索起点。",
+            reason=RefusalReason.NO_EVIDENCE,
         )
 
     graph_answer = _answer_from_graph(question, deps, matches, focus)
@@ -143,6 +155,11 @@ def _fall_back_or_refuse(
             focus=graph_answer.focus,
             detail=f"{graph_answer.detail or ''}{_vector_miss_detail(recall, settings)}",
             model_calls=recall.model_calls,
+            reason=(
+                RefusalReason.NO_CONCEPT
+                if not graph_answer.matches
+                else RefusalReason.NO_EVIDENCE
+            ),
         )
 
     return Answer(
@@ -179,9 +196,14 @@ def _vector_miss_detail(
         return "向量兜底也没有召回任何证据段。"
     if recall.top_score is None:
         return "向量兜底召回的候选在图上找不到原文，不能作为依据。"
+    provenance = (
+        "已用金标准集校准"
+        if settings.vector_min_rerank_score_calibrated
+        else "未经校准的初值"
+    )
     return (
         f"向量兜底最高重排分 {recall.top_score:.2f}，低于阈值 "
-        f"{settings.vector_min_rerank_score:.2f}，不作为依据。"
+        f"{settings.vector_min_rerank_score:.2f}（{provenance}），不作为依据。"
     )
 
 
@@ -205,6 +227,7 @@ def _answer_from_graph(
             matches=matches,
             focus=focus,
             detail=f"概念「{focus.concept.name}」不在图谱中。",
+            reason=RefusalReason.NO_EVIDENCE,
         )
 
     traversal = traverse(deps.graph_store, focus_node)
@@ -222,12 +245,13 @@ def _answer_from_graph(
     }
     facts = _facts_with_evidence(traversal.paths, segments)
     if not facts:
-        # 图没有带证据的事实；向量兜底由 ask() 统一接，#17 在同一出口判定拒答。
+        # 图没有带证据的事实；向量兜底与最终拒答由 ask() 在同一出口判定。
         return _refusal(
             question,
             matches=matches,
             focus=focus,
             detail=f"概念「{focus.concept.name}」没有带证据的一跳或两跳事实。",
+            reason=RefusalReason.NO_EVIDENCE,
         )
 
     return Answer(
@@ -339,6 +363,7 @@ def _refusal(
     matches: tuple[ConceptMatch, ...],
     focus: ConceptMatch | None,
     detail: str,
+    reason: RefusalReason,
     model_calls: tuple[ModelCall, ...] = (),
 ) -> Answer:
     """显式的空答案：把「缺在哪一步」写在 detail 里，不返回像模像样的猜测。"""
@@ -351,4 +376,5 @@ def _refusal(
         citations=(),
         detail=detail,
         model_calls=model_calls,
+        refusal_reason=reason,
     )

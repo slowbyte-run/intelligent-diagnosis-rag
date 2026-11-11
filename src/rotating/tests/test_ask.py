@@ -15,7 +15,7 @@ from idr_core.graph import (
 )
 from fakes import FakeGraphStore
 from idr_core.models import BBox, CharSpan, EvidenceSegment
-from idr_rotating import AnswerPath, AskDeps, LinkKind, ask
+from idr_rotating import AnswerPath, AskDeps, LinkKind, RefusalReason, ask
 
 OUTER_RACE = "concept:bearing_outer_race_fatigue_spalling"
 BPFO = "concept:bpfo_harmonics"
@@ -190,6 +190,7 @@ def test_ask_explains_which_alias_linked_each_concept() -> None:
     assert answer.focus.concept.id == OUTER_RACE
     # 图谱里没有这个节点，但链接结果仍如实带回，解释「问题被怎么理解」。
     assert answer.path is AnswerPath.REFUSAL
+    assert answer.refusal_reason is RefusalReason.NO_EVIDENCE
     assert answer.facts == ()
     assert answer.detail is not None and "图谱" in answer.detail
 
@@ -208,6 +209,7 @@ def test_ask_refuses_without_guessing_when_concepts_are_equally_specific() -> No
     answer = ask("磨粒磨损有什么征兆", deps=empty_deps())
 
     assert answer.path is AnswerPath.REFUSAL
+    assert answer.refusal_reason is RefusalReason.NO_EVIDENCE
     assert answer.focus is None
     assert answer.facts == ()
     assert answer.citations == ()
@@ -222,6 +224,7 @@ def test_ask_refuses_explicitly_when_no_concept_matches() -> None:
     answer = ask("今天天气怎么样", deps=empty_deps())
 
     assert answer.path is AnswerPath.REFUSAL
+    assert answer.refusal_reason is RefusalReason.NO_CONCEPT
     assert answer.matches == ()
     assert answer.focus is None
     assert answer.facts == ()
@@ -316,6 +319,7 @@ def test_ask_leaves_out_facts_without_evidence() -> None:
     )
 
     assert answer.path is AnswerPath.REFUSAL
+    assert answer.refusal_reason is RefusalReason.NO_EVIDENCE
     assert answer.facts == ()
     assert answer.citations == ()
     assert answer.detail is not None and "证据" in answer.detail
@@ -357,7 +361,10 @@ def test_ask_refuses_when_matched_concepts_are_outside_the_relation_scope() -> N
     answer = ask("温升异常", deps=empty_deps())
 
     assert answer.path is AnswerPath.REFUSAL
+    assert answer.refusal_reason is RefusalReason.NO_EVIDENCE
     assert answer.focus is None
+    assert answer.facts == ()
+    assert answer.citations == ()
     assert answer.detail is not None and "关系范围" in answer.detail
 
 

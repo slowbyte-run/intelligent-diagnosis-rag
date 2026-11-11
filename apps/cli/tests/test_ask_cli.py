@@ -128,7 +128,7 @@ def test_ask_prints_machine_readable_json(
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 0
-    assert payload["schema_version"] == 2
+    assert payload["schema_version"] == 3
     assert payload["question"] == "轴承外圈疲劳剥落有什么征兆"
     assert payload["path"] == "graph"
     assert payload["detail"] is None
@@ -194,8 +194,42 @@ def test_ask_prints_the_reason_for_an_empty_answer(
     output = capsys.readouterr().out
     assert exit_code == 0
     assert "检索路径：拒答" in output
+    assert "拒答原因：问题里的概念没有识别出来（no_concept）" in output
     assert "没有可回答的依据" in output
     assert "匹配" in output
+
+
+def test_ask_prints_no_evidence_when_a_concept_has_no_basis(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = run_ask(
+        "轴承外圈疲劳剥落有什么征兆",
+        deps=AskDeps(graph_store=FakeGraphReader()),
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "检索路径：拒答" in output
+    assert "拒答原因：概念已识别，但没有找到可用的证据（no_evidence）" in output
+    assert "不在图谱中" in output
+
+
+def test_ask_puts_the_refusal_reason_in_json(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = run_ask(
+        "今天天气怎么样",
+        deps=AskDeps(graph_store=FakeGraphReader()),
+        as_json=True,
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["schema_version"] == 3
+    assert payload["path"] == "refusal"
+    assert payload["refusal_reason"] == "no_concept"
+    assert payload["facts"] == []
+    assert payload["citations"] == []
 
 
 def test_corpus_document_names_maps_content_hash_to_file_name(

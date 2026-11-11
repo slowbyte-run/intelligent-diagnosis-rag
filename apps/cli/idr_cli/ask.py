@@ -33,6 +33,7 @@ from idr_rotating import (
     Fact,
     LinkKind,
     OntologyError,
+    RefusalReason,
     RetrievalSettingsError,
     ask,
 )
@@ -45,6 +46,11 @@ _PATH_LABELS = {
     AnswerPath.GRAPH: "图命中",
     AnswerPath.VECTOR: "向量兜底",
     AnswerPath.REFUSAL: "拒答",
+}
+
+_REFUSAL_LABELS = {
+    RefusalReason.NO_CONCEPT: "问题里的概念没有识别出来（no_concept）",
+    RefusalReason.NO_EVIDENCE: "概念已识别，但没有找到可用的证据（no_evidence）",
 }
 
 
@@ -140,6 +146,8 @@ def render_answer(answer: Answer) -> str:
         lines.append(
             "同时命中：" + "；".join(_match_text(match, ontology) for match in others)
         )
+    if answer.refusal_reason is not None:
+        lines.append(f"拒答原因：{_REFUSAL_LABELS[answer.refusal_reason]}")
 
     if answer.path is AnswerPath.VECTOR and answer.citations:
         lines.extend(["", "文献证据（图路径未命中，按重排相关度排序）："])

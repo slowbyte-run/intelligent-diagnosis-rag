@@ -13,6 +13,11 @@
 
 本层只表达事实，不设阈值：判定什么时候拒答是检索编排的事，答案只把结果如实
 标注。``truncated`` 表示结果集撞到上界被截断，``detail`` 里写明原因。
+
+拒答有两种原因，由 :class:`RefusalReason` 区分：``no_concept`` 是问题里的概念
+没被识别出来，``no_evidence`` 是识别了概念却没有证据支撑。这个区分是给用户的
+行动指引——前者该换个问法，后者该补语料。两种拒答都不允许携带 ``facts`` 或
+``citations``：值对象在构造时就拒绝这种自相矛盾的答案，而不是靠调用点自觉。
 """
 
 from __future__ import annotations
@@ -34,8 +39,22 @@ class AnswerPath(StrEnum):
     GRAPH = "graph"
     # 向量兜底：图没有命中时按语义召回证据段并重排（#16）。
     VECTOR = "vector"
-    # 拒答：图与向量两条路都没有给出可用依据；判据与阈值校准在 #17。
+    # 拒答：图与向量两条路都没有给出可用依据。
     REFUSAL = "refusal"
+
+
+class RefusalReason(StrEnum):
+    """拒答原因：问题没被理解，还是理解了但没有依据。
+
+    两者的行动含义不同：``NO_CONCEPT`` 说明问题里的说法没有落到本体概念上，
+    用户换一种问法（或维护者补别名）就可能答得出来；``NO_EVIDENCE`` 说明概念
+    已经识别，是图谱与文献里没有可用的证据，需要补语料或补抽取。
+    """
+
+    # 问题里没有任何片段链接到本体概念。
+    NO_CONCEPT = "no_concept"
+    # 链接到了概念，但没有带证据的事实，向量兜底也没有候选过阈值。
+    NO_EVIDENCE = "no_evidence"
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,11 +115,28 @@ class Answer:
     truncated: bool = False
     # 本次回答产生的模型调用（向量兜底的嵌入与重排）；图路径为空。
     model_calls: tuple[ModelCall, ...] = ()
+    # 拒答原因；非拒答路径必须为 None。拒绝与原因一一对应，不靠调用方记得填。
+    refusal_reason: RefusalReason | None = None
+
+    def __post_init__(self) -> None:
+        """拒答必须说明原因，且不得携带任何结论或引用。"""
+        refusing = self.path is AnswerPath.REFUSAL
+        if refusing != (self.refusal_reason is not None):
+            raise ValueError(
+                "拒答路径必须且只能带拒答原因："
+                f"{self.path.value} / {self.refusal_reason}"
+            )
+        if refusing and (self.facts or self.citations):
+            raise ValueError(
+                "拒答答案不能包含结论或引用：拒答是「没有依据」，"
+                "带结论或引用会让它变成低置信度答案"
+            )
 
 
 # 2：结论增加图路径、引用增加重排分数，答案增加模型调用记录与截断标记；
+# 3：答案增加 refusal_reason（拒答原因）。
 # 字段只增不改，评估按版本号读。
-ANSWER_SCHEMA_VERSION = 2
+ANSWER_SCHEMA_VERSION = 3
 
 
 def answer_to_dict(answer: Answer) -> dict[str, Any]:
@@ -109,6 +145,11 @@ def answer_to_dict(answer: Answer) -> dict[str, Any]:
         "schema_version": ANSWER_SCHEMA_VERSION,
         "question": answer.question,
         "path": answer.path.value,
+        "refusal_reason": (
+            answer.refusal_reason.value
+            if answer.refusal_reason is not None
+            else None
+        ),
         "detail": answer.detail,
         "truncated": answer.truncated,
         "focus": _match_to_dict(answer.focus),

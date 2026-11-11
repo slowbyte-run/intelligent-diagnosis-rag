@@ -18,7 +18,7 @@ from idr_core.llm import EmbeddingResponse
 from idr_core.llm.rerank import RerankResponse, RerankScore
 from idr_core.models import BBox, CharSpan, EvidenceSegment
 from idr_core.vector_store import VectorMatch
-from idr_rotating import AnswerPath, AskDeps, ask
+from idr_rotating import AnswerPath, AskDeps, RefusalReason, ask
 from idr_rotating.retrieval import RetrievalSettings
 
 OUTER_RACE = "concept:bearing_outer_race_fatigue_spalling"
@@ -27,6 +27,7 @@ ENVELOPE = "concept:envelope_demodulation"
 
 OUT_OF_GRAPH_QUESTION = "振动信号里出现周期性冲击应该检查什么"
 GRAPH_QUESTION = "轴承外圈疲劳剥落有什么征兆"
+GRAPH_MISS_QUESTION = "转子不平衡有什么征兆"
 
 SYMPTOM_TEXT = "外圈剥落会在频谱上出现 BPFO 及其倍频。"
 DETECTION_TEXT = "包络解调可以确认外圈剥落的冲击。"
@@ -381,15 +382,17 @@ def test_low_rerank_scores_refuse_and_report_the_threshold() -> None:
         min_score=0.5,
     )
 
-    answer = ask(OUT_OF_GRAPH_QUESTION, deps=built.deps)
+    answer = ask(GRAPH_MISS_QUESTION, deps=built.deps)
 
     assert answer.path is AnswerPath.REFUSAL
+    assert answer.refusal_reason is RefusalReason.NO_EVIDENCE
     assert answer.facts == ()
     assert answer.citations == ()
     assert answer.detail is not None
     assert "0.20" in answer.detail
     assert "0.50" in answer.detail
     assert "阈值" in answer.detail
+    assert "未经校准的初值" in answer.detail
     # 拒绝也花了两次模型调用，成本记录不能因为没答出来就丢掉。
     assert len(answer.model_calls) == 2
 
@@ -400,6 +403,7 @@ def test_empty_vector_table_refuses_without_a_rerank_call() -> None:
     answer = ask(OUT_OF_GRAPH_QUESTION, deps=built.deps)
 
     assert answer.path is AnswerPath.REFUSAL
+    assert answer.refusal_reason is RefusalReason.NO_CONCEPT
     assert built.reranker.calls == []
     assert answer.detail is not None and "没有召回" in answer.detail
     assert [call.model for call in answer.model_calls] == ["unknown"]
@@ -411,6 +415,7 @@ def test_without_vector_dependencies_the_graph_refusal_is_unchanged() -> None:
     answer = ask(OUT_OF_GRAPH_QUESTION, deps=AskDeps(graph_store=built.graph))
 
     assert answer.path is AnswerPath.REFUSAL
+    assert answer.refusal_reason is RefusalReason.NO_CONCEPT
     assert answer.detail is not None and "无法定位检索起点" in answer.detail
     assert answer.model_calls == ()
 
@@ -424,6 +429,7 @@ def test_ambiguous_concepts_are_not_papered_over_by_vector_recall() -> None:
     answer = ask("磨粒磨损有什么征兆", deps=built.deps)
 
     assert answer.path is AnswerPath.REFUSAL
+    assert answer.refusal_reason is RefusalReason.NO_EVIDENCE
     assert "多个" in (answer.detail or "")
     assert built.embedder.texts == []
     assert built.reranker.calls == []
@@ -443,3 +449,92 @@ def test_graph_path_fact_order_is_untouched_when_a_reranker_is_available() -> No
         "detected_by",
     ]
     assert [citation.score for citation in answer.citations] == [None, None]
+
+
+def test_a_score_exactly_on_the_threshold_counts_as_evidence() -> None:
+    """边界是闭区间：分数等于阈值时仍有依据，低于阈值才拒答。"""
+    built = build_vector_deps(
+        matches=((SYMPTOM_ID, 0.01),),
+        rerank_scores={SYMPTOM_TEXT: 0.5},
+        min_score=0.5,
+    )
+
+    answer = ask(GRAPH_MISS_QUESTION, deps=built.deps)
+
+    assert answer.path is AnswerPath.VECTOR
+    assert [citation.evidence_id for citation in answer.citations] == [SYMPTOM_ID]
+
+
+def test_a_score_just_below_the_threshold_refuses_without_conclusions() -> None:
+    built = build_vector_deps(
+        matches=((SYMPTOM_ID, 0.01),),
+        rerank_scores={SYMPTOM_TEXT: 0.4999},
+        min_score=0.5,
+    )
+
+    answer = ask(GRAPH_MISS_QUESTION, deps=built.deps)
+
+    assert answer.path is AnswerPath.REFUSAL
+    assert answer.refusal_reason is RefusalReason.NO_EVIDENCE
+    assert answer.facts == ()
+    assert answer.citations == ()
+    assert "0.50" in (answer.detail or "")
+
+
+def test_a_question_without_a_linked_concept_reports_no_concept() -> None:
+    built = build_vector_deps(
+        matches=((SYMPTOM_ID, 0.01),),
+        rerank_scores={SYMPTOM_TEXT: 0.1},
+        min_score=0.5,
+    )
+
+    answer = ask(OUT_OF_GRAPH_QUESTION, deps=built.deps)
+
+    assert answer.matches == ()
+    assert answer.path is AnswerPath.REFUSAL
+    assert answer.refusal_reason is RefusalReason.NO_CONCEPT
+    assert answer.facts == ()
+    assert answer.citations == ()
+
+
+def test_a_linked_concept_without_vector_basis_reports_no_evidence() -> None:
+    """「温升异常」链接到概念但不能当检索起点：这是没依据，不是没识别。"""
+    built = build_vector_deps(
+        matches=((SYMPTOM_ID, 0.01),),
+        rerank_scores={SYMPTOM_TEXT: 0.1},
+        min_score=0.5,
+    )
+
+    answer = ask("温升异常", deps=built.deps)
+
+    assert answer.matches
+    assert answer.path is AnswerPath.REFUSAL
+    assert answer.refusal_reason is RefusalReason.NO_EVIDENCE
+    assert answer.facts == ()
+    assert answer.citations == ()
+
+
+def test_the_refusal_says_whether_the_threshold_was_calibrated() -> None:
+    built = build_vector_deps(
+        matches=((SYMPTOM_ID, 0.01),),
+        rerank_scores={SYMPTOM_TEXT: 0.2},
+        min_score=0.5,
+    )
+    calibrated = AskDeps(
+        graph_store=built.graph,
+        document_names=built.deps.document_names,
+        embedder=built.embedder,
+        vector_store=built.vector_store,
+        reranker=built.reranker,
+        retrieval_settings=RetrievalSettings(
+            vector_top_k=3,
+            vector_min_rerank_score=0.5,
+            vector_min_rerank_score_calibrated=True,
+            vector_max_results=3,
+        ),
+    )
+
+    answer = ask(GRAPH_MISS_QUESTION, deps=calibrated)
+
+    assert answer.path is AnswerPath.REFUSAL
+    assert "已用金标准集校准" in (answer.detail or "")
