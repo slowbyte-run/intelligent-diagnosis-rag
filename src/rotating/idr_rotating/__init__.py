@@ -17,6 +17,11 @@ from idr_rotating.pending import (
     PendingReview,
     RejectionReason,
 )
+from idr_rotating.retrieval import (
+    RetrievalSettings,
+    RetrievalSettingsError,
+    load_retrieval_settings,
+)
 from idr_rotating.report import (
     DocumentOutcome,
     DocumentReport,
@@ -47,8 +52,11 @@ __all__ = [
     "PendingObservation",
     "PendingReview",
     "RejectionReason",
+    "RetrievalSettings",
+    "RetrievalSettingsError",
     "RunMetadata",
     "ask",
     "ingest",
+    "load_retrieval_settings",
     "write_report",
 ]

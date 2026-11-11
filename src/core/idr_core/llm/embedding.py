@@ -3,6 +3,9 @@
 模型调用收敛在 ``idr_core.llm`` 层（AGENTS.md 第 4 条）。ADR-0002 要求所有
 嵌入模型产出 1024 维向量，因此向服务端传 MRL 截断参数；服务端若不遵守，
 在适配器处明确失败，不静默裁切。
+
+除向量外，本适配器还报告供应商给出的模型名与输入 token 用量（``embed_with_usage``），
+供成本记录使用；``embed`` 保持最小端口的行为不变。
 """
 
 from __future__ import annotations
@@ -13,6 +16,7 @@ from typing import Any
 from openai import OpenAI
 
 from idr_core.embedding import EMBEDDING_DIM, EmbeddingError
+from idr_core.llm import EmbeddingResponse
 
 
 class OpenAICompatibleEmbedder:
@@ -35,8 +39,11 @@ class OpenAICompatibleEmbedder:
         self._dimensions = dimensions
 
     def embed(self, texts: Sequence[str]) -> list[list[float]]:
+        return self.embed_with_usage(texts).vectors
+
+    def embed_with_usage(self, texts: Sequence[str]) -> EmbeddingResponse:
         if not texts:
-            return []
+            return EmbeddingResponse(vectors=[])
 
         response = self._client.embeddings.create(
             model=self._model,
@@ -58,4 +65,14 @@ class OpenAICompatibleEmbedder:
                     f"嵌入服务返回的向量维度为 {len(vector)}，"
                     f"请求的维度为 {self._dimensions}"
                 )
-        return vectors
+        usage = getattr(response, "usage", None)
+        prompt_tokens = getattr(usage, "prompt_tokens", None)
+        return EmbeddingResponse(
+            vectors=vectors,
+            model=getattr(response, "model", None),
+            input_tokens=(
+                prompt_tokens
+                if isinstance(prompt_tokens, int) and not isinstance(prompt_tokens, bool)
+                else None
+            ),
+        )

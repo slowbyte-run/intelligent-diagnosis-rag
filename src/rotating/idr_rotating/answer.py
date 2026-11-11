@@ -6,6 +6,10 @@
 
 ``path`` 明确回答「这条答案是怎么来的」——图命中、向量兜底还是拒答。本层
 只表达事实，不设阈值：判定什么时候拒答是检索编排的事，答案只把结果如实标注。
+
+向量兜底没有图上的结论，``facts`` 为空，证据段直接进 ``citations``；这类引用
+带重排分数 ``score``（图路径为 ``None``，顺序由关系类型决定）。每条答案还带着
+本次产生的模型调用记录，成本核算不需要另开一条统计通道。
 """
 
 from __future__ import annotations
@@ -15,6 +19,7 @@ from enum import StrEnum
 from typing import Any
 
 from idr_core.graph import Concept
+from idr_core.llm import ModelCall
 from idr_rotating.linking import ConceptMatch
 
 
@@ -23,21 +28,26 @@ class AnswerPath(StrEnum):
 
     # 图命中：沿本体关系取到带证据的事实。
     GRAPH = "graph"
-    # 向量兜底：图没有命中时按语义召回证据段（#16 接进来，本票不产生）。
+    # 向量兜底：图没有命中时按语义召回证据段并重排（#16）。
     VECTOR = "vector"
-    # 拒答：没有可用的带证据结论；本票只表示「空答案」，阈值策略在 #17。
+    # 拒答：图与向量两条路都没有给出可用依据；判据与阈值校准在 #17。
     REFUSAL = "refusal"
 
 
 @dataclass(frozen=True, slots=True)
 class Citation:
-    """一条结论的出处；``document`` 缺省表示按标识查不到文献名。"""
+    """一条结论的出处；``document`` 缺省表示按标识查不到文献名。
+
+    ``score`` 只有向量兜底路径有值：它是这条证据段的重排分数，也是它排在这个
+    位置的原因；图路径的引用没有分数，顺序由关系类型决定。
+    """
 
     evidence_id: str
     doc_id: str
     document: str | None
     page: int
     text: str
+    score: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,9 +73,12 @@ class Answer:
     citations: tuple[Citation, ...]
     # 空答案时说明缺在哪一步（未命中概念、概念不在图谱、没有带证据的事实）。
     detail: str | None = None
+    # 本次回答产生的模型调用（向量兜底的嵌入与重排）；图路径为空。
+    model_calls: tuple[ModelCall, ...] = ()
 
 
-ANSWER_SCHEMA_VERSION = 1
+# 2：引用增加重排分数，答案增加模型调用记录；字段只增不改，评估按版本号读。
+ANSWER_SCHEMA_VERSION = 2
 
 
 def answer_to_dict(answer: Answer) -> dict[str, Any]:
@@ -94,8 +107,18 @@ def answer_to_dict(answer: Answer) -> dict[str, Any]:
                 "document": citation.document,
                 "page": citation.page,
                 "text": citation.text,
+                "score": citation.score,
             }
             for citation in answer.citations
+        ],
+        "model_calls": [
+            {
+                "model": call.model,
+                "input_tokens": call.input_tokens,
+                "output_tokens": call.output_tokens,
+                "elapsed_seconds": call.elapsed_seconds,
+            }
+            for call in answer.model_calls
         ],
     }
 

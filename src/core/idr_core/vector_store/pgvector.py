@@ -4,6 +4,10 @@
 （ADR-0002）。写入使用 ``ON CONFLICT`` 覆盖，重复处理同一证据段不会产生
 重复行；整批写入在一个事务里完成。维度不符在发出 SQL 之前就明确失败，
 不截断、不补零。
+
+召回同样走这张表：``<=>`` 是余弦距离，``ORDER BY`` 加 ``LIMIT`` 就是顺序
+扫描。**不建 HNSW/IVFFlat**：6806 条向量在毫秒级，近似索引的调参与内存成本
+现在无法用评估结果证明收益（ADR-0005），超过十万条再评估。
 """
 
 from __future__ import annotations
@@ -15,7 +19,7 @@ from typing import Any
 import psycopg
 
 from idr_core.embedding import EMBEDDING_DIM
-from idr_core.vector_store import VectorDimensionError
+from idr_core.vector_store import VectorDimensionError, VectorMatch
 
 TABLE_NAME = "evidence_vectors"
 
@@ -48,7 +52,7 @@ class PgVectorStore:
             )
 
         rows = [
-            (evidence_id, _to_pgvector(vector, evidence_id))
+            (evidence_id, _to_pgvector(vector, label=f"证据段 {evidence_id}"))
             for evidence_id, vector in zip(evidence_ids, vectors, strict=True)
         ]
         if not rows:
@@ -66,6 +70,29 @@ class PgVectorStore:
                     """,
                     rows,
                 )
+
+    def search_similar(
+        self, vector: Sequence[float], *, limit: int
+    ) -> tuple[VectorMatch, ...]:
+        """按余弦距离升序取最近的 ``limit`` 条证据段向量（顺序扫描，不建索引）。"""
+        if limit < 1:
+            raise ValueError(f"召回条数必须是正整数，收到 {limit}")
+        literal = _to_pgvector(vector, label="查询向量")
+        with psycopg.connect(self._database_url) as connection:
+            self._ensure_schema(connection)
+            rows = connection.execute(
+                f"""
+                SELECT evidence_id, embedding <=> %s::vector AS distance
+                FROM {TABLE_NAME}
+                ORDER BY distance
+                LIMIT %s
+                """,
+                (literal, limit),
+            ).fetchall()
+        return tuple(
+            VectorMatch(evidence_id=str(row[0]), distance=float(row[1]))
+            for row in rows
+        )
 
     def get_evidence_vector(self, evidence_id: str) -> list[float] | None:
         with psycopg.connect(self._database_url) as connection:
@@ -87,10 +114,11 @@ class PgVectorStore:
         self._schema_ready = True
 
 
-def _to_pgvector(vector: Sequence[float], evidence_id: str) -> str:
+def _to_pgvector(vector: Sequence[float], *, label: str) -> str:
+    """把向量转成 pgvector 字面量；维度不符时明确失败，不截断、不补零。"""
     if len(vector) != EMBEDDING_DIM:
         raise VectorDimensionError(
-            f"证据段 {evidence_id} 的向量维度为 {len(vector)}，"
-            f"服务端约定为 {EMBEDDING_DIM}；拒绝写入（不截断、不补零）"
+            f"{label}的向量维度为 {len(vector)}，"
+            f"服务端约定为 {EMBEDDING_DIM}；拒绝该向量（不截断、不补零）"
         )
     return "[" + ",".join(repr(float(value)) for value in vector) + "]"
