@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from idr_core.parsing.pdf import PdfTextParser
+from idr_core.parsing.pdf import PdfTextParser, page_text
 
 
 def one_page_pdf(text: str) -> bytes:
@@ -174,3 +174,23 @@ def test_line_that_cannot_be_located_in_page_text_is_recorded_as_warning(
     assert parsed.pages[0].warnings, "丢弃行坐标必须留下可观察的警告"
     assert "第 1 页" in parsed.pages[0].warnings[0]
     assert parsed.warnings == parsed.pages[0].warnings
+
+
+def test_page_text_reads_exactly_one_page_for_quote_verification(
+    tmp_path: Path,
+) -> None:
+    """回源校验需要按页码重新取文字，不能依赖解析时留下的副本。"""
+    path = tmp_path / "tiny.pdf"
+    path.write_bytes(one_page_pdf("Sample line of text"))
+
+    assert page_text(path, 1) == "Sample line of text"
+
+
+def test_page_text_rejects_page_numbers_outside_the_document(tmp_path: Path) -> None:
+    path = tmp_path / "tiny.pdf"
+    path.write_bytes(one_page_pdf("Sample line of text"))
+
+    with pytest.raises(IndexError):
+        page_text(path, 0)
+    with pytest.raises(IndexError):
+        page_text(path, 2)

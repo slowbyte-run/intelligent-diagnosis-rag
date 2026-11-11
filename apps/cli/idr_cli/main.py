@@ -8,6 +8,7 @@ from pathlib import Path
 from idr_core.config import Config, ConfigError, load_config
 from idr_cli.ask import DEFAULT_SOURCE_DIR, build_ask_deps, run_ask
 from idr_cli.doctor import run_doctor
+from idr_cli.eval import run_eval
 from idr_cli.ingest import build_deps, run_ingest
 from idr_rotating import AskDeps, IngestDeps
 
@@ -58,6 +59,27 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_SOURCE_DIR,
         help=f"语料目录，用于把文档标识对回文献名，默认 {DEFAULT_SOURCE_DIR}",
     )
+    eval_command = commands.add_parser(
+        "eval", help="跑金标准集，输出检索命中率、引用准确率与拒答正确率"
+    )
+    eval_command.add_argument(
+        "--golden",
+        type=Path,
+        default=None,
+        help="金标准集 JSON，默认使用领域包内的 golden_questions.json",
+    )
+    eval_command.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="评估报告输出文件，默认 data/output/reports/eval-<时间戳>.json",
+    )
+    eval_command.add_argument(
+        "--corpus-dir",
+        type=Path,
+        default=DEFAULT_SOURCE_DIR,
+        help=f"源 PDF 目录，用于引用回源校验，默认 {DEFAULT_SOURCE_DIR}",
+    )
     return parser
 
 
@@ -102,6 +124,20 @@ def main(
             arguments.question,
             deps=ask_deps,
             as_json=arguments.json,
+        )
+
+    if arguments.command == "eval":
+        try:
+            config = load_config()
+            eval_deps = ask_deps_factory(config, Path(arguments.corpus_dir))
+        except ConfigError as error:
+            print(f"配置错误：{error}", file=sys.stderr)
+            return 1
+        return run_eval(
+            deps=eval_deps,
+            corpus_dir=Path(arguments.corpus_dir),
+            golden_path=arguments.golden,
+            out_path=arguments.out,
         )
 
     raise AssertionError(f"未实现的命令：{arguments.command}")
