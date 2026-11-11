@@ -38,21 +38,19 @@
     {
       "id": "F-02",
       "class": "factual",
-      "question": "滚动轴承有哪些故障模式？",
+      "question": "离心泵有哪些故障模式？",
       "expected_concepts": [
+        "concept:centrifugal_pump",
         "concept:rolling_bearing",
         "concept:bearing_outer_race_fatigue_spalling",
-        "concept:bearing_inner_race_fatigue_spalling",
-        "concept:bearing_rolling_element_fatigue_spalling",
-        "concept:bearing_cage_fracture"
+        "concept:bearing_inner_race_fatigue_spalling"
       ],
       "expected_evidence_ids": [
+        "ev:72362dcee50f1d63:6:529-989",
         "ev:03261576178dbe8a:4:336-462",
-        "ev:ddaef5ea68310f1b:6:5-291",
-        "ev:e5e7eb44bb7767fa:7:818-931",
-        "ev:72362dcee50f1d63:5:1061-1124"
+        "ev:ddaef5ea68310f1b:6:5-291"
       ],
-      "note": "图谱里滚动轴承有 10 条 HAS_FAULT_MODE 边，其中 4 条指向自由词节点（内圈故障/外圈故障/滚动体故障/保持架故障），属抽取噪声。这里只绑定规范节点，期望答案不要求覆盖自由词。保持架断裂只有 1 篇文献支撑，覆盖它的证据可选。"
+      "note": "需要两跳：离心泵→滚动轴承→故障模式；图谱里没有设备直接连故障模式的边，设备问题必须经过部件中转。答案还会带出轴、联轴器、叶轮的故障（不对中、轴弯曲、轴裂纹），期望只绑定最能核对的这一组。两跳结果可能撞 20 条上界，报告里 truncated=true 时概念缺失不一定是检索错了。"
     },
     {
       "id": "F-03",
@@ -87,16 +85,16 @@
     {
       "id": "F-05",
       "class": "factual",
-      "question": "轴承内圈疲劳剥落用什么手段确认？",
+      "question": "转子不平衡由什么引起？",
       "expected_concepts": [
-        "concept:bearing_inner_race_fatigue_spalling",
-        "concept:fft_spectrum_analysis"
+        "concept:rotor_unbalance",
+        "concept:thermal_expansion"
       ],
       "expected_evidence_ids": [
-        "ev:906bd81774ba8b1a:33:5848-6279",
-        "ev:ddaef5ea68310f1b:6:5-291"
+        "ev:742178038a41d5ea:1:2183-3008",
+        "ev:742178038a41d5ea:20:1722-2304"
       ],
-      "note": "图谱给的手段是频谱分析与包络解调，但两段证据都偏「信号处理综述/专利通用段」，没有一句直接写「内圈故障用频谱分析确认」。自评：本批较弱的事实题之一，看答案只能验证它引到了图谱所说的手段，不能验证手段本身正确。"
+      "note": "图谱里只有 3 条 has_cause 边，这是证据最多的一条（10 段）。自评：论文讲的是热不平衡（热引起转子弯曲），图谱归到「热膨胀」，术语不完全等价；这道题测的是 has_cause 关系有没有被检索到，不是因果结论的科学性。原「内圈剥落用什么手段确认」一题因证据只是通用信号处理段而撤下。"
     },
     {
       "id": "F-06",
