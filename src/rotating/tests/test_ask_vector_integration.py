@@ -25,9 +25,9 @@ from idr_core.vector_store.pgvector import PgVectorStore
 from idr_rotating import AnswerPath, AskDeps, ask
 from idr_rotating.retrieval import load_retrieval_settings
 
-# 口语化问法：命中的「轴承」「轴向振动大」都不在本次一跳检索的关系定义域里，
-# 图路径取不到事实；语料里的中文专利正好讲这个故障怎么查。
-QUESTION = "轴承座轴向振动大是什么原因"
+# 图外问题：本体别名表一个概念都匹配不到，图路径必然落空；语料里的中文专利
+# 正好写了这个测量步骤，向量兜底要能把它捞回来并给出页码。
+QUESTION = "现场测振传感器应该测哪几个方向"
 
 pytestmark = [
     pytest.mark.integration,
@@ -74,8 +74,8 @@ def test_a_question_outside_the_ontology_is_answered_from_reranked_evidence(
 
     answer = ask(QUESTION, deps=deps)
 
-    # 命中的概念都不在本次一跳检索的关系范围内：图路径必然落空，答案应来自向量兜底。
-    assert answer.matches
+    # 图里没有这个概念：图路径必然落空，答案应来自向量兜底而不是拒答。
+    assert answer.matches == ()
     assert answer.focus is None
     assert answer.path is AnswerPath.VECTOR, answer.detail
     assert answer.facts == ()
@@ -98,13 +98,6 @@ def test_a_question_outside_the_ontology_is_answered_from_reranked_evidence(
         assert citation.page >= 1
         assert citation.text.strip()
 
-    for index, citation in enumerate(answer.citations, start=1):
-        print(
-            f"\n[{index}] {citation.evidence_id} doc={citation.doc_id} "
-            f"page={citation.page} score={citation.score:.4f}\n"
-            f"    {citation.text[:160]}"
-        )
-
     # 两次模型调用（嵌入 + 重排）都要留下 token 与耗时，成本核算才有依据。
     embedding_call, rerank_call = answer.model_calls
     assert embedding_call.model
@@ -113,10 +106,3 @@ def test_a_question_outside_the_ontology_is_answered_from_reranked_evidence(
     assert rerank_call.model
     assert rerank_call.input_tokens is not None and rerank_call.input_tokens > 0
     assert rerank_call.elapsed_seconds > 0.0
-
-    for call in answer.model_calls:
-        print(
-            f"模型调用：{call.model} input_tokens={call.input_tokens} "
-            f"output_tokens={call.output_tokens} "
-            f"elapsed={call.elapsed_seconds:.3f}s"
-        )

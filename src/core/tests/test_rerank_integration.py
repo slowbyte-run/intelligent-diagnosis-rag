@@ -57,9 +57,3 @@ def test_real_rerank_scores_the_relevant_passage_above_the_unrelated_one() -> No
     assert call.input_tokens is not None and call.input_tokens > 0
     assert call.output_tokens == 0
     assert call.elapsed_seconds > 0.0
-
-    print(
-        f"\n真实重排：model={call.model} input_tokens={call.input_tokens} "
-        f"elapsed={call.elapsed_seconds:.3f}s "
-        f"scores={{{', '.join(f'{index}: {score:.6f}' for index, score in sorted(scores.items()))}}}"
-    )

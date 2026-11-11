@@ -28,7 +28,9 @@ from idr_rotating import (
     Answer,
     AnswerPath,
     AskDeps,
+    Citation,
     ConceptMatch,
+    Fact,
     LinkKind,
     OntologyError,
     RetrievalSettingsError,
@@ -166,24 +168,56 @@ def render_answer(answer: Answer) -> str:
     citations = {citation.evidence_id: citation for citation in answer.citations}
     lines.extend(["", "结论："])
     for index, fact in enumerate(answer.facts, start=1):
-        relation = ontology.relation_types.get(fact.relation)
-        relation_label = relation.label if relation is not None else fact.relation
         lines.append(
-            f"{index}. {fact.head.name} —{relation_label}→ {fact.tail.name}"
+            f"{index}. {_fact_route(fact, ontology)}"
             f"（置信度 {fact.confidence:.2f}）"
         )
-        for evidence_id in fact.evidence_ids:
-            citation = citations[evidence_id]
-            document = (
-                citation.document
-                if citation.document is not None
-                else f"文献 {citation.doc_id}"
-            )
-            lines.append(
-                f"   依据：{document} 第 {citation.page} 页："
-                f"{_one_line(citation.text)}"
-            )
+        if len(fact.path) > 1:
+            # 多跳结论逐步标出依据：读者要能核对每一条边各自出自哪里。
+            for step in fact.path:
+                route = f"{step.head.name} → {step.tail.name}"
+                for evidence_id in step.evidence_ids:
+                    lines.append(
+                        _evidence_text(
+                            citations[evidence_id], f"依据（{route}）："
+                        )
+                    )
+        else:
+            for evidence_id in fact.evidence_ids:
+                lines.append(_evidence_text(citations[evidence_id]))
+
+    if answer.truncated and answer.detail:
+        lines.extend(["", f"注意：{answer.detail}"])
     return "\n".join(lines)
+
+
+def _fact_route(fact: Fact, ontology: Ontology) -> str:
+    """结论的完整路径；一跳时退化成「头 —关系→ 尾」。"""
+    if not fact.path:
+        return f"{fact.head.name} → {fact.tail.name}"
+    parts = [fact.path[0].head.name]
+    for step in fact.path:
+        parts.append(
+            f"—{_relation_label(step.relation, ontology)}→ {step.tail.name}"
+        )
+    return " ".join(parts)
+
+
+def _relation_label(relation_id: str, ontology: Ontology) -> str:
+    relation = ontology.relation_types.get(relation_id)
+    return relation.label if relation is not None else relation_id
+
+
+def _evidence_text(citation: Citation, prefix: str = "依据：") -> str:
+    document = (
+        citation.document
+        if citation.document is not None
+        else f"文献 {citation.doc_id}"
+    )
+    return (
+        f"    {prefix}{document} 第 {citation.page} 页："
+        f"{_one_line(citation.text)}"
+    )
 
 
 def _match_text(match: ConceptMatch, ontology: Ontology) -> str:
