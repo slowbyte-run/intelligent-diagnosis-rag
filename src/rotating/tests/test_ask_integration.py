@@ -18,6 +18,7 @@ import pytest
 
 from idr_core.graph.neo4j import Neo4jGraphStore
 from idr_rotating import AnswerPath, AskDeps, ask
+from idr_rotating.traversal import EDGE_WHITELIST, MAX_PATHS
 
 NEO4J_URI = os.environ.get("NEO4J_URI", "bolt://127.0.0.1:7687")
 NEO4J_USER = os.environ.get("NEO4J_USER", "neo4j")
@@ -103,3 +104,81 @@ def test_ask_refuses_explicitly_for_a_question_outside_the_ontology(
     assert answer.facts == ()
     assert answer.citations == ()
     assert answer.detail is not None
+
+
+def test_ask_traverses_two_hops_from_an_equipment_class(deps: AskDeps) -> None:
+    """设备→部件→故障模式：离心泵在真实图谱上够得到轴承的故障模式。"""
+    answer = ask("离心泵有哪些故障模式", deps=deps)
+
+    assert answer.path is AnswerPath.GRAPH, answer.detail
+    assert answer.focus is not None
+    assert answer.focus.concept.id == "concept:centrifugal_pump"
+
+    two_hop = [fact for fact in answer.facts if len(fact.path) == 2]
+    assert two_hop
+    fault_facts = [
+        fact for fact in answer.facts if fact.relation == "has_fault_mode"
+    ]
+    assert any(
+        [step.relation for step in fact.path] == ["has_component", "has_fault_mode"]
+        and fact.trail[1].id == "concept:rolling_bearing"
+        for fact in fault_facts
+    )
+    assert any(
+        fact.tail.id == "concept:bearing_outer_race_fatigue_spalling"
+        for fact in fault_facts
+    )
+
+    # 每一跳都要能在引用层核对，且没有任何一跳越界。
+    cited = {citation.evidence_id for citation in answer.citations}
+    for fact in answer.facts:
+        assert 1 <= len(fact.path) <= 2
+        for step in fact.path:
+            assert step.relation in EDGE_WHITELIST
+            assert step.evidence_ids
+            assert set(step.evidence_ids) <= cited
+
+
+def test_ask_reaches_symptoms_two_hops_from_a_component(deps: AskDeps) -> None:
+    """部件→故障模式→征兆：问句不点名故障模式时，征兆在第二跳上。"""
+    answer = ask("轴有什么征兆", deps=deps)
+
+    assert answer.path is AnswerPath.GRAPH, answer.detail
+    assert answer.focus is not None
+    assert answer.focus.concept.id == "concept:shaft"
+
+    symptom_facts = [
+        fact for fact in answer.facts if fact.relation == "indicated_by"
+    ]
+    assert symptom_facts
+    for fact in symptom_facts:
+        assert [step.relation for step in fact.path] == [
+            "has_fault_mode",
+            "indicated_by",
+        ]
+        assert fact.trail[0].id == "concept:shaft"
+        assert fact.tail.type == "symptom"
+        for step in fact.path:
+            assert set(step.evidence_ids) <= {
+                citation.evidence_id for citation in answer.citations
+            }
+
+
+def test_ask_truncates_two_hop_results_at_the_limit(deps: AskDeps) -> None:
+    """真实图谱上两跳扇出会撞到上界：截断并在答案里说明。"""
+    answer = ask("离心泵的滚动轴承有什么征兆", deps=deps)
+
+    assert answer.path is AnswerPath.GRAPH, answer.detail
+    assert answer.truncated is True
+    assert len(answer.facts) == MAX_PATHS
+    assert answer.detail is not None and "截断" in answer.detail
+
+
+def test_ask_never_traverses_three_hops_on_the_live_graph(deps: AskDeps) -> None:
+    """从设备出发两跳只能到故障模式；征兆需要第三跳，不得出现。"""
+    answer = ask("离心泵有什么征兆", deps=deps)
+
+    assert answer.path is AnswerPath.GRAPH, answer.detail
+    assert answer.facts
+    assert all(len(fact.path) <= 2 for fact in answer.facts)
+    assert all(fact.tail.type != "symptom" for fact in answer.facts)
