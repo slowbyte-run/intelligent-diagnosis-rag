@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import re
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -94,6 +96,73 @@ class FakeLLM:
         self.prompts.append(prompt)
         index = min(len(self.prompts) - 1, len(self._responses) - 1)
         return self._responses[index]
+
+
+_EVIDENCE_LINE = re.compile(r"^\[(ev:[^\]]+)\] (.*)$", re.MULTILINE)
+
+
+def evidence_lines_from_prompt(prompt: str) -> tuple[tuple[str, str], ...]:
+    """从抽取提示词里读出本批证据段的 ``(标识, 原文)``，供假模型按批作答。"""
+    return tuple(
+        (match.group(1), match.group(2))
+        for match in _EVIDENCE_LINE.finditer(prompt)
+    )
+
+
+class BatchwiseFakeLLM:
+    """模拟「只看一批证据」的模型：每批返回共有概念与本批独有概念各一个。
+
+    证据段标识从提示词里读，因此每个实体只引用本批证据；共有概念在每批都
+    出现，用来观察跨批去重与证据合并。
+    """
+
+    def __init__(
+        self,
+        *,
+        shared_name: str = "跨批共现部件",
+        unique_prefix: str = "本批故障",
+    ) -> None:
+        self.prompts: list[str] = []
+        self.calls: list[tuple[tuple[str, str], ...]] = []
+        self._shared_name = shared_name
+        self._unique_prefix = unique_prefix
+
+    def complete(self, prompt: str) -> str:
+        evidence = evidence_lines_from_prompt(prompt)
+        if not evidence:
+            raise AssertionError("抽取提示词里没有任何证据段")
+        self.prompts.append(prompt)
+        self.calls.append(evidence)
+
+        unique_name = f"{self._unique_prefix}{len(self.calls)}"
+        return json.dumps(
+            {
+                "entities": [
+                    {
+                        "name": self._shared_name,
+                        "type": "component",
+                        "evidence_ids": [evidence[0][0]],
+                        "confidence": 0.9,
+                    },
+                    {
+                        "name": unique_name,
+                        "type": "fault_mode",
+                        "evidence_ids": [evidence[-1][0]],
+                        "confidence": 0.8,
+                    },
+                ],
+                "relations": [
+                    {
+                        "head": self._shared_name,
+                        "type": "has_fault_mode",
+                        "tail": unique_name,
+                        "evidence_ids": [evidence[-1][0]],
+                        "confidence": 0.7,
+                    }
+                ],
+            },
+            ensure_ascii=False,
+        )
 
 
 class InstrumentedFakeLLM(FakeLLM):

@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 
 from idr_core.models import EvidenceSegment
+from idr_rotating.extraction import MAX_BATCH_CHARS, MAX_BATCH_SEGMENTS
 from idr_rotating.ontology import (
     EntityTypeDef,
     Ontology,
@@ -121,12 +122,17 @@ def _attribute_value_lines(ontology: Ontology) -> str:
 
 
 def extraction_fingerprint(ontology: Ontology) -> str:
-    """提示词模板与本体内容的组合指纹。
+    """提示词模板、本体内容与分批参数的组合指纹。
 
-    改提示词或改本体都会改变它。指纹写进处理状态：已完成文献只有在指纹
+    改提示词、本体或分批上限都会改变它。分批决定模型每次实际看到多少
+    证据段，同一提示词下换分批参数也必须让已完成文献重抽，否则旧的单批
+    结果会被状态存储一直跳过。指纹写进处理状态：已完成文献只有在指纹
     不变时才允许跳过，否则重新抽取。
     """
     skeleton = build_extraction_prompt(ontology, ())
     digest = hashlib.sha256(skeleton.encode("utf-8"))
     digest.update(ontology_fingerprint().encode("ascii"))
+    digest.update(
+        f"batch:{MAX_BATCH_SEGMENTS}:{MAX_BATCH_CHARS}".encode("ascii")
+    )
     return digest.hexdigest()
