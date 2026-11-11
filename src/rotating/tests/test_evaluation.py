@@ -437,6 +437,37 @@ def test_answer_reader_tolerates_additive_schema_changes() -> None:
     assert report.cases[0].hit is True
 
 
+def test_answer_reader_reads_intermediate_concepts_from_a_fact_path() -> None:
+    """#15 的 Fact.path 把中间概念放在路径里；只读 head/tail 会漏掉它。"""
+    answer = make_answer()
+    answer["schema_version"] = 2
+    answer["facts"][0]["path"] = [
+        {
+            "relation": "has_fault_mode",
+            "head": {"id": "concept:alpha", "name": "阿尔法", "type": "fault_mode"},
+            "tail": {"id": "concept:gamma", "name": "伽马", "type": "fault_mode"},
+            "confidence": 0.9,
+            "evidence_ids": [EV_A],
+        },
+        {
+            "relation": "indicated_by",
+            "head": {"id": "concept:gamma", "name": "伽马", "type": "fault_mode"},
+            "tail": {"id": "concept:beta", "name": "贝塔", "type": "symptom"},
+            "confidence": 0.9,
+            "evidence_ids": [EV_A],
+        },
+    ]
+
+    report = evaluate_golden(
+        [make_question(expected_concepts=("concept:alpha", "concept:gamma"))],
+        answer_for=lambda question: answer,
+        verify_citation=always_ok,
+    )
+
+    assert report.cases[0].hit is True
+    assert report.cases[0].concept_ok is True
+
+
 def test_answer_without_a_valid_schema_version_is_rejected() -> None:
     answer = make_answer()
     answer["schema_version"] = 0

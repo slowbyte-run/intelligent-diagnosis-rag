@@ -416,13 +416,7 @@ def _read_answer(
     for fact in facts:
         if not isinstance(fact, Mapping):
             raise EvaluationError("答案的 facts 含非对象元素")
-        for side in ("head", "tail"):
-            concept = fact.get(side)
-            if not isinstance(concept, Mapping) or not isinstance(
-                concept.get("id"), str
-            ):
-                raise EvaluationError(f"答案的事实缺少 {side}.id")
-            concepts.append(str(concept["id"]))
+        concepts.extend(_fact_concept_ids(fact))
 
     citations = answer.get("citations")
     if not isinstance(citations, list):
@@ -434,6 +428,26 @@ def _read_answer(
         citation_rows.append(dict(citation))
 
     return path, detail, tuple(dict.fromkeys(concepts)), tuple(citation_rows)
+
+
+def _fact_concept_ids(fact: Mapping[str, Any]) -> tuple[str, ...]:
+    """一条事实提到的全部概念：两端 + （#15 起新增的）路径中间节点。"""
+    concept_ids: list[str] = []
+    for side in ("head", "tail"):
+        concept = fact.get(side)
+        if not isinstance(concept, Mapping) or not isinstance(concept.get("id"), str):
+            raise EvaluationError(f"答案的事实缺少 {side}.id")
+        concept_ids.append(str(concept["id"]))
+    steps = fact.get("path")
+    if isinstance(steps, list):
+        for step in steps:
+            if not isinstance(step, Mapping):
+                raise EvaluationError("答案的事实 path 含非对象步骤")
+            for side in ("head", "tail"):
+                concept = step.get(side)
+                if isinstance(concept, Mapping) and isinstance(concept.get("id"), str):
+                    concept_ids.append(str(concept["id"]))
+    return tuple(concept_ids)
 
 
 def _nested_concept_id(match: Mapping[str, Any]) -> str | None:
