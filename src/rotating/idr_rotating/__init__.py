@@ -2,12 +2,8 @@
 
 from idr_rotating.document import DocumentType
 from idr_rotating.ingest import (
-    DocumentReport,
     IngestDeps,
     IngestError,
-    IngestReport,
-    ModelCallRecord,
-    RunMetadata,
     ingest,
 )
 from idr_rotating.ontology import OntologyError
@@ -18,9 +14,17 @@ from idr_rotating.pending import (
     PendingReview,
     RejectionReason,
 )
-from idr_rotating.report import write_report
+from idr_rotating.report import (
+    DocumentOutcome,
+    DocumentReport,
+    IngestReport,
+    ModelCallRecord,
+    RunMetadata,
+    write_report,
+)
 
 __all__ = [
+    "DocumentOutcome",
     "DocumentReport",
     "DocumentType",
     "IngestDeps",

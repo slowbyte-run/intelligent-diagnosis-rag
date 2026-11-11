@@ -14,6 +14,7 @@ from idr_core.parsing.pdf import PdfTextParser
 from idr_core.state.postgres import PostgresStateStore
 from idr_core.vector_store.pgvector import PgVectorStore
 from idr_rotating import (
+    DocumentOutcome,
     IngestDeps,
     IngestError,
     OntologyError,
@@ -42,7 +43,11 @@ def run_ingest(
         return 1
 
     for document in report.documents:
-        if document.skipped:
+        outcome = document.status
+        if outcome is DocumentOutcome.SKIPPED:
+            print(f"{document.path.name}：已跳过（此前已入库）")
+        elif outcome is DocumentOutcome.QUARANTINED and document.skipped:
+            # 隔离状态缺原因只可能来自外部注入的状态存储，沿用旧文案。
             if document.quarantine_reason is not None:
                 print(
                     f"{document.path.name}：已跳过"
@@ -50,10 +55,12 @@ def run_ingest(
                 )
             else:
                 print(f"{document.path.name}：已跳过（此前已入库）")
-        elif document.error is not None:
+        elif outcome is DocumentOutcome.QUARANTINED:
+            print(
+                f"{document.path.name}：已隔离（{document.quarantine_reason}）"
+            )
+        elif outcome is DocumentOutcome.FAILED:
             print(f"{document.path.name}：失败（{document.error}）")
-        elif document.quarantine_reason is not None:
-            print(f"{document.path.name}：已隔离（{document.quarantine_reason}）")
         else:
             rejected = ""
             if document.rejected_entities or document.rejected_relations:
