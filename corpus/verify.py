@@ -46,8 +46,11 @@ def page_text(path: Path, number: int) -> str:
         return pdf.pages[number - 1].extract_text() or ""
 
 
-def parse_charspan(value: str) -> tuple[int, int]:
-    start, _, end = value.partition("-")
+def parse_charspan(value: object) -> tuple[int, int]:
+    """charspan 在 Neo4j 里存成 [start, end]；兼容早期写成 "start-end" 的情况。"""
+    if isinstance(value, (list, tuple)) and len(value) == 2:
+        return int(value[0]), int(value[1])
+    start, _, end = str(value).partition("-")
     return int(start), int(end)
 
 
@@ -72,8 +75,8 @@ def main() -> int:
             WHERE type(r) <> 'EVIDENCED_BY'
               AND r.evidence_ids IS NOT NULL
               AND size(r.evidence_ids) > 0
-            RETURN a.label AS source_label, type(r) AS relation,
-                   b.label AS target_label, r.evidence_ids AS evidence_ids
+            RETURN a.name AS source_label, type(r) AS relation,
+                   b.name AS target_label, r.evidence_ids AS evidence_ids
             """
         ).data()
 
