@@ -53,6 +53,9 @@ uv run --env-file .env idr ask "轴承外圈疲劳剥落有什么征兆" --json 
 ```
 
 - 检索路径三选一并显式标注：`graph`（图命中）、`vector`（向量兜底，后续里程碑接进来）、`refusal`（没有可用依据时明确拒答，`detail` 说明缺在哪一步）。
+- 图检索最多走两跳：从最具体的命中出发，只走 `has_component`、`has_fault_mode`、`has_cause`、`indicated_by`、`detected_by`、`confused_with` 六类白名单边，三跳及以上不执行。两跳只允许经 `has_component` / `has_fault_mode` 中转，避免把「易混淆故障的征兆」算到当前故障上。
+- 路径上的每一步都要有证据；任一步缺证据，该条结论整条丢弃，不缩短成部分路径。多跳结论的人类可读输出展开完整路径（如「滚动轴承 —具有故障模式→ 外圈剥落 —表现为→ 外圈故障频率及其倍频」），`--json` 里对应 `facts[].path`，JSON schema 版本为 2。
+- 结果集有上界（当前 20 条）；超出时按关系类型与概念名称排序截断，`--json` 里以 `truncated` 与 `detail` 说明。
 - 实体链接只用本体别名表，做整句与子串匹配，答案里指出命中了哪条别名。
 - 每条结论都回填证据段的文献名、页码与原文；事实边没有 `evidence_ids` 时不进答案。
 - 图谱里只存 `doc_id`。文献名按 `--corpus-dir`（默认 `data/input`）中的文件内容哈希对回；从别的目录运行或语料不在默认位置时显式指定。

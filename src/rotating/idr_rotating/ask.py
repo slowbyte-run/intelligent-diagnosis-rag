@@ -2,19 +2,19 @@
 
 调用方只依赖 ``ask(question, *, deps) -> Answer``；图存储与文献名目录由
 ``deps`` 注入，测试用内存假实现。这一版只走图：本体别名表定位问句里的
-概念，沿关系白名单取一跳事实，每条事实的证据段回填文献名、页码与原文。
+概念，从最具体的命中出发沿白名单关系走至多两跳（见 ``traversal``），每条
+结论的证据段回填文献名、页码与原文。结论本身带完整路径，答案因此能说明
+「怎么走到的」，而不只是给出终点。
 
 线索留在这里，不要在本版展开：
 
-- 两跳（设备→部件→故障模式，#15）：在 ``ONE_HOP_RELATIONS`` 之外增加关系，
-  并按跳数扩展事实收集；
 - 向量兜底与重排（#16）：图没有事实时改走向量检索，答案路径标
   ``AnswerPath.VECTOR``；
 - 拒答策略与阈值（#17）：``_refusal`` 里的 ``detail`` 目前只是事实描述，
   阈值判定接在同一个出口。
 
-答案必须带引用（AGENTS.md 第 6 条）：没有证据段的事实在组装阶段就被排除，
-不进入 ``facts``。
+答案必须带引用（AGENTS.md 第 6 条）：没有证据段的事实、或路径上有一步
+拿不到证据的结论，在组装阶段就被排除，不进入 ``facts``。
 """
 
 from __future__ import annotations
@@ -23,19 +23,17 @@ from dataclasses import dataclass
 
 from idr_core.documents import DocumentNames
 from idr_core.graph import (
-    AggregatedFact,
-    Concept,
     EvidenceRecord,
     GraphReader,
-    aggregate_facts,
 )
 from idr_rotating.answer import Answer, AnswerPath, Citation, Fact
 from idr_rotating.linking import ConceptMatch, link_question
 from idr_rotating.ontology import Ontology, load_ontology
-
-# 本票只取这三类一跳事实。has_component / has_fault_mode 需要两跳（#15）；
-# confused_with 属于鉴别型问答，尚未开票，暂不纳入。
-ONE_HOP_RELATIONS = ("indicated_by", "detected_by", "has_cause")
+from idr_rotating.traversal import (
+    EDGE_WHITELIST,
+    TraversalPath,
+    traverse,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,7 +67,7 @@ def ask(question: str, *, deps: AskDeps) -> Answer:
             question,
             matches=matches,
             focus=None,
-            detail="命中的概念不在本次一跳检索的关系范围内，无法取事实。",
+            detail="命中的概念不在本次图检索的关系范围内，无法取事实。",
         )
 
     focus, tied = _most_specific(candidates)
@@ -92,17 +90,15 @@ def _answer_from_graph(
     matches: tuple[ConceptMatch, ...],
     focus: ConceptMatch,
 ) -> Answer:
-    """图命中路径：一跳事实 + 证据回填；任何一步没有依据都退成显式空答案。"""
-    merged = aggregate_facts(
-        deps.graph_store.facts_from(focus.concept.id, ONE_HOP_RELATIONS)
+    """图命中路径：至多两跳的带证据事实 + 证据回填。
+
+    路径上任一步缺证据就丢弃该条结论；全部路径都不可用时退成显式空答案。
+    结果集撞到上界时照常作答，但把截断写进 ``detail`` 并置 ``truncated``。
+    """
+    focus_node = next(
+        iter(deps.graph_store.concepts_by_ids([focus.concept.id])), None
     )
-    concept_ids = list(
-        dict.fromkeys([focus.concept.id, *(fact.tail_id for fact in merged)])
-    )
-    concepts = {
-        node.id: node for node in deps.graph_store.concepts_by_ids(concept_ids)
-    }
-    if focus.concept.id not in concepts:
+    if focus_node is None:
         return _refusal(
             question,
             matches=matches,
@@ -110,22 +106,27 @@ def _answer_from_graph(
             detail=f"概念「{focus.concept.name}」不在图谱中。",
         )
 
+    traversal = traverse(deps.graph_store, focus_node)
     evidence_ids = list(
         dict.fromkeys(
-            evidence_id for fact in merged for evidence_id in fact.evidence_ids
+            evidence_id
+            for path in traversal.paths
+            for step in path.steps
+            for evidence_id in step.evidence_ids
         )
     )
     segments = {
-        segment.id: segment for segment in deps.graph_store.evidence_by_ids(evidence_ids)
+        segment.id: segment
+        for segment in deps.graph_store.evidence_by_ids(evidence_ids)
     }
-    facts = _facts_with_evidence(merged, concepts, segments)
+    facts = _facts_with_evidence(traversal.paths, segments)
     if not facts:
         # #16 在图没有事实时接向量兜底；#17 在同一出口判定拒答。
         return _refusal(
             question,
             matches=matches,
             focus=focus,
-            detail=f"概念「{focus.concept.name}」没有带证据的一跳事实。",
+            detail=f"概念「{focus.concept.name}」没有带证据的一跳或两跳事实。",
         )
 
     return Answer(
@@ -135,49 +136,45 @@ def _answer_from_graph(
         focus=focus,
         facts=facts,
         citations=_citations_for(facts, segments, deps.document_names),
+        detail=(
+            f"结果超过 {traversal.limit} 条上限（命中 {traversal.found} 条），"
+            "已按关系类型与概念名称排序截断。"
+            if traversal.truncated
+            else None
+        ),
+        truncated=traversal.truncated,
     )
 
 
 def _facts_with_evidence(
-    merged: tuple[AggregatedFact, ...],
-    concepts: dict[str, Concept],
+    paths: tuple[TraversalPath, ...],
     segments: dict[str, EvidenceRecord],
 ) -> tuple[Fact, ...]:
-    """只保留两端概念与至少一段证据都能落地的结论，并按关系白名单排序。"""
-    relation_order = {
-        relation: index for index, relation in enumerate(ONE_HOP_RELATIONS)
-    }
+    """把路径组装成结论；任何一步缺证据就丢弃整条结论。
+
+    路径保持遍历给出的顺序（关系类型决定），这里不重排。多跳结论的置信度取
+    各步最小值：链条不会比最弱的一环更可信。
+    """
     facts: list[Fact] = []
-    for fact in merged:
-        head = concepts.get(fact.head_id)
-        tail = concepts.get(fact.tail_id)
-        usable = tuple(
-            evidence_id
-            for evidence_id in fact.evidence_ids
-            if evidence_id in segments
-        )
-        if head is None or tail is None or not usable:
+    for path in paths:
+        if any(
+            not step.evidence_ids
+            or any(evidence_id not in segments for evidence_id in step.evidence_ids)
+            for step in path.steps
+        ):
+            # 缩短成部分路径是静默降级：读者会以为系统查过那一步。
             continue
         facts.append(
             Fact(
-                relation=fact.relation,
-                head=head,
-                tail=tail,
-                confidence=fact.confidence,
-                evidence_ids=usable,
+                relation=path.steps[-1].relation,
+                head=path.start,
+                tail=path.end,
+                confidence=min(step.confidence for step in path.steps),
+                evidence_ids=path.evidence_ids,
+                path=path.steps,
             )
         )
-    # 关系白名单的顺序就是结论顺序：征兆优先于检测手段，检测手段优先于原因。
-    return tuple(
-        sorted(
-            facts,
-            key=lambda item: (
-                relation_order.get(item.relation, len(relation_order)),
-                item.tail.name,
-                item.tail.id,
-            ),
-        )
-    )
+    return tuple(facts)
 
 
 def _citations_for(
@@ -209,10 +206,14 @@ def _citations_for(
 def _focus_candidates(
     matches: tuple[ConceptMatch, ...], ontology: Ontology
 ) -> tuple[ConceptMatch, ...]:
-    """关系定义域内的命中才可能成为检索起点。"""
+    """白名单关系的定义域内的命中才可能成为检索起点。
+
+    设备、部件、故障模式都是白名单关系的定义域，因此设备与部件问题现在也
+    有起点；症状、检测手段、原因只是关系的值域，不能当起点。
+    """
     head_types = frozenset(
         entity_type
-        for relation in ONE_HOP_RELATIONS
+        for relation in EDGE_WHITELIST
         for entity_type in ontology.relation_types[relation].domain
     )
     return tuple(match for match in matches if match.concept.type in head_types)

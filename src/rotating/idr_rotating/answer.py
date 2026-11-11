@@ -4,8 +4,12 @@
 ``citations`` 是这些证据段的出处（文献名、页码、原文）。一条事实的证据用
 ``evidence_ids`` 指向引用层，同一段证据被多条结论引用时只出现一次。
 
-``path`` 明确回答「这条答案是怎么来的」——图命中、向量兜底还是拒答。本层
-只表达事实，不设阈值：判定什么时候拒答是检索编排的事，答案只把结果如实标注。
+``path`` 明确回答「这条答案是怎么来的」——图命中、向量兜底还是拒答。图命中的
+结论还带 ``Fact.path``：从结论起点走到终点的每一步及其证据，答案因此能说明
+「怎么走到的」，而不只是给出终点。
+
+本层只表达事实，不设阈值：判定什么时候拒答是检索编排的事，答案只把结果如实
+标注。``truncated`` 表示结果集撞到上界被截断，``detail`` 里写明原因。
 """
 
 from __future__ import annotations
@@ -16,6 +20,7 @@ from typing import Any
 
 from idr_core.graph import Concept
 from idr_rotating.linking import ConceptMatch
+from idr_rotating.traversal import PathStep
 
 
 class AnswerPath(StrEnum):
@@ -42,13 +47,27 @@ class Citation:
 
 @dataclass(frozen=True, slots=True)
 class Fact:
-    """图上的一条结论：头概念沿某类关系指向尾概念，证据可回溯。"""
+    """图上的一条结论：头概念沿某类关系指向尾概念，证据可回溯。
+
+    ``path`` 是完整的图路径（至少一步；多跳时不止一步），``relation`` 是末跳的
+    关系，``head`` / ``tail`` 是路径的起点与终点。``evidence_ids`` 汇总路径上
+    每一步的证据，因此每条结论的每一跳都能回到引用层核对。
+    """
 
     relation: str
     head: Concept
     tail: Concept
     confidence: float
     evidence_ids: tuple[str, ...]
+    # 向量兜底的事实没有图路径，因此允许为空；图命中路径的结论一定非空。
+    path: tuple[PathStep, ...] = ()
+
+    @property
+    def trail(self) -> tuple[Concept, ...]:
+        """结论走过的概念链；没有图路径时退化为两端概念。"""
+        if not self.path:
+            return (self.head, self.tail)
+        return (self.head, *(step.tail for step in self.path))
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,11 +80,14 @@ class Answer:
     focus: ConceptMatch | None
     facts: tuple[Fact, ...]
     citations: tuple[Citation, ...]
-    # 空答案时说明缺在哪一步（未命中概念、概念不在图谱、没有带证据的事实）。
+    # 空答案时说明缺在哪一步（未命中概念、概念不在图谱、没有带证据的事实）；
+    # 截断时说明结果集撞到了哪个上界。
     detail: str | None = None
+    # 结果集超过上界被截断；截断不是错误，但必须让调用方看得见。
+    truncated: bool = False
 
 
-ANSWER_SCHEMA_VERSION = 1
+ANSWER_SCHEMA_VERSION = 2
 
 
 def answer_to_dict(answer: Answer) -> dict[str, Any]:
@@ -75,6 +97,7 @@ def answer_to_dict(answer: Answer) -> dict[str, Any]:
         "question": answer.question,
         "path": answer.path.value,
         "detail": answer.detail,
+        "truncated": answer.truncated,
         "focus": _match_to_dict(answer.focus),
         "matches": [_match_to_dict(match) for match in answer.matches],
         "facts": [
@@ -84,6 +107,7 @@ def answer_to_dict(answer: Answer) -> dict[str, Any]:
                 "tail": _concept_to_dict(fact.tail),
                 "confidence": fact.confidence,
                 "evidence_ids": list(fact.evidence_ids),
+                "path": [_step_to_dict(step) for step in fact.path],
             }
             for fact in answer.facts
         ],
@@ -112,3 +136,13 @@ def _match_to_dict(match: ConceptMatch | None) -> dict[str, Any] | None:
 
 def _concept_to_dict(concept: Concept) -> dict[str, str]:
     return {"id": concept.id, "name": concept.name, "type": concept.type}
+
+
+def _step_to_dict(step: PathStep) -> dict[str, Any]:
+    return {
+        "relation": step.relation,
+        "head": _concept_to_dict(step.head),
+        "tail": _concept_to_dict(step.tail),
+        "confidence": step.confidence,
+        "evidence_ids": list(step.evidence_ids),
+    }

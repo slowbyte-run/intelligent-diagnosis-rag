@@ -353,8 +353,8 @@ def test_ask_leaves_out_facts_whose_evidence_cannot_be_retrieved() -> None:
 
 
 def test_ask_refuses_when_matched_concepts_are_outside_the_relation_scope() -> None:
-    """本版只走故障模式的一跳关系；设备类问题留给两跳检索（#15）。"""
-    answer = ask("离心泵包含哪些部件", deps=empty_deps())
+    """症状只是关系的值域，不能作为检索起点；设备类问题已由两跳检索接住。"""
+    answer = ask("温升异常", deps=empty_deps())
 
     assert answer.path is AnswerPath.REFUSAL
     assert answer.focus is None

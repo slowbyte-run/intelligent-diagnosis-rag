@@ -126,10 +126,11 @@ def test_ask_prints_machine_readable_json(
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 0
-    assert payload["schema_version"] == 1
+    assert payload["schema_version"] == 2
     assert payload["question"] == "轴承外圈疲劳剥落有什么征兆"
     assert payload["path"] == "graph"
     assert payload["detail"] is None
+    assert payload["truncated"] is False
     assert payload["focus"]["concept"]["id"] == OUTER_RACE
     assert payload["focus"]["alias"] == "轴承外圈疲劳剥落"
     assert payload["focus"]["kind"] == "substring"
@@ -148,6 +149,23 @@ def test_ask_prints_machine_readable_json(
             },
             "confidence": 0.8,
             "evidence_ids": [EVIDENCE_ID],
+            "path": [
+                {
+                    "relation": "indicated_by",
+                    "head": {
+                        "id": OUTER_RACE,
+                        "name": "轴承外圈疲劳剥落",
+                        "type": "fault_mode",
+                    },
+                    "tail": {
+                        "id": BPFO,
+                        "name": "外圈故障频率及其倍频",
+                        "type": "symptom",
+                    },
+                    "confidence": 0.8,
+                    "evidence_ids": [EVIDENCE_ID],
+                }
+            ],
         }
     ]
     assert payload["citations"] == [
@@ -229,3 +247,65 @@ def test_main_dispatches_ask_subcommand(
     assert exit_code == 0
     assert received == [tmp_path]
     assert "检索路径：图命中" in output
+
+
+def deps_with_two_hop_chain() -> AskDeps:
+    """滚动轴承 → 轴承外圈疲劳剥落 → 外圈故障频率及其倍频。"""
+    bearing = Concept(id="concept:rolling_bearing", name="滚动轴承", type="component")
+    outer = Concept(id=OUTER_RACE, name="轴承外圈疲劳剥落", type="fault_mode")
+    bpfo = Concept(id=BPFO, name="外圈故障频率及其倍频", type="symptom")
+    fault_evidence = EvidenceRecord(
+        id="ev:doc-a:3:0-15",
+        doc_id=DOC_ID,
+        page=3,
+        text="滚动轴承常见外圈疲劳剥落。",
+    )
+    symptom_evidence = EvidenceRecord(
+        id=EVIDENCE_ID,
+        doc_id=DOC_ID,
+        page=4,
+        text="外圈剥落会在频谱上出现 BPFO 及其倍频。",
+    )
+    graph = FakeGraphReader(
+        facts=(
+            FactEdge(
+                head_id=bearing.id,
+                relation="has_fault_mode",
+                tail_id=outer.id,
+                evidence_ids=(fault_evidence.id,),
+                confidence=0.7,
+                doc_id=DOC_ID,
+            ),
+            FactEdge(
+                head_id=outer.id,
+                relation="indicated_by",
+                tail_id=bpfo.id,
+                evidence_ids=(symptom_evidence.id,),
+                confidence=0.6,
+                doc_id=DOC_ID,
+            ),
+        ),
+        concepts=(bearing, outer, bpfo),
+        evidence=(fault_evidence, symptom_evidence),
+    )
+    return AskDeps(
+        graph_store=graph,
+        document_names=FakeDocumentNames({DOC_ID: "论文A.pdf"}),
+    )
+
+
+def test_ask_prints_the_full_two_hop_route_with_evidence_for_each_step(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = run_ask("滚动轴承有什么征兆", deps=deps_with_two_hop_chain())
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert (
+        "滚动轴承 —具有故障模式→ 轴承外圈疲劳剥落 "
+        "—表现为→ 外圈故障频率及其倍频（置信度 0.60）"
+    ) in output
+    assert "依据（滚动轴承 → 轴承外圈疲劳剥落）：论文A.pdf 第 3 页：" in output
+    assert (
+        "依据（轴承外圈疲劳剥落 → 外圈故障频率及其倍频）：论文A.pdf 第 4 页："
+    ) in output
