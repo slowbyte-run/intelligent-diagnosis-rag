@@ -6,9 +6,10 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from idr_core.config import Config, ConfigError, load_config
+from idr_cli.ask import DEFAULT_SOURCE_DIR, build_ask_deps, run_ask
 from idr_cli.doctor import run_doctor
 from idr_cli.ingest import build_deps, run_ingest
-from idr_rotating import IngestDeps
+from idr_rotating import AskDeps, IngestDeps
 
 
 def _positive_int(value: str) -> int:
@@ -21,7 +22,7 @@ def _positive_int(value: str) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="idr",
-        description="知识图谱 RAG 工具：把文献转成可溯源的知识图谱。",
+        description="知识图谱 RAG 工具：把文献转成可溯源的知识图谱，并回答带引用的问题。",
     )
     commands = parser.add_subparsers(dest="command", metavar="<命令>")
     commands.add_parser("doctor", help="检查配置与本地服务连通性")
@@ -42,6 +43,21 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="N",
         help="只处理按文件名排序的前 N 篇，用于扩大语料前快速验证",
     )
+    ask_command = commands.add_parser(
+        "ask", help="用一句自然语言提问，输出带文献名、页码与原文的答案"
+    )
+    ask_command.add_argument("question", help="问题文本")
+    ask_command.add_argument(
+        "--json",
+        action="store_true",
+        help="输出结构化 JSON，供评估与下游服务使用",
+    )
+    ask_command.add_argument(
+        "--corpus-dir",
+        type=Path,
+        default=DEFAULT_SOURCE_DIR,
+        help=f"语料目录，用于把文档标识对回文献名，默认 {DEFAULT_SOURCE_DIR}",
+    )
     return parser
 
 
@@ -49,6 +65,7 @@ def main(
     argv: Sequence[str] | None = None,
     *,
     deps_factory: Callable[[Config], IngestDeps] = build_deps,
+    ask_deps_factory: Callable[[Config, Path], AskDeps] = build_ask_deps,
 ) -> int:
     parser = build_parser()
     arguments = parser.parse_args(argv)
@@ -72,6 +89,19 @@ def main(
             deps=deps,
             limit=arguments.limit,
             reports_dir=arguments.reports_dir,
+        )
+
+    if arguments.command == "ask":
+        try:
+            config = load_config()
+            ask_deps = ask_deps_factory(config, Path(arguments.corpus_dir))
+        except ConfigError as error:
+            print(f"配置错误：{error}", file=sys.stderr)
+            return 1
+        return run_ask(
+            arguments.question,
+            deps=ask_deps,
+            as_json=arguments.json,
         )
 
     raise AssertionError(f"未实现的命令：{arguments.command}")
