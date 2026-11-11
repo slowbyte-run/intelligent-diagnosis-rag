@@ -12,11 +12,11 @@
 
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from idr_core.documents import document_id
 from idr_core.embedding import Embedder
 from idr_core.graph import GraphStore
 from idr_core.llm import (
@@ -161,7 +161,7 @@ def _ingest_document(
     """编排一篇文献的生命周期；每一类结果都有独立的报告组装函数。"""
     attempt = _DocumentAttempt()
     try:
-        attempt.doc_id = _doc_id(path.read_bytes())
+        attempt.doc_id = document_id(path.read_bytes())
         skipped = _skip_if_current(path, deps, attempt.doc_id, fingerprint)
         if skipped is not None:
             return skipped
@@ -472,8 +472,3 @@ def _previous_state(
 def _record_state(deps: IngestDeps, state: DocumentProcessingState) -> None:
     if deps.state_store is not None:
         deps.state_store.record(state)
-
-
-def _doc_id(content: bytes) -> str:
-    """文献标识由内容哈希推导，同一文件重复入库得到同一标识。"""
-    return hashlib.sha256(content).hexdigest()[:16]

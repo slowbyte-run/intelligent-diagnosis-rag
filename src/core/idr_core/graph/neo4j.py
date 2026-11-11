@@ -3,22 +3,25 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from typing import Any, LiteralString, cast
 
 from neo4j import Driver, GraphDatabase, ManagedTransaction
 
 from idr_core.graph.models import GraphBatch
+from idr_core.graph.read import Concept, EvidenceRecord, FactEdge
 from idr_core.models import EvidenceSegment
 
 _RELATION_TYPE_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
 class Neo4jGraphStore:
-    """把 ``GraphBatch`` 写进 Neo4j。
+    """把 ``GraphBatch`` 写进 Neo4j，同时实现检索侧的读端口。
 
     节点 ID 由调用方稳定推导，写入一律用 MERGE；重复处理同一篇文献不会产生
     重复节点。关系类型来自本体校验后的清单，写入前再校验字符集，不能直接
-    拼进 Cypher。
+    拼进 Cypher。读方法只按标识取数、返回未聚合的并行边，聚合与证据规则由
+    ``idr_core.graph.read`` 统一处理。
     """
 
     def __init__(self, uri: str, user: str, password: str) -> None:
@@ -30,6 +33,96 @@ class Neo4jGraphStore:
     def write_document(self, batch: GraphBatch) -> None:
         with self._driver.session() as session:
             session.execute_write(self._write_batch, batch)
+
+    def facts_from(
+        self, concept_id: str, relation_types: Sequence[str]
+    ) -> tuple[FactEdge, ...]:
+        query_types = sorted(
+            {_upper_relation_type(name) for name in relation_types}
+        )
+        if not query_types:
+            return ()
+        with self._driver.session() as session:
+            rows = session.run(
+                """
+                MATCH (head:Concept {id: $concept_id})-[edge]->(tail:Concept)
+                WHERE type(edge) IN $relation_types
+                RETURN head.id AS head_id,
+                       type(edge) AS relation,
+                       tail.id AS tail_id,
+                       coalesce(edge.evidence_ids, []) AS evidence_ids,
+                       coalesce(edge.confidence, 0.0) AS confidence,
+                       coalesce(edge.doc_id, '') AS doc_id
+                ORDER BY tail.id, edge.doc_id
+                """,
+                concept_id=concept_id,
+                relation_types=query_types,
+            )
+            return tuple(
+                FactEdge(
+                    head_id=str(row["head_id"]),
+                    relation=str(row["relation"]).lower(),
+                    tail_id=str(row["tail_id"]),
+                    evidence_ids=tuple(
+                        str(evidence_id) for evidence_id in row["evidence_ids"]
+                    ),
+                    confidence=float(row["confidence"]),
+                    doc_id=str(row["doc_id"]),
+                )
+                for row in rows
+            )
+
+    def concepts_by_ids(self, concept_ids: Sequence[str]) -> tuple[Concept, ...]:
+        if not concept_ids:
+            return ()
+        with self._driver.session() as session:
+            rows = session.run(
+                """
+                MATCH (concept:Concept)
+                WHERE concept.id IN $concept_ids
+                RETURN concept.id AS id,
+                       concept.name AS name,
+                       concept.type AS type
+                ORDER BY id
+                """,
+                concept_ids=list(concept_ids),
+            )
+            return tuple(
+                Concept(
+                    id=str(row["id"]),
+                    name=str(row["name"]),
+                    type=str(row["type"]),
+                )
+                for row in rows
+            )
+
+    def evidence_by_ids(
+        self, evidence_ids: Sequence[str]
+    ) -> tuple[EvidenceRecord, ...]:
+        if not evidence_ids:
+            return ()
+        with self._driver.session() as session:
+            rows = session.run(
+                """
+                MATCH (evidence:Evidence)
+                WHERE evidence.id IN $evidence_ids
+                RETURN evidence.id AS id,
+                       evidence.doc_id AS doc_id,
+                       evidence.page AS page,
+                       evidence.text AS text
+                ORDER BY id
+                """,
+                evidence_ids=list(evidence_ids),
+            )
+            return tuple(
+                EvidenceRecord(
+                    id=str(row["id"]),
+                    doc_id=str(row["doc_id"]),
+                    page=int(row["page"]),
+                    text=str(row["text"]),
+                )
+                for row in rows
+            )
 
     @staticmethod
     def _write_batch(tx: ManagedTransaction, batch: GraphBatch) -> None:
@@ -116,9 +209,7 @@ class Neo4jGraphStore:
 
         rows_by_type: dict[str, list[dict[str, Any]]] = {}
         for relation in batch.relations:
-            if not _RELATION_TYPE_PATTERN.fullmatch(relation.type):
-                raise ValueError(f"非法关系类型：{relation.type}")
-            rows_by_type.setdefault(relation.type.upper(), []).append(
+            rows_by_type.setdefault(_upper_relation_type(relation.type), []).append(
                 {
                     "head_id": relation.head_id,
                     "tail_id": relation.tail_id,
@@ -146,6 +237,13 @@ class Neo4jGraphStore:
                 """,
             )
             tx.run(query, rows=rows).consume()
+
+
+def _upper_relation_type(name: str) -> str:
+    """校验关系标识后转成图数据库里的类型名；非法标识不得拼进查询。"""
+    if not _RELATION_TYPE_PATTERN.fullmatch(name):
+        raise ValueError(f"非法关系类型：{name}")
+    return name.upper()
 
 
 def _evidence_row(segment: EvidenceSegment) -> dict[str, Any]:

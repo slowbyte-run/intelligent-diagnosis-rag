@@ -57,6 +57,18 @@ class AliasResolver:
             for term in (relation_id, relation.label):
                 _add(self._relation_types, normalize_term(term), relation_id)
 
+    def entries(self) -> tuple[tuple[str, CanonicalEntity], ...]:
+        """全部（归一术语，规范实例）对，供问题侧的别名匹配复用同一张表。
+
+        归一术语是匹配键而不是展示文本：同一个实例的规范名、ID 与全部别名
+        都在这里，调用方不需要再拼一遍词表。
+        """
+        return tuple(
+            (term, entity)
+            for term, entities in self._entities.items()
+            for entity in entities
+        )
+
     def lookup_entity(
         self, name: str, *, entity_type: str | None = None
     ) -> tuple[CanonicalEntity, ...]:
