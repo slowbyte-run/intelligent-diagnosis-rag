@@ -52,9 +52,10 @@ uv run --env-file .env idr ask "轴承外圈疲劳剥落有什么征兆" --json 
    依据：arxiv-2206_14153.pdf 第 20 页：Outer race defect = ...
 ```
 
-- 检索路径三选一并显式标注：`graph`（图命中）、`vector`（向量兜底，后续里程碑接进来）、`refusal`（没有可用依据时明确拒答，`detail` 说明缺在哪一步）。
+- 检索路径三选一并显式标注：`graph`（图命中）、`vector`（向量兜底：图没命中时按重排分数取证据段，分数低于阈值即不答题）、`refusal`（没有可用依据时明确拒答，`detail` 说明缺在哪一步）。
+- 拒答分两种原因：`no_concept`（问题里的说法没有链接到任何本体概念）与 `no_evidence`（概念识别了，但图谱没有带证据的事实、向量兜底也没有候选过阈值）；人类可读输出与 `--json` 的 `refusal_reason` 都给出原因。拒答答案的结论与引用恒为空。
 - 图检索最多走两跳：从最具体的命中出发，只走 `has_component`、`has_fault_mode`、`has_cause`、`indicated_by`、`detected_by`、`confused_with` 六类白名单边，三跳及以上不执行。两跳只允许经 `has_component` / `has_fault_mode` 中转，避免把「易混淆故障的征兆」算到当前故障上。
-- 路径上的每一步都要有证据；任一步缺证据，该条结论整条丢弃，不缩短成部分路径。多跳结论的人类可读输出展开完整路径（如「滚动轴承 —具有故障模式→ 外圈剥落 —表现为→ 外圈故障频率及其倍频」），`--json` 里对应 `facts[].path`，JSON schema 版本为 2。
+- 路径上的每一步都要有证据；任一步缺证据，该条结论整条丢弃，不缩短成部分路径。多跳结论的人类可读输出展开完整路径（如「滚动轴承 —具有故障模式→ 外圈剥落 —表现为→ 外圈故障频率及其倍频」），`--json` 里对应 `facts[].path`，JSON schema 版本为 3。
 - 结果集有上界（当前 20 条）；超出时按关系类型与概念名称排序截断，`--json` 里以 `truncated` 与 `detail` 说明。
 - 实体链接只用本体别名表，做整句与子串匹配，答案里指出命中了哪条别名。
 - 每条结论都回填证据段的文献名、页码与原文；事实边没有 `evidence_ids` 时不进答案。
@@ -86,6 +87,23 @@ uv run --env-file .env idr eval --out data/output/reports/m2-baseline.json
 可以指定留档路径；报告含三项指标、按题型拆分、逐题的概念/证据/文献覆盖与引用校验失败
 原因。评估过程只读图谱与语料：图谱只走 `GraphReader` 读方法，PDF 只打开读取，唯一的
 写出是报告文件。
+
+## 阈值校准
+
+`vector_min_rerank_score` 是向量兜底「有依据 / 拒答」的判据，来自
+`src/rotating/config/retrieval.yaml`。它是猜出来的初值，必须用金标准集校准后再写回
+（#17）：
+
+```bash
+uv run --env-file .env idr calibrate          # 采样 + 扫描，输出推荐值与完整报告
+uv run --env-file .env idr calibrate --write  # 同时把阈值与校准标记写回配置
+```
+
+采样每题 2 次模型调用（嵌入 + 重排），阈值扫描在同一份分数上离线完成。校准口径、本次
+分数分布、当前值为什么是 0.78、以及「单一阈值分不开跨语言证据与拒答对照」的取舍，见
+[docs/retrieval-calibration.md](docs/retrieval-calibration.md)。
+
+当前基线（20 题，阈值 0.78）：检索命中率 14/18、引用准确率 298/298、拒答正确率 18/20。
 
 ## 测试
 

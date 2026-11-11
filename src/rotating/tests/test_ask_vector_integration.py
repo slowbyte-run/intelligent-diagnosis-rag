@@ -7,7 +7,8 @@
 
 它验证的是线上那张知识库能被「图里没有的问题」问到：向量召回走真实的顺序
 扫描，重排分数来自真实服务，引用回到真实证据段的文献标识与页码，成本记录
-里两次模型调用都有 token 与耗时。
+里两次模型调用都有 token 与耗时。也验证校准后的阈值确实把「语料里没有」的
+问题挡在生成之外，并给出正确的拒答原因。
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ from idr_core.graph.neo4j import Neo4jGraphStore
 from idr_core.llm.embedding import OpenAICompatibleEmbedder
 from idr_core.llm.rerank import OpenAICompatibleReranker
 from idr_core.vector_store.pgvector import PgVectorStore
-from idr_rotating import AnswerPath, AskDeps, ask
+from idr_rotating import AnswerPath, AskDeps, RefusalReason, ask
 from idr_rotating.retrieval import load_retrieval_settings
 
 # 图外问题：本体别名表一个概念都匹配不到，图路径必然落空；语料里的中文专利
@@ -106,3 +107,33 @@ def test_a_question_outside_the_ontology_is_answered_from_reranked_evidence(
     assert rerank_call.model
     assert rerank_call.input_tokens is not None and rerank_call.input_tokens > 0
     assert rerank_call.elapsed_seconds > 0.0
+
+
+NO_EVIDENCE_QUESTION = "汽轮机有什么故障模式？"
+NO_CONCEPT_QUESTION = "冷却塔的布水器堵塞如何判断？"
+
+
+def test_a_linked_concept_without_corpus_evidence_refuses_as_no_evidence(
+    deps: AskDeps,
+) -> None:
+    """汽轮机在本体里、语料里没有：识别了概念，但没有依据。"""
+    answer = ask(NO_EVIDENCE_QUESTION, deps=deps)
+
+    assert answer.path is AnswerPath.REFUSAL
+    assert answer.refusal_reason is RefusalReason.NO_EVIDENCE
+    assert answer.matches
+    assert answer.facts == ()
+    assert answer.citations == ()
+    assert answer.detail is not None and "阈值" in answer.detail
+
+
+def test_a_question_outside_the_ontology_refuses_as_no_concept(
+    deps: AskDeps,
+) -> None:
+    answer = ask(NO_CONCEPT_QUESTION, deps=deps)
+
+    assert answer.path is AnswerPath.REFUSAL
+    assert answer.refusal_reason is RefusalReason.NO_CONCEPT
+    assert answer.matches == ()
+    assert answer.facts == ()
+    assert answer.citations == ()
