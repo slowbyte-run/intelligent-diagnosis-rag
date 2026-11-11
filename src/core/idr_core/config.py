@@ -4,8 +4,10 @@
 新增一个变量只需在这里加一行和一个别名。
 """
 
+import json
 import os
 from collections.abc import Mapping
+from typing import Any
 
 from pydantic import (
     BaseModel,
@@ -42,6 +44,25 @@ class Config(BaseModel):
     neo4j_user: str = Field(validation_alias="NEO4J_USER")
     neo4j_password: str = Field(validation_alias="NEO4J_PASSWORD")
     database_url: str = Field(validation_alias="DATABASE_URL")
+    llm_extra_headers: dict[str, str] = Field(
+        default_factory=dict, validation_alias="LLM_EXTRA_HEADERS"
+    )
+
+    @field_validator("llm_extra_headers", mode="before")
+    @classmethod
+    def _parse_extra_headers(cls, value: Any) -> dict[str, str]:
+        """环境变量里以 JSON 对象提供额外的请求头。"""
+        if value is None or value == "":
+            return {}
+        if isinstance(value, Mapping):
+            return {str(k): str(v) for k, v in value.items()}
+        try:
+            parsed = json.loads(value)
+        except (TypeError, ValueError):
+            raise ValueError("必须是 JSON 对象，例如 {\"x-header\": \"value\"}") from None
+        if not isinstance(parsed, dict):
+            raise ValueError("必须是 JSON 对象")
+        return {str(k): str(v) for k, v in parsed.items()}
 
     @field_validator("embedding_dim")
     @classmethod

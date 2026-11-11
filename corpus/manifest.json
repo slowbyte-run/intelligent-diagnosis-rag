@@ -1,0 +1,374 @@
+{
+  "schema_version": 1,
+  "note": "PDF 不入库；本清单只记录来源与校验信息，用于复现与审计。",
+  "documents": [
+    {
+      "doc_id": "arxiv:2211.09551",
+      "kind": "paper",
+      "source_url": "https://arxiv.org/abs/2211.09551",
+      "licence": "CC0 1.0",
+      "licence_source": "arxiv abs 页面 http://creativecommons.org/publicdomain/zero/1.0/",
+      "title": "",
+      "fault_focus": "综述/数据融合",
+      "retrieved_at": "2026-11-11T09:52:38+00:00",
+      "sha256": "1754d7b5d00a0ba279be1dbc83c5494a58ba4180837c1235f659d3143693ac95",
+      "bytes": 381018,
+      "pages": 8,
+      "text_layer_chars": 4561,
+      "generated": false,
+      "probe": {
+        "text_layer_ok": "yes"
+      }
+    },
+    {
+      "doc_id": "arxiv:2206.14153",
+      "kind": "paper",
+      "source_url": "https://arxiv.org/abs/2206.14153",
+      "licence": "CC BY-SA",
+      "licence_source": "arxiv abs 页面 http://creativecommons.org/licenses/by-sa/4.0/",
+      "title": "",
+      "fault_focus": "多故障/旋转机械",
+      "retrieved_at": "2026-11-11T09:52:44+00:00",
+      "sha256": "4a8dc5af5de2cfe4f4062d26afa77ae6dc7e87a297bbdbd25836a5864394bd35",
+      "bytes": 6324271,
+      "pages": 64,
+      "text_layer_chars": 3807,
+      "generated": false,
+      "probe": {
+        "text_layer_ok": "yes"
+      }
+    },
+    {
+      "doc_id": "arxiv:2111.08185",
+      "kind": "paper",
+      "source_url": "https://arxiv.org/abs/2111.08185",
+      "licence": "arXiv perpetual non-exclusive licence",
+      "licence_source": "arxiv abs 页面",
+      "title": "",
+      "fault_focus": "综述/图神经网络",
+      "retrieved_at": "2026-11-11T09:52:50+00:00",
+      "sha256": "3ecc59190b12a4627f41cc3871603d15ff1bbe39acc89c4e4cb18af23f86cdad",
+      "bytes": 8230755,
+      "pages": 17,
+      "text_layer_chars": 3824,
+      "generated": false,
+      "probe": {
+        "text_layer_ok": "yes"
+      }
+    },
+    {
+      "doc_id": "arxiv:2403.17181",
+      "kind": "paper",
+      "source_url": "https://arxiv.org/abs/2403.17181",
+      "licence": "CC BY 4.0",
+      "licence_source": "arxiv abs 页面 http://creativecommons.org/licenses/by/4.0/",
+      "title": "",
+      "fault_focus": "轴承/信号处理",
+      "retrieved_at": "2026-11-11T09:52:51+00:00",
+      "sha256": "906bd81774ba8b1a099a52df915006101d79b5b0aad89256b64fd98cd3f6485f",
+      "bytes": 7775733,
+      "pages": 50,
+      "text_layer_chars": 5121,
+      "generated": false,
+      "probe": {
+        "text_layer_ok": "yes"
+      }
+    },
+    {
+      "doc_id": "arxiv:2308.14174",
+      "kind": "paper",
+      "source_url": "https://arxiv.org/abs/2308.14174",
+      "licence": "CC BY 4.0",
+      "licence_source": "arxiv abs 页面 http://creativecommons.org/licenses/by/4.0/",
+      "title": "",
+      "fault_focus": "齿轮箱",
+      "retrieved_at": "2026-11-11T09:52:57+00:00",
+      "sha256": "1be1ecd65c1482c8d1d2a7c471cda7f0b495bd00b1d5cc2e06c6a3b67e19ef61",
+      "bytes": 899385,
+      "pages": 10,
+      "text_layer_chars": 2139,
+      "generated": false,
+      "probe": {
+        "text_layer_ok": "yes"
+      }
+    },
+    {
+      "doc_id": "arxiv:2201.13403",
+      "kind": "paper",
+      "source_url": "https://arxiv.org/abs/2201.13403",
+      "licence": "http://creativecommons.org/licenses/by-nc-nd/4.0/",
+      "licence_source": "arxiv abs 页面 http://creativecommons.org/licenses/by-nc-nd/4.0/",
+      "title": "",
+      "fault_focus": "风电/振动",
+      "retrieved_at": "2026-11-11T09:53:03+00:00",
+      "sha256": "86d03750e457ff1f30d2b77153dae2a3778ee0f3a18b95791f1e975f2ea9953c",
+      "bytes": 1507494,
+      "pages": 14,
+      "text_layer_chars": 3356,
+      "generated": false,
+      "probe": {
+        "text_layer_ok": "yes"
+      }
+    },
+    {
+      "doc_id": "arxiv:2303.03496",
+      "kind": "paper",
+      "source_url": "https://arxiv.org/abs/2303.03496",
+      "licence": "CC BY 4.0",
+      "licence_source": "arxiv abs 页面 http://creativecommons.org/licenses/by/4.0/",
+      "title": "",
+      "fault_focus": "齿轮箱/知识驱动",
+      "retrieved_at": "2026-11-11T09:53:10+00:00",
+      "sha256": "f4ffe7bf8b08e97c35984831e6619b4ab10e6208533cc6f95ad5c26ccbb13ab5",
+      "bytes": 1080419,
+      "pages": 14,
+      "text_layer_chars": 2950,
+      "generated": false,
+      "probe": {
+        "text_layer_ok": "yes"
+      }
+    },
+    {
+      "doc_id": "arxiv:1605.04874",
+      "kind": "paper",
+      "source_url": "https://arxiv.org/abs/1605.04874",
+      "licence": "arXiv perpetual non-exclusive licence",
+      "licence_source": "arxiv abs 页面",
+      "title": "",
+      "fault_focus": "齿轮箱",
+      "retrieved_at": "2026-11-11T09:53:16+00:00",
+      "sha256": "4f88106f26629c633a2b3023754caff4571ba1770c551a9b15fd504bb1ab5f5a",
+      "bytes": 2878115,
+      "pages": 6,
+      "text_layer_chars": 4659,
+      "generated": false,
+      "probe": {
+        "text_layer_ok": "yes"
+      }
+    },
+    {
+      "doc_id": "arxiv:2305.19569",
+      "kind": "paper",
+      "source_url": "https://arxiv.org/abs/2305.19569",
+      "licence": "http://creativecommons.org/licenses/by-nc-nd/4.0/",
+      "licence_source": "arxiv abs 页面 http://creativecommons.org/licenses/by-nc-nd/4.0/",
+      "title": "",
+      "fault_focus": "轴承/知识驱动",
+      "retrieved_at": "2026-11-11T09:53:16+00:00",
+      "sha256": "ce1b34c82ccf0ae140742c34cb363b131fe892868ab67921c7bc112cc200e03b",
+      "bytes": 1244979,
+      "pages": 20,
+      "text_layer_chars": 2894,
+      "generated": false,
+      "probe": {
+        "text_layer_ok": "yes"
+      }
+    },
+    {
+      "doc_id": "arxiv:2212.14732",
+      "kind": "paper",
+      "source_url": "https://arxiv.org/abs/2212.14732",
+      "licence": "arXiv perpetual non-exclusive licence",
+      "licence_source": "arxiv abs 页面",
+      "title": "",
+      "fault_focus": "不对中/数据集",
+      "retrieved_at": "2026-11-11T09:53:23+00:00",
+      "sha256": "72362dcee50f1d63d1ca8afd5237470b1eb38593338c847d58a8aed2778d474a",
+      "bytes": 2583055,
+      "pages": 17,
+      "text_layer_chars": 1473,
+      "generated": false,
+      "probe": {
+        "text_layer_ok": "yes"
+      }
+    },
+    {
+      "doc_id": "arxiv:1208.3122",
+      "kind": "paper",
+      "source_url": "https://arxiv.org/abs/1208.3122",
+      "licence": "arXiv perpetual non-exclusive licence",
+      "licence_source": "arxiv abs 页面",
+      "title": "",
+      "fault_focus": "转子",
+      "retrieved_at": "2026-11-11T09:53:23+00:00",
+      "sha256": "289961f5bd82f302099661632995e80f8ff1b31345d544dbf458805cba905576",
+      "bytes": 506439,
+      "pages": 11,
+      "text_layer_chars": 4688,
+      "generated": false,
+      "probe": {
+        "text_layer_ok": "yes"
+      }
+    },
+    {
+      "doc_id": "arxiv:2512.14210",
+      "kind": "paper",
+      "source_url": "https://arxiv.org/abs/2512.14210",
+      "licence": "arXiv perpetual non-exclusive licence",
+      "licence_source": "arxiv abs 页面",
+      "title": "",
+      "fault_focus": "不平衡/轴承",
+      "retrieved_at": "2026-11-11T09:53:23+00:00",
+      "sha256": "742178038a41d5eab10a1c95b988bc461a39abea896fc474b63478eef059fefd",
+      "bytes": 5839566,
+      "pages": 25,
+      "text_layer_chars": 2553,
+      "generated": false,
+      "probe": {
+        "text_layer_ok": "yes"
+      }
+    },
+    {
+      "doc_id": "patent:CN119442026A",
+      "kind": "patent",
+      "source_url": "https://patents.google.com/patent/CN119442026A/zh",
+      "licence": "未声明（Google Patents 公开的专利文献）",
+      "licence_source": "Google Patents 页面未提供内容许可声明",
+      "title": "基于多通道自适应融合的滚动轴承故障诊断方法及系统",
+      "fault_focus": "轴承/故障诊断方法",
+      "retrieved_at": "",
+      "sha256": "",
+      "bytes": 0,
+      "pages": 9,
+      "text_layer_chars": 1313,
+      "generated": true,
+      "probe": {
+        "paragraphs": "168",
+        "text_layer_ok": "yes"
+      }
+    },
+    {
+      "doc_id": "patent:CN117969094A",
+      "kind": "patent",
+      "source_url": "https://patents.google.com/patent/CN117969094A/zh",
+      "licence": "未声明（Google Patents 公开的专利文献）",
+      "licence_source": "Google Patents 页面未提供内容许可声明",
+      "title": "一种滚动轴承故障诊断方法、装置及系统",
+      "fault_focus": "轴承/故障诊断",
+      "retrieved_at": "",
+      "sha256": "",
+      "bytes": 0,
+      "pages": 9,
+      "text_layer_chars": 1568,
+      "generated": true,
+      "probe": {
+        "paragraphs": "168",
+        "text_layer_ok": "yes"
+      }
+    },
+    {
+      "doc_id": "patent:CN203324012U",
+      "kind": "patent",
+      "source_url": "https://patents.google.com/patent/CN203324012U/zh",
+      "licence": "未声明（Google Patents 公开的专利文献）",
+      "licence_source": "Google Patents 页面未提供内容许可声明",
+      "title": "滚动轴承检测及故障诊断装置",
+      "fault_focus": "轴承/检测装置",
+      "retrieved_at": "",
+      "sha256": "",
+      "bytes": 0,
+      "pages": 6,
+      "text_layer_chars": 1604,
+      "generated": true,
+      "probe": {
+        "paragraphs": "81",
+        "text_layer_ok": "yes"
+      }
+    },
+    {
+      "doc_id": "patent:CN105352726A",
+      "kind": "patent",
+      "source_url": "https://patents.google.com/patent/CN105352726A/zh",
+      "licence": "未声明（Google Patents 公开的专利文献）",
+      "licence_source": "Google Patents 页面未提供内容许可声明",
+      "title": "一种齿轮的故障诊断方法",
+      "fault_focus": "齿轮/点蚀与断齿",
+      "retrieved_at": "",
+      "sha256": "",
+      "bytes": 0,
+      "pages": 7,
+      "text_layer_chars": 1464,
+      "generated": true,
+      "probe": {
+        "paragraphs": "111",
+        "text_layer_ok": "yes"
+      }
+    },
+    {
+      "doc_id": "patent:CN106596116A",
+      "kind": "patent",
+      "source_url": "https://patents.google.com/patent/CN106596116A/zh",
+      "licence": "未声明（Google Patents 公开的专利文献）",
+      "licence_source": "Google Patents 页面未提供内容许可声明",
+      "title": "一种风力发电机组振动故障诊断方法",
+      "fault_focus": "齿轮/振动诊断",
+      "retrieved_at": "",
+      "sha256": "",
+      "bytes": 0,
+      "pages": 5,
+      "text_layer_chars": 1520,
+      "generated": true,
+      "probe": {
+        "paragraphs": "98",
+        "text_layer_ok": "yes"
+      }
+    },
+    {
+      "doc_id": "patent:CN115389190B",
+      "kind": "patent",
+      "source_url": "https://patents.google.com/patent/CN115389190B/zh",
+      "licence": "未声明（Google Patents 公开的专利文献）",
+      "licence_source": "Google Patents 页面未提供内容许可声明",
+      "title": "一种设备运行状态的诊断系统",
+      "fault_focus": "转子不平衡",
+      "retrieved_at": "",
+      "sha256": "",
+      "bytes": 0,
+      "pages": 9,
+      "text_layer_chars": 1490,
+      "generated": true,
+      "probe": {
+        "paragraphs": "105",
+        "text_layer_ok": "yes"
+      }
+    },
+    {
+      "doc_id": "patent:CN101929917B",
+      "kind": "patent",
+      "source_url": "https://patents.google.com/patent/CN101929917B/zh",
+      "licence": "未声明（Google Patents 公开的专利文献）",
+      "licence_source": "Google Patents 页面未提供内容许可声明",
+      "title": "一种旋转机械的故障诊断方法",
+      "fault_focus": "转子/矢面积法",
+      "retrieved_at": "",
+      "sha256": "",
+      "bytes": 0,
+      "pages": 4,
+      "text_layer_chars": 1634,
+      "generated": true,
+      "probe": {
+        "paragraphs": "62",
+        "text_layer_ok": "yes"
+      }
+    },
+    {
+      "doc_id": "patent:CN104880291A",
+      "kind": "patent",
+      "source_url": "https://patents.google.com/patent/CN104880291A/zh",
+      "licence": "未声明（Google Patents 公开的专利文献）",
+      "licence_source": "Google Patents 页面未提供内容许可声明",
+      "title": "用于基础松动造成轴承座轴向振动大的诊断方法",
+      "fault_focus": "基础松动/轴向振动",
+      "retrieved_at": "",
+      "sha256": "",
+      "bytes": 0,
+      "pages": 4,
+      "text_layer_chars": 1598,
+      "generated": true,
+      "probe": {
+        "paragraphs": "33",
+        "text_layer_ok": "yes"
+      }
+    }
+  ]
+}

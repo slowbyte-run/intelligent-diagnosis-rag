@@ -45,3 +45,6 @@ neo4j/import/
 
 # uv 本地缓存（沙箱下 ~/.cache/uv 不可写）
 .uv-cache/
+
+# 子代理 worktree（.agents 与 .agent 不同，别混）
+.agents/

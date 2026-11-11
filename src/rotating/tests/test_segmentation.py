@@ -390,3 +390,25 @@ def test_parser_page_warnings_are_carried_into_the_document_report(
     report, _, _ = ingest_pages(tmp_path, [page])
 
     assert "第 1 页丢弃了 2 行文字" in report.documents[0].warnings
+
+
+def test_two_column_page_splits_by_paragraph_not_by_line() -> None:
+    """双栏论文里右栏每一行的 x0 都远离全页最小左边距，旧规则会一行一段。"""
+    from idr_core.parsing import ParsedDocument
+    from idr_rotating.segments import build_evidence_segments
+
+    rows = [100.0, 112.0, 124.0, 144.0, 156.0, 168.0]
+    texts: list[str] = []
+    boxes: list[BBox] = []
+    for column_left, label in ((72.0, "左"), (310.0, "右")):
+        for index, row in enumerate(rows):
+            paragraph = "一段" if index < 3 else "二段"
+            texts.append(f"{label}{paragraph}第{index + 1}行正文内容")
+            boxes.append(BBox(column_left, row, column_left + 210.0, row + 10.0))
+
+    page = parsed_page(1, "\n".join(texts), line_boxes=boxes)
+    document = ParsedDocument(pages=(page,))
+
+    segments = build_evidence_segments("doc", document, DocumentType.PAPER)
+
+    assert len(segments) == 4, [segment.text for segment in segments]

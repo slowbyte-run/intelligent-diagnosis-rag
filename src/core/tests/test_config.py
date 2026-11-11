@@ -48,3 +48,16 @@ def test_load_config_names_every_missing_variable_at_once() -> None:
 
     assert "DEEPSEEK_API_KEY" in str(error.value)
     assert "DATABASE_URL" in str(error.value)
+
+
+def test_load_config_parses_llm_extra_headers() -> None:
+    config = load_config(
+        valid_env(LLM_EXTRA_HEADERS='{"x-opencode-session": "idr"}')
+    )
+
+    assert config.llm_extra_headers == {"x-opencode-session": "idr"}
+
+
+def test_load_config_rejects_malformed_llm_extra_headers() -> None:
+    with pytest.raises(ConfigError):
+        load_config(valid_env(LLM_EXTRA_HEADERS="not-json"))

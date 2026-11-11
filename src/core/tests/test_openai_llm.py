@@ -106,5 +106,28 @@ def test_describe_reports_the_model_and_parameters_used_for_reproduction(
             "base_url": "https://example.invalid",
             "temperature": 0.0,
             "response_format": "json_object",
+            "extra_headers": "",
         },
     )
+
+
+def test_sends_configured_extra_headers_and_reports_their_names(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeOpenAI:
+        def __init__(self, **kwargs: object) -> None:
+            captured.update(kwargs)
+
+    monkeypatch.setattr(openai_compat, "OpenAI", FakeOpenAI)
+
+    llm = OpenAICompatibleLLM(
+        base_url="https://example.invalid",
+        api_key="sk-test",
+        model="test-model",
+        extra_headers={"x-opencode-session": "idr"},
+    )
+
+    assert captured["default_headers"] == {"x-opencode-session": "idr"}
+    assert llm.describe().parameters["extra_headers"] == "x-opencode-session"
