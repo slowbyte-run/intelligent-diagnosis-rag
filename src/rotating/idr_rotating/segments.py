@@ -243,7 +243,11 @@ def _is_heading(line_text: str) -> bool:
 
 
 def _paragraph_starts(lines: list[_Line]) -> set[int]:
-    """用行距与首行缩进判断段落起点，不依赖空行（文字层里通常没有空行）。"""
+    """用行距与首行缩进判断段落起点，不依赖空行（文字层里通常没有空行）。
+
+    缩进必须相对**本栏**的左边距判断：双栏或两端对齐的论文里，右栏每一行的
+    x0 都远离全页最小左边距，拿全页左边距当基准会把每一行都判成新段落。
+    """
     content = [line for line in lines if line.text.strip()]
     if len(content) < 2:
         return set()
@@ -253,7 +257,16 @@ def _paragraph_starts(lines: list[_Line]) -> set[int]:
         (line.bbox.x1 - line.bbox.x0) / len(line.text) for line in content
     ]
     char_width = median(char_widths)
-    body_left = min(line.bbox.x0 for line in content)
+
+    # 按左边界聚类成栏，取每栏的左边距中位数与右边界。
+    def column_key(line: _Line) -> int:
+        return round(line.bbox.x0 / 24.0)
+
+    columns: dict[int, list[_Line]] = {}
+    for line in content:
+        columns.setdefault(column_key(line), []).append(line)
+    baseline = {key: median(item.bbox.x0 for item in members) for key, members in columns.items()}
+    right_edge = {key: max(item.bbox.x1 for item in members) for key, members in columns.items()}
 
     starts: set[int] = set()
     for previous, current in zip(lines, lines[1:]):
@@ -262,10 +275,25 @@ def _paragraph_starts(lines: list[_Line]) -> set[int]:
             continue
         if not current.text.strip():
             continue
+
+        if column_key(current) != column_key(previous):
+            # 换栏即换段落：右栏第一行不能并进左栏最后一段。
+            starts.add(current.start)
+            continue
+
         if line_height > 0 and current.bbox.y0 - previous.bbox.y1 > 0.8 * line_height:
             starts.add(current.start)
             continue
-        if char_width > 0 and current.bbox.x0 - body_left > 1.5 * char_width:
+
+        key = column_key(current)
+        left = baseline.get(key, current.bbox.x0)
+        edge = right_edge.get(key, current.bbox.x1)
+        previous_line_was_full = previous.bbox.x1 >= edge - 2 * char_width
+        if (
+            char_width > 0
+            and previous_line_was_full
+            and current.bbox.x0 - left > 1.5 * char_width
+        ):
             starts.add(current.start)
     return starts
 
