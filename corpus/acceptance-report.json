@@ -2,50 +2,10 @@
   "sample_size": 10,
   "passed": 10,
   "failed": 0,
-  "candidates": 173,
+  "candidates": 180,
   "results": [
     {
-      "assertion": "基础松动 -[INDICATED_BY]-> 1× 转频振动突出",
-      "evidence_id": "ev:66f9a7c0b49899ca:2:789-1012",
-      "pdf": "patent-CN104880291A.pdf",
-      "page": 2,
-      "ok": true,
-      "reason": "一致",
-      "expected": "[0014] 更具体地，步骤Ⅱ中的标准值为4.5mm/s到7.1mm/s之间，当步骤Ⅰ中测得的振动值＜4.5mm/s时，",
-      "actual": "[0014] 更具体地，步骤Ⅱ中的标准值为4.5mm/s到7.1mm/s之间，当步骤Ⅰ中测得的振动值＜4.5mm/s时，"
-    },
-    {
-      "assertion": "断齿 -[DETECTED_BY]-> 时域波形分析",
-      "evidence_id": "ev:1be1ecd65c1482c8:3:1820-2296",
-      "pdf": "arxiv-2308_14174.pdf",
-      "page": 3,
-      "ok": true,
-      "reason": "一致",
-      "expected": "2.3 Proposed Methodology\nFigure 1 shows the proposed techniq",
-      "actual": "2.3 Proposed Methodology\nFigure 1 shows the proposed techniq"
-    },
-    {
-      "assertion": "转子不平衡 -[INDICATED_BY]-> 1× 转频振动突出",
-      "evidence_id": "ev:742178038a41d5ea:1:355-1461",
-      "pdf": "arxiv-2512_14210.pdf",
-      "page": 1,
-      "ok": true,
-      "reason": "一致",
-      "expected": "Abstract\nThe present work presents the experimental analyses",
-      "actual": "Abstract\nThe present work presents the experimental analyses"
-    },
-    {
-      "assertion": "基础松动 -[INDICATED_BY]-> 1× 转频振动突出",
-      "evidence_id": "ev:4a8dc5af5de2cfe4:21:216-317",
-      "pdf": "arxiv-2206_14153.pdf",
-      "page": 21,
-      "ok": true,
-      "reason": "一致",
-      "expected": "Mechanical looseness fr (structural looseness at machine fee",
-      "actual": "Mechanical looseness fr (structural looseness at machine fee"
-    },
-    {
-      "assertion": "转子不平衡 -[INDICATED_BY]-> 轴向振动偏大",
+      "assertion": "转子 -[HAS_FAULT_MODE]-> 转子不平衡",
       "evidence_id": "ev:66f9a7c0b49899ca:1:1327-1653",
       "pdf": "patent-CN104880291A.pdf",
       "page": 1,
@@ -55,27 +15,57 @@
       "actual": "[0004] 现有设备故障诊断技术中，轴承座轴向振动大故障判断起来比较复杂，造成轴承座轴向振动大的\n故障原因有几个，其一"
     },
     {
-      "assertion": "异步电机 -[HAS_COMPONENT]-> 鼠笼转子绕组",
-      "evidence_id": "ev:906bd81774ba8b1a:46:596-893",
+      "assertion": "鼠笼转子绕组 -[HAS_FAULT_MODE]-> 转子断条",
+      "evidence_id": "ev:906bd81774ba8b1a:46:894-1028",
       "pdf": "arxiv-2403_17181.pdf",
       "page": 46,
       "ok": true,
       "reason": "一致",
-      "expected": "empirical mode decomposition of electroencephalogram signals",
-      "actual": "empirical mode decomposition of electroencephalogram signals"
+      "expected": "[271] L. Zhan, F. Ma, J. Zhang, C. Li, Z. Li, and T. Wang, “",
+      "actual": "[271] L. Zhan, F. Ma, J. Zhang, C. Li, Z. Li, and T. Wang, “"
     },
     {
-      "assertion": "滚动轴承 -[HAS_FAULT_MODE]-> 轴承内圈疲劳剥落",
-      "evidence_id": "ev:a69b5214a36a9857:6:1058-1203",
-      "pdf": "patent-CN117969094A.pdf",
+      "assertion": "转子不平衡 -[INDICATED_BY]-> 温升异常",
+      "evidence_id": "ev:742178038a41d5ea:7:234-714",
+      "pdf": "arxiv-2512_14210.pdf",
+      "page": 7,
+      "ok": true,
+      "reason": "一致",
+      "expected": "Figure 6 depicts the circumferentially averaged values and t",
+      "actual": "Figure 6 depicts the circumferentially averaged values and t"
+    },
+    {
+      "assertion": "离心泵 -[HAS_COMPONENT]-> 滚动轴承",
+      "evidence_id": "ev:72362dcee50f1d63:6:529-989",
+      "pdf": "arxiv-2212_14732.pdf",
       "page": 6,
       "ok": true,
       "reason": "一致",
-      "expected": "[0114] S3、将处理好的时频图作为数据集进行切分，按照3:1:1划分为训练集、验证集和测试集。训练集\n样本数为30",
-      "actual": "[0114] S3、将处理好的时频图作为数据集进行切分，按照3:1:1划分为训练集、验证集和测试集。训练集\n样本数为30"
+      "expected": "3.2 Sensor placement\nThe sensor is located in the machine (e",
+      "actual": "3.2 Sensor placement\nThe sensor is located in the machine (e"
     },
     {
-      "assertion": "保持架断裂 -[INDICATED_BY]-> 保持架故障频率",
+      "assertion": "基础松动 -[INDICATED_BY]-> 轴向振动偏大",
+      "evidence_id": "ev:66f9a7c0b49899ca:1:0-21",
+      "pdf": "patent-CN104880291A.pdf",
+      "page": 1,
+      "ok": true,
+      "reason": "一致",
+      "expected": "用于基础松动造成轴承座轴向振动大的诊断方法",
+      "actual": "用于基础松动造成轴承座轴向振动大的诊断方法"
+    },
+    {
+      "assertion": "转子 -[HAS_FAULT_MODE]-> 转子碰摩",
+      "evidence_id": "ev:742178038a41d5ea:1:355-1461",
+      "pdf": "arxiv-2512_14210.pdf",
+      "page": 1,
+      "ok": true,
+      "reason": "一致",
+      "expected": "Abstract\nThe present work presents the experimental analyses",
+      "actual": "Abstract\nThe present work presents the experimental analyses"
+    },
+    {
+      "assertion": "轴承外圈疲劳剥落 -[DETECTED_BY]-> 包络解调",
       "evidence_id": "ev:ddaef5ea68310f1b:6:5-291",
       "pdf": "patent-CN115389190B.pdf",
       "page": 6,
@@ -85,24 +75,34 @@
       "actual": "[0081] 作为一选项，本发明诊断方法还可适用于设备轴承的故障诊断，在设备轴承的故障自诊断方法中\n，其特征频率的计算是"
     },
     {
-      "assertion": "异步电机 -[HAS_COMPONENT]-> 滚动轴承",
-      "evidence_id": "ev:4a8dc5af5de2cfe4:17:278-4503",
-      "pdf": "arxiv-2206_14153.pdf",
-      "page": 17,
+      "assertion": "轴承外圈疲劳剥落 -[INDICATED_BY]-> 外圈故障频率及其倍频",
+      "evidence_id": "ev:ddaef5ea68310f1b:6:5-291",
+      "pdf": "patent-CN115389190B.pdf",
+      "page": 6,
       "ok": true,
       "reason": "一致",
-      "expected": "test setup to collect data using sensors. There are various ",
-      "actual": "test setup to collect data using sensors. There are various "
+      "expected": "[0081] 作为一选项，本发明诊断方法还可适用于设备轴承的故障诊断，在设备轴承的故障自诊断方法中\n，其特征频率的计算是",
+      "actual": "[0081] 作为一选项，本发明诊断方法还可适用于设备轴承的故障诊断，在设备轴承的故障自诊断方法中\n，其特征频率的计算是"
     },
     {
-      "assertion": "叶轮 -[HAS_FAULT_MODE]-> 转子不平衡",
-      "evidence_id": "ev:72362dcee50f1d63:5:232-298",
+      "assertion": "转子 -[HAS_FAULT_MODE]-> 转子断条",
+      "evidence_id": "ev:4a8dc5af5de2cfe4:37:1953-2398",
+      "pdf": "arxiv-2206_14153.pdf",
+      "page": 37,
+      "ok": true,
+      "reason": "一致",
+      "expected": "Artificial Deep Learning An ANN is based on a collection of ",
+      "actual": "Artificial Deep Learning An ANN is based on a collection of "
+    },
+    {
+      "assertion": "轴承外圈疲劳剥落 -[DETECTED_BY]-> 频谱分析",
+      "evidence_id": "ev:72362dcee50f1d63:5:1125-1659",
       "pdf": "arxiv-2212_14732.pdf",
       "page": 5,
       "ok": true,
       "reason": "一致",
-      "expected": "Unbalanceconditionisgivenintwodifferentmassadditionstotheimp",
-      "actual": "Unbalanceconditionisgivenintwodifferentmassadditionstotheimp"
+      "expected": "withahammer.Hence,thefaultiscausedbytheimpactofthehammer(cra",
+      "actual": "withahammer.Hence,thefaultiscausedbytheimpactofthehammer(cra"
     }
   ]
 }
