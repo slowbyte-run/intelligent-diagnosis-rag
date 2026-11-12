@@ -20,7 +20,29 @@
 # vector_min_rerank_score  重排分数低于它的候选不进答案，也是「拒答」的判据
 # vector_min_rerank_score_calibrated  该阈值是否已经过金标准集校准
 # vector_max_results   一次回答最多列出的证据段数
+# query_enrichment     查询侧概念补全（本体规范名 + 别名 + 概念 ID 的英文词）
+# query_instruction    查询侧检索指令预设（Qwen3-Embedding 的 Instruct 格式）：
+#                      generic / crosslingual / 空字符串（不加）
+# lexical_recall       词面召回：概念名/别名对证据原文做子串匹配，与向量名次
+#                      用 RRF 融合（不用 BM25、不建索引、不复制正文）
+#
+# 查询改动只发生在嵌入侧，库里的向量不变，因此不需要重新嵌入语料（#20）。
+# 召回诊断命令：`idr recall`（只嵌入 + pgvector，不重排）；依据见
+# docs/vector-recall.md。
+#
+# 金标准集 48 道可答题的 recall@20/50/100（#20 实测，2026-11-12）：
+#   原始问句                19/48、22/48、25/48
+#   + 概念补全              21/48、28/48、38/48
+#   + 检索指令（generic）   23/48、36/48、40/48
+#   + 检索指令（crosslingual）27/48、34/48、36/48
+#   概念补全 + crosslingual 25/48、32/48、39/48（补全拖低了 top-20，故关闭）
+#   向量（crosslingual）+ 词面 RRF   33/48（top-20，生产口径）
+# 结论：指令保留，概念补全关闭，词面召回开启。逐项数字与失败名次见
+# docs/vector-recall.md。
+query_enrichment: false
+query_instruction: crosslingual
+lexical_recall: true
 vector_top_k: 20
-vector_min_rerank_score: 0.78
+vector_min_rerank_score: 0.86
 vector_min_rerank_score_calibrated: true
 vector_max_results: 5
