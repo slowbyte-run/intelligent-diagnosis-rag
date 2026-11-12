@@ -6,12 +6,14 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from idr_core.config import Config, ConfigError, load_config
+from idr_core.graph.read import GraphReader
 from idr_cli.ask import DEFAULT_SOURCE_DIR, build_ask_deps, run_ask
 from idr_cli.calibrate import run_calibrate
 from idr_cli.doctor import run_doctor
 from idr_cli.eval import run_eval
 from idr_cli.ingest import build_deps, run_ingest
 from idr_cli.recall import DEFAULT_VARIANTS, run_recall
+from idr_cli.snapshot import build_snapshot_graph, run_snapshot
 from idr_cli.variance import build_variance_llm, run_variance
 from idr_rotating import AskDeps, IngestDeps
 
@@ -148,6 +150,22 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="把词面候选按 RRF 与向量候选融合后再统计（与线上 lexical_recall 同口径）",
     )
+    snapshot_command = commands.add_parser(
+        "snapshot",
+        help="从线上图谱导出检索评估用的图谱快照（只读，输出内容校验和）",
+    )
+    snapshot_command.add_argument(
+        "--golden",
+        type=Path,
+        default=None,
+        help="金标准集 JSON，默认使用领域包内的 golden_questions.json",
+    )
+    snapshot_command.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="快照输出文件，默认使用领域包内的 graph_snapshot.json",
+    )
     variance_command = commands.add_parser(
         "variance",
         help="同一篇文献重复抽取，报告实体/关系数与断言重合度（抽取方差诊断）",
@@ -174,6 +192,7 @@ def main(
     *,
     deps_factory: Callable[[Config], IngestDeps] = build_deps,
     ask_deps_factory: Callable[[Config, Path], AskDeps] = build_ask_deps,
+    snapshot_graph_factory: Callable[[Config], GraphReader] = build_snapshot_graph,
 ) -> int:
     parser = build_parser()
     arguments = parser.parse_args(argv)
@@ -198,6 +217,21 @@ def main(
             limit=arguments.limit,
             reports_dir=arguments.reports_dir,
         )
+
+    if arguments.command == "snapshot":
+        try:
+            graph = snapshot_graph_factory(load_config())
+        except ConfigError as error:
+            print(f"配置错误：{error}", file=sys.stderr)
+            return 1
+        try:
+            return run_snapshot(
+                graph,
+                golden_path=arguments.golden,
+                out_path=arguments.out,
+            )
+        finally:
+            _close_quietly(graph)
 
     if arguments.command == "variance":
         try:
@@ -272,6 +306,13 @@ def main(
         )
 
     raise AssertionError(f"未实现的命令：{arguments.command}")
+
+
+def _close_quietly(graph: GraphReader) -> None:
+    """图适配器持有连接池；命令结束后关掉，假实现没有 ``close`` 就跳过。"""
+    close = getattr(graph, "close", None)
+    if callable(close):
+        close()
 
 
 if __name__ == "__main__":
