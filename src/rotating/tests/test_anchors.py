@@ -409,39 +409,3 @@ def test_anchors_do_not_change_segmentation_or_evidence_ids(tmp_path: Path) -> N
         assert 0 <= anchor.start < anchor.end <= len(batch.evidence[0].text)
 
 
-def test_changing_the_anchor_rule_invalidates_completed_documents(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """锚点规则参与抽取指纹：改了规则，已完成的文献必须重抽而不是静默跳过。"""
-    content = b"%PDF-1.4 anchor fingerprint fixture"
-    write_pdf(tmp_path, "paper.pdf", content)
-    state_store = FakeStateStore()
-    llm = FakeLLM('{"entities": [], "relations": []}')
-    deps = IngestDeps(
-        llm=llm,
-        parser=FakeParser(
-            [
-                ParsedPage(
-                    number=1,
-                    text="外圈剥落表现为 BPFO 倍频振动，能量集中在高频段。",
-                    bbox=PAGE_BBOX,
-                )
-            ]
-        ),
-        graph_store=FakeGraphStore(),
-        embedder=FakeEmbedder(),
-        vector_store=FakeVectorStore(),
-        state_store=state_store,
-    )
-
-    first = ingest(tmp_path, deps=deps)
-    second = ingest(tmp_path, deps=deps)
-    assert first.documents[0].skipped is False
-    assert second.documents[0].skipped is True
-    assert len(llm.prompts) == 1
-
-    monkeypatch.setattr("idr_core.anchors.ANCHOR_RULE_VERSION", "test-2")
-    third = ingest(tmp_path, deps=deps)
-
-    assert third.documents[0].skipped is False
-    assert len(llm.prompts) == 2

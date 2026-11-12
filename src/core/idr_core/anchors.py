@@ -8,7 +8,9 @@
 首次并标记歧义——两处一模一样时无法判断哪一处才是断言的本意，猜一处会把
 引用指到另一句话上。
 
-规则变了就改 :data:`ANCHOR_RULE_VERSION`：它参与抽取指纹，已完成的文献因此
+规则变了就改 :data:`ANCHOR_RULE_VERSION`。它**不再参与抽取指纹**：提示词已
+不再要求模型产出 quote，锚点只在模型自愿给出时附加，改匹配规则不会改变抽
+取结果。此前的做法是
 会重抽，而不是让新旧两种锚点规则的结果混在同一张图里。
 """
 
@@ -19,7 +21,7 @@ from dataclasses import dataclass
 
 # 定位规则版本：逐字匹配、首次出现、歧义标记。改动这条规则必须递增，
 # 抽取指纹会随之改变，已入库的文献不会被静默跳过。
-ANCHOR_RULE_VERSION = "3"
+ANCHOR_RULE_VERSION = "4"
 
 
 @dataclass(frozen=True, slots=True)

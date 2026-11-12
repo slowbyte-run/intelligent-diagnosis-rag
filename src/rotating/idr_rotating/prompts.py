@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import hashlib
 
-from idr_core import anchors
 from idr_core.models import EvidenceSegment
 from idr_rotating.extraction import MAX_BATCH_CHARS, MAX_BATCH_SEGMENTS
 from idr_rotating.ontology import (
@@ -17,10 +16,9 @@ from idr_rotating.ontology import (
 )
 
 # 抽取契约版本：图谱身份、边归属等「抽取结果如何落图」的规则变化时递增。
-# 此前的隐式契约记为 "1"；跨文献概念合并取 "2"；每条断言必须给出支撑片段
-# 并固化成锚点取 "3"。这类规则变化不必依赖本体或提示词恰好也变动，就能让
-# 已完成文献重抽。
-EXTRACTION_CONTRACT_VERSION = "3"
+# 此前的隐式契约记为 "1"；引入本常量（跨文献概念合并取 "2"）后，这类
+# 规则变化不必依赖本体或提示词恰好也变动，就能让已完成文献重抽。
+EXTRACTION_CONTRACT_VERSION = "2"
 
 
 def build_extraction_prompt(
@@ -46,20 +44,14 @@ def build_extraction_prompt(
         f"{evidence_lines}\n\n"
         "输出格式：\n"
         '{"entities": [{"name": "实体名", "type": "实体类型", '
-        '"evidence_ids": ["证据段标识"], "quote": "支撑该实体的原文片段", '
-        '"confidence": 0.0, '
+        '"evidence_ids": ["证据段标识"], "confidence": 0.0, '
         '"location": "属性取值或 null", "damage_form": "属性取值或 null"}], '
         '"relations": [{"head": "头实体名", "type": "关系类型", '
         '"tail": "尾实体名", "evidence_ids": ["证据段标识"], '
-        '"quote": "支撑该关系的原文片段", "confidence": 0.0}]}\n'
+        '"confidence": 0.0}]}\n'
         "规则：\n"
         "- name 使用文献原文术语；命中规范概念或别名时，必须使用规范名。\n"
         "- evidence_ids 只能引用上面出现过的证据段标识。\n"
-        "- 尽量给出 quote：从所引证据段里逐字复制一段连续原文（含标点与"
-        "空格），只摘最能支撑该断言的一小段即可；不要改写、概括、拼接或跨段，"
-        "不要使用证据段里没有的句子。摘不出来就省略 quote 字段，但**断言照常"
-        "输出**——证据充分与否由断言本身决定，与能否逐字摘录无关。\n"
-        "- 一条断言可以引用多个证据段；quote 只需在所引的其中一段里逐字出现。\n"
         "- 仅当实体类型声明了 location/damage_form 时填写这两个字段，"
         "取值必须来自上面的属性取值清单；不确定时填 null。\n"
         "- 不得编造实体类型、关系类型或证据段标识。"
@@ -142,19 +134,15 @@ def _attribute_value_lines(ontology: Ontology) -> str:
 def extraction_fingerprint(ontology: Ontology) -> str:
     """提示词模板、本体内容与分批参数的组合指纹。
 
-    改提示词、本体、分批上限、抽取契约版本或锚点定位规则都会改变它。分批
-    决定模型每次实际看到多少证据段，同一提示词下换分批参数也必须让已完成
-    文献重抽；抽取契约版本覆盖「抽取结果如何落图」这类不一定出现在提示词里
-    的规则，锚点规则版本覆盖片段如何定位与标记歧义。
+    改提示词、本体、分批上限或抽取契约版本都会改变它。分批决定模型每次
+    实际看到多少证据段，同一提示词下换分批参数也必须让已完成文献重抽；
+    抽取契约版本覆盖「抽取结果如何落图」这类不一定出现在提示词里的规则。
     指纹写进处理状态：已完成文献只有在指纹不变时才允许跳过，否则重新抽取。
     """
     skeleton = build_extraction_prompt(ontology, ())
     digest = hashlib.sha256(skeleton.encode("utf-8"))
     digest.update(f"contract:{EXTRACTION_CONTRACT_VERSION}".encode("ascii"))
     digest.update(ontology_fingerprint().encode("ascii"))
-    # 锚点定位规则住在核心包里，改了它同样要让已完成的文献重抽：旧锚点与
-    # 新规则混在一张图上，等于静默的不一致。
-    digest.update(f"anchor-rule:{anchors.ANCHOR_RULE_VERSION}".encode("ascii"))
     digest.update(
         f"batch:{MAX_BATCH_SEGMENTS}:{MAX_BATCH_CHARS}".encode("ascii")
     )
