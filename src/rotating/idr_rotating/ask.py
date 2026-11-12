@@ -56,6 +56,7 @@ from idr_rotating.answer import (
     RefusalReason,
     SharedFact,
 )
+from idr_rotating.citation_selection import select_citation_window
 from idr_rotating.linking import ConceptMatch, link_question
 from idr_rotating.ontology import Ontology, load_ontology
 from idr_rotating.retrieval import RetrievalSettings, load_retrieval_settings
@@ -142,7 +143,7 @@ def ask(question: str, *, deps: AskDeps) -> Answer:
                 reason=RefusalReason.NO_EVIDENCE,
             )
         graph_answer = _answer_from_comparison(
-            question, deps, matches, anchors[0], anchors[1]
+            question, deps, matches, anchors[0], anchors[1], ontology
         )
     else:
         focus, tied = _most_specific(candidates)
@@ -157,7 +158,7 @@ def ask(question: str, *, deps: AskDeps) -> Answer:
                 "不确定以哪个作为检索起点。",
                 reason=RefusalReason.NO_EVIDENCE,
             )
-        graph_answer = _answer_from_graph(question, deps, matches, focus)
+        graph_answer = _answer_from_graph(question, deps, matches, focus, ontology)
 
     if graph_answer.path is AnswerPath.GRAPH:
         return graph_answer
@@ -250,6 +251,7 @@ def _answer_from_graph(
     deps: AskDeps,
     matches: tuple[ConceptMatch, ...],
     focus: ConceptMatch,
+    ontology: Ontology,
 ) -> Answer:
     """图命中路径：至多两跳的带证据事实 + 证据回填。
 
@@ -283,7 +285,7 @@ def _answer_from_graph(
         focus=focus,
         facts=anchored.facts,
         citations=_citations_for(
-            anchored.facts, anchored.segments, deps.document_names
+            anchored.facts, anchored.segments, deps.document_names, ontology
         ),
         detail=_truncated_detail([(focus.concept.name, anchored.traversal)]),
         truncated=anchored.traversal.truncated,
@@ -296,6 +298,7 @@ def _answer_from_comparison(
     matches: tuple[ConceptMatch, ...],
     left: ConceptMatch,
     right: ConceptMatch,
+    ontology: Ontology,
 ) -> Answer:
     """对比路径：两侧各自取事实，按 ``(关系, 尾概念)`` 分区后作答。
 
@@ -351,7 +354,7 @@ def _answer_from_comparison(
         matches=matches,
         focus=None,
         facts=(),
-        citations=_citations_for(facts, segments, deps.document_names),
+        citations=_citations_for(facts, segments, deps.document_names, ontology),
         detail="".join(detail for detail in details if detail) or None,
         truncated=left_facts.traversal.truncated or right_facts.traversal.truncated,
         comparison=comparison,
@@ -529,24 +532,36 @@ def _citations_for(
     facts: tuple[Fact, ...],
     segments: dict[str, EvidenceRecord],
     document_names: DocumentNames | None,
+    ontology: Ontology,
 ) -> tuple[Citation, ...]:
     """按结论顺序展开引用；同一 (证据段, 锚点) 只列一次。
 
     锚点挂在路径的每一步上（一步就是一条断言）：同一证据段被两条断言引用时，
     两条断言各自的片段都要出现，因此去重键是 (证据段, 锚点) 而不是证据段。
     某段没有锚点、或锚点区间在图上对不上原文时退回整段，绝不因缺锚点少给。
+
+    没有锚点的旧数据先按断言选句，再进出去重：同一段证据被两条断言引用时，
+    两条断言词法重合的句子不同，因此各自成一条引用，不会被并成一条整段引用；
+    选不出句子时锚点仍是 ``None``，与以前一样整段引用。
     """
     citations: dict[tuple[str, EvidenceAnchor | None], Citation] = {}
     for fact in facts:
-        for evidence_id, anchor in fact.cited_spans():
+        spans = fact.cited_spans()
+        assertions = _assertion_terms(fact, len(spans))
+        for (evidence_id, anchor), (head, relation, tail) in zip(
+            spans, assertions, strict=True
+        ):
             segment = segments[evidence_id]
-            # 越界锚点等同于没有锚点：引用退回整段，键也统一归一化，
-            # 否则消费方按原锚点找不到这条引用。
-            usable = (
-                anchor
-                if anchor is not None and _anchor_fits(segment.text, anchor)
-                else None
-            )
+            if anchor is not None and _anchor_fits(segment.text, anchor):
+                usable = anchor
+            elif anchor is None:
+                usable = _selected_anchor(
+                    segment, head=head, relation=relation, tail=tail, ontology=ontology
+                )
+            else:
+                # 越界锚点是坏数据：不据此推断句子，退回整段，键也归一化为
+                # ``None``，否则消费方按原锚点找不到这条引用。
+                usable = None
             key = (evidence_id, usable)
             if key in citations:
                 continue
@@ -567,6 +582,44 @@ def _citations_for(
                 anchor=usable,
             )
     return tuple(citations.values())
+
+
+def _assertion_terms(
+    fact: Fact, count: int
+) -> tuple[tuple[str, str, str], ...]:
+    """每条引用所属断言的三元组 ``(头概念名, 关系, 尾概念名)``，与引用平行。
+
+    ``Fact.cited_spans`` 只给证据段与锚点；选句还要知道这条证据是哪一步的
+    断言。两跳结论的不同跳断言不同，不能拿整条结论的头尾去套每一跳。
+    """
+    if fact.path:
+        return tuple(
+            (step.head.name, step.relation, step.tail.name)
+            for step in fact.path
+            for _ in step.evidence_ids
+        )
+    return ((fact.head.name, fact.relation, fact.tail.name),) * count
+
+
+def _selected_anchor(
+    segment: EvidenceRecord,
+    *,
+    head: str,
+    relation: str,
+    tail: str,
+    ontology: Ontology,
+) -> EvidenceAnchor | None:
+    """按断言词法重合选出引用窗口；选不出时返回 ``None``（整段引用）。"""
+    relation_type = ontology.relation_types.get(relation)
+    label = relation_type.label if relation_type is not None else relation
+    window = select_citation_window(
+        segment.text, head=head, relation=label, tail=tail
+    )
+    if window is None:
+        return None
+    return EvidenceAnchor(
+        evidence_id=segment.id, start=window.start, end=window.end
+    )
 
 
 def _anchor_fits(text: str, anchor: EvidenceAnchor) -> bool:

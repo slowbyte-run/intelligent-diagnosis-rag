@@ -642,7 +642,7 @@ def test_ask_cites_the_anchor_span_instead_of_the_whole_evidence_segment() -> No
 
 
 def test_ask_falls_back_to_the_whole_segment_when_no_anchor_is_recorded() -> None:
-    """无锚点（旧数据或模型没给片段）时整段引用，行为与锚点上线前一致。"""
+    """证据段只有一句话时无锚点仍整段引用：选句只取整句，不会切出半句。"""
     graph = FakeGraphStore()
     segment = evidence(FRAGMENT_DOC, page=4, offset=0, text=FRAGMENT_TEXT)
     outer = concept(OUTER_RACE.removeprefix("concept:"), "轴承外圈疲劳剥落", "fault_mode")
@@ -741,3 +741,127 @@ def test_ask_gives_each_assertion_its_own_fragment_from_a_shared_segment() -> No
     assert outer_anchor != inner_anchor
     assert text[outer_anchor.start : outer_anchor.end] == outer_quote
     assert text[inner_anchor.start : inner_anchor.end] == inner_quote
+
+
+# 无锚点选句兜底：旧数据没有锚点时，按断言的头概念名、关系标签与尾概念名
+# 在证据段里挑出最相关的一句，而不是把整段都当成引用。
+SELECTION_TEXT = (
+    "外圈剥落会在频谱上出现 BPFO 及其倍频。"
+    "内圈剥落会产生 BPFI 特征频率，与转速同步。"
+)
+SELECTION_QUOTE = "外圈剥落会在频谱上出现 BPFO 及其倍频。"
+
+
+def deps_with_unanchored_segment(text: str) -> tuple[AskDeps, EvidenceSegment]:
+    """一篇文献：一条无锚点断言，证据段文本由调用方给定。"""
+    graph = FakeGraphStore()
+    segment = evidence(FRAGMENT_DOC, page=4, offset=0, text=text)
+    outer = concept(OUTER_RACE.removeprefix("concept:"), "轴承外圈疲劳剥落", "fault_mode")
+    bpfo = concept(BPFO.removeprefix("concept:"), "外圈故障频率及其倍频", "symptom")
+    write_document(
+        graph,
+        FRAGMENT_DOC,
+        concepts=(outer, bpfo),
+        segments=(segment,),
+        relations=(
+            relation(
+                outer,
+                "indicated_by",
+                bpfo,
+                doc_id=FRAGMENT_DOC,
+                evidence_ids=(segment.id,),
+                confidence=0.8,
+            ),
+        ),
+    )
+    return (
+        AskDeps(
+            graph_store=graph,
+            document_names=FakeDocumentNames({FRAGMENT_DOC: "论文A.pdf"}),
+        ),
+        segment,
+    )
+
+
+def test_ask_selects_the_sentence_matching_the_assertion_when_no_anchor() -> None:
+    """没有锚点时引用指向与断言词法重合最多的那一句，且是逐字切片。"""
+    deps, segment = deps_with_unanchored_segment(SELECTION_TEXT)
+
+    answer = ask("轴承外圈疲劳剥落有什么征兆", deps=deps)
+
+    (citation,) = answer.citations
+    assert citation.text == SELECTION_QUOTE
+    assert citation.anchor is not None
+    assert citation.text == segment.text[citation.anchor.start : citation.anchor.end]
+    assert citation.evidence_id == segment.id
+    assert citation.page == 4
+    # 检索命中的判定单位仍是整条证据段。
+    assert answer.facts[0].evidence_ids == (segment.id,)
+    # 同一断言重复运行必须得到同一条引用。
+    assert ask("轴承外圈疲劳剥落有什么征兆", deps=deps).citations == answer.citations
+
+
+def test_ask_falls_back_to_the_whole_segment_when_no_sentence_matches() -> None:
+    """没有任何句子命中断言关键词时整段引用，不凭空选一句。"""
+    text = "该文献给出巡检周期建议。振动幅值需要按周记录。"
+    deps, segment = deps_with_unanchored_segment(text)
+
+    answer = ask("轴承外圈疲劳剥落有什么征兆", deps=deps)
+
+    (citation,) = answer.citations
+    assert citation.anchor is None
+    assert citation.text == segment.text
+
+
+def test_ask_gives_each_assertion_its_own_selected_window_on_a_shared_segment() -> None:
+    """同一段证据支撑两条断言时，选出的两个句子窗口各自成一条引用。"""
+    text = (
+        "外圈剥落会在频谱上出现 BPFO 及其倍频。"
+        "包络解调可以确认外圈剥落的冲击。"
+    )
+    graph = FakeGraphStore()
+    segment = evidence(FRAGMENT_DOC, page=5, offset=0, text=text)
+    outer = concept(OUTER_RACE.removeprefix("concept:"), "轴承外圈疲劳剥落", "fault_mode")
+    bpfo = concept(BPFO.removeprefix("concept:"), "外圈故障频率及其倍频", "symptom")
+    envelope = concept(ENVELOPE.removeprefix("concept:"), "包络解调", "detection_method")
+    write_document(
+        graph,
+        FRAGMENT_DOC,
+        concepts=(outer, bpfo, envelope),
+        segments=(segment,),
+        relations=(
+            relation(
+                outer,
+                "indicated_by",
+                bpfo,
+                doc_id=FRAGMENT_DOC,
+                evidence_ids=(segment.id,),
+                confidence=0.8,
+            ),
+            relation(
+                outer,
+                "detected_by",
+                envelope,
+                doc_id=FRAGMENT_DOC,
+                evidence_ids=(segment.id,),
+                confidence=0.7,
+            ),
+        ),
+    )
+
+    answer = ask(
+        "轴承外圈疲劳剥落有什么征兆",
+        deps=AskDeps(
+            graph_store=graph,
+            document_names=FakeDocumentNames({FRAGMENT_DOC: "论文A.pdf"}),
+        ),
+    )
+
+    assert [citation.text for citation in answer.citations] == [
+        "外圈剥落会在频谱上出现 BPFO 及其倍频。",
+        "包络解调可以确认外圈剥落的冲击。",
+    ]
+    assert {citation.evidence_id for citation in answer.citations} == {segment.id}
+    anchors = [citation.anchor for citation in answer.citations]
+    assert all(anchor is not None for anchor in anchors)
+    assert anchors[0] != anchors[1]
