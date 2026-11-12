@@ -7,10 +7,12 @@ from pathlib import Path
 
 from idr_core.config import Config, ConfigError, load_config
 from idr_core.graph.read import GraphReader
+from idr_core.llm import LLMClient
 from idr_cli.ask import DEFAULT_SOURCE_DIR, build_ask_deps, run_ask
 from idr_cli.calibrate import run_calibrate
 from idr_cli.doctor import run_doctor
 from idr_cli.eval import run_eval, run_snapshot_eval
+from idr_cli.extract_eval import build_extract_eval_llm, run_extract_eval
 from idr_cli.ingest import build_deps, run_ingest
 from idr_cli.recall import DEFAULT_VARIANTS, run_recall
 from idr_cli.snapshot import build_snapshot_graph, run_snapshot
@@ -172,6 +174,29 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="把词面候选按 RRF 与向量候选融合后再统计（与线上 lexical_recall 同口径）",
     )
+    extract_eval_command = commands.add_parser(
+        "extract-eval",
+        help="在真实语料标注集上评估抽取：断言级召回率、精度与漏抽/类型/端点计数",
+    )
+    extract_eval_command.add_argument(
+        "--annotations",
+        type=Path,
+        default=None,
+        help="标注集 JSON，默认使用领域包内的 extraction_annotations.json",
+    )
+    extract_eval_command.add_argument(
+        "--limit",
+        type=_positive_int,
+        default=None,
+        metavar="N",
+        help="只评按标注顺序的前 N 篇文献，用于控制真实调用成本",
+    )
+    extract_eval_command.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="评估报告输出文件，默认只打印",
+    )
     snapshot_command = commands.add_parser(
         "snapshot",
         help="从线上图谱导出检索评估用的图谱快照（只读，输出内容校验和）",
@@ -214,6 +239,7 @@ def main(
     *,
     deps_factory: Callable[[Config], IngestDeps] = build_deps,
     ask_deps_factory: Callable[[Config, Path], AskDeps] = build_ask_deps,
+    extract_eval_llm_factory: Callable[[Config], LLMClient] = build_extract_eval_llm,
     snapshot_graph_factory: Callable[[Config], GraphReader] = build_snapshot_graph,
 ) -> int:
     parser = build_parser()
@@ -238,6 +264,21 @@ def main(
             deps=deps,
             limit=arguments.limit,
             reports_dir=arguments.reports_dir,
+        )
+
+    if arguments.command == "extract-eval":
+        try:
+            config = load_config()
+            llm = extract_eval_llm_factory(config)
+        except ConfigError as error:
+            print(f"配置错误：{error}", file=sys.stderr)
+            return 1
+        return run_extract_eval(
+            llm=llm,
+            annotations_path=arguments.annotations,
+            limit=arguments.limit,
+            out=arguments.out,
+            model=config.deepseek_model,
         )
 
     if arguments.command == "snapshot":

@@ -1,0 +1,1145 @@
+{
+  "schema_version": 1,
+  "name": "旋转设备抽取标注集（基线）",
+  "description": "取自真实语料的冻结证据段与手写期望断言：3 篇中文专利（11 段）与 3 篇英文论文（10 段）。证据段原文与 ID 来自已入库图谱，未重新解析 PDF；标注按本体规范名书写。评分口径见 idr_rotating.extraction_evaluation。",
+  "segments": [
+    {
+      "id": "ev:c169b3184c37a610:1:12-262",
+      "page": 1,
+      "text": "摘要\nAbstract 本发明公开了一种齿轮的故障诊断方法，首先构建齿轮故障分类器，然后获取未知齿轮的振动\n信号，并对该未知齿轮的振动信号进行分解，得到未知齿轮的固有旋转分量，进一步计算得到未知齿轮\n的样本熵特征向量；最后利用齿轮故障分类器对该未知齿轮的样本熵特征向量数据进行比对分类，得到\n该未知齿轮故障类型的诊断结果。本发明方法的优点是：计算复杂度比较低，信号分解效率高；信号分\n解的边缘效应只出现在第一个上过零点时刻之前，不会随信号分解不断传输，获取的不同类型故障特征\n区别明显，诊断精确度高。"
+    },
+    {
+      "id": "ev:c169b3184c37a610:2:1341-1508",
+      "page": 2,
+      "text": "[0004] 齿轮传动具有平稳、可靠、高效等特点，但由于受到工作环境恶劣、本身结构复杂等因素的影响\n，使齿轮较容易发生故障，从而导致机械设备的停工停产，给企业带来很大的损失。在齿轮测量装置中\n，加速度传感器获得的振动信号具备非线性、非平稳的特征。而傅里叶变换信号处理方法是以信号平稳\n性为前提，无法有效的应用于非平稳的齿轮信号的分析。"
+    },
+    {
+      "id": "ev:c169b3184c37a610:3:1209-1291",
+      "page": 3,
+      "text": "[0025] 构建转子实验台：该实验台包括变速驱动电机、轴承、齿轮箱、轴、偏重转盘、调速器，带有各\n类故障齿轮部件的系统机械部分，以及安装在所述轴上的加速度传感器；"
+    },
+    {
+      "id": "ev:c169b3184c37a610:3:1374-1434",
+      "page": 3,
+      "text": "[0028] 所述的齿轮各类故障情况的振动信号包括：磨损故障齿轮振动信号、点蚀故障齿轮振动信号、断\n齿故障齿轮振动信号。"
+    },
+    {
+      "id": "ev:ddaef5ea68310f1b:5:1498-1813",
+      "page": 5,
+      "text": "[0078] S00：采集设备的转速信号、振动信号，根据所述振动信号获取设备的加速度、速度和包络信号。\n具体地，数据采集步骤的执行主体具体为各类传感器，其将采集的数据信息传输至控制器，其中，设备\n的转速信号通过转速传感器进行采集；设备的振动信号通过振动传感器AC102进行采集，能够进一步输\n出设备的速度、加速度及位移信号，将该振动信号进行快速傅里叶变换进而获得振动信号的速度及加速\n度幅值的包络信号。为进一步保证诊断方法的精准性，可在设备的不同部位布设若干传感器，如在设备\n的叶片、轴承、齿轮布设传感器，能够更加真实反映设备各部位的工作状态，以精准上报设备的工作状\n态，或者各个部位出现的故障类型，实现了设备的全方面监测与诊断。"
+    },
+    {
+      "id": "ev:ddaef5ea68310f1b:6:5-291",
+      "page": 6,
+      "text": "[0081] 作为一选项，本发明诊断方法还可适用于设备轴承的故障诊断，在设备轴承的故障自诊断方法中\n，其特征频率的计算是通过设备的转速、加速度信号实现的，即将采集的加速度信号进行快速傅里叶变\n换，在得到的频率的速度列上计算特征频率，在加速度的包络信号上确定真实特征频率，其他步骤与实\n施例1 的诊断方法相同，进而实现设备轴承的自诊断。需要进一步说明的是，轴承故障的自诊断相对复\n杂，需要通过分别计算外圈频率f BPFO 、内圈频率f BPFI 、滚动体频率f BSF 、保持架频率f FTF\n，才能诊断出是外圈故障、内圈故障、滚动体故障、保持架故障，其对应的计算公式如下："
+    },
+    {
+      "id": "ev:ddaef5ea68310f1b:6:570-1024",
+      "page": 6,
+      "text": "[0091] 作为一选项，本发明诊断方法还可适用于设备转子不平衡故障诊断，在设备转子不平衡的故障自\n诊断方法中，其特征频率的计算是通过设备的转速、速度信号实现的，即将采集的速度信号进行快速傅\n里叶变换，在得到的频率的速度列上计算特征频率，在速度的包络信号上确定真实特征频率，其他步骤\n与实施例1的诊断方法相同，进而实现设备转子不平衡的故障自诊断。需要进一步说明的是，设备转子\n不平衡故障诊断诊断过程的示警步骤中，若报警条件成立，且A1X/Allfother>50％(1倍频幅值占比达到总\n幅值得50％)，自诊断变送器 (控制器)将发送对应转子不平衡类故障类型至用户终端或者人机交互单元，\n还可将旋转机械设备的故障类型上传至云端，以便工作人员能够及时确定设备的故障类型，更能实现远\n程监控功能。需要进一步说明的是，用户终端包括手机、Pad、工控机等，工控机上可进一步集成本发\n明系统，多个工控机之间还可实现数据的交互与共享；人机交互单元具体为HMI，便于工作人员的现场\n对旋转机械设备的工作状态进行查看与控制。"
+    },
+    {
+      "id": "ev:ddaef5ea68310f1b:6:1025-1347",
+      "page": 6,
+      "text": "[0092] 作为一选项，本发明诊断方法还可适用于设备转子不对中故障诊断，在设备转子不对中的故障自\n诊断方法中，其特征频率的计算是通过设备的转速、速度信号实现的，即将采集的速度信号进行快速傅\n里叶变换，在得到的频率的速度列上计算特征频率，在速度的包络信号上确定真实特征频率，其他步骤\n与实施例1的诊断方法相同，进而实现设备转子不对中的故障自诊断。需要进一步说明的是，设备转子\n不对中故障诊断诊断过程的示警步骤中，若报警条件成立，且A2X/A1X>70％(即2倍频幅值大于一倍频\n幅值70％)，自诊断变送器(控制器)将发送对应转子不对中类故障类型至用户终端、云端或者人机交互单\n元，以便工作人员能够及时确定设备的故障类型，实现对设备的全方位监测。"
+    },
+    {
+      "id": "ev:66f9a7c0b49899ca:1:22-334",
+      "page": 1,
+      "text": "摘要\nAbstract 本发明公开的是轴承座振动检测技术领域的一种用于基础松动造成轴承座轴向振动大的诊断方\n法，该方法包括以下步骤：利用测振传感器分别测出轴承座在竖直方向的振动值、水平方向的振动值以\n及轴向方向的振动值；将各个方向的振动值与标准值进行比较，判断轴承座是否安全，以及主要的振动\n方向和主导频率；对轴承座所在的基础螺丝及基础底板的振动值进行测试和对比；在不停机的情况下对\n振动值较大的基础螺丝进行紧固，并再次对其进行振动值的检测。本发明可以在现场测试过程中对轴承\n座轴向振动大的故障原因进行快速查找并确定是否是由基础松动引起的，整个诊断过程操作十分简单、\n方便，不影响正常生产，还可以消除故障隐患避免设备的损伤。"
+    },
+    {
+      "id": "ev:66f9a7c0b49899ca:1:1327-1653",
+      "page": 1,
+      "text": "[0004] 现有设备故障诊断技术中，轴承座轴向振动大故障判断起来比较复杂，造成轴承座轴向振动大的\n故障原因有几个，其一是由于轴弯曲后造成轴颈承力中心沿轴向周期性的变化引起轴承座轴向偏转造成\n，其检测方法是检查轴颈跳动；其二是轴承座支撑刚度分布不对称造成，检测方法是测量同一轴向位置\n的地脚螺丝、基础台板、水泥基础振值，看其差别振动是否大于5um来判断；其三是不对中造成，检测\n方法是检查联轴器的平直度及同心度；其四是轴承座轴向共振造成，检测方法是在停机状态下敲击轴承\n座轴向方向测试其固有频率是否与占主导频率一致；其五是激振力投影点与轴承底座几何中心不重合造\n成，检测方法是用测量的方法来检查；其六是悬臂风机的风机转子不平衡造成。由于造成轴承座轴向振"
+    },
+    {
+      "id": "ev:66f9a7c0b49899ca:2:1218-1427",
+      "page": 2,
+      "text": "[0016] 本发明的有益效果是：可以在现场测试过程中对轴承座轴向振动大的故障原因进行快速查找，一\n旦发现基础螺丝存在松动现象，就可以准确判断轴承座轴向振动大的故障原因是基础螺丝松动造成轴承\n座支撑刚度不对称从而引起轴承座偏转所导致的，不用再进行其他繁琐的检测，在现场不停机的情况下\n便可以安排紧固基础螺丝从而将振动降到可接受的状态。整个诊断过程操作十分简单、方便，不影响正\n常生产，还可以消除故障隐患避免设备的损伤。"
+    },
+    {
+      "id": "ev:742178038a41d5ea:1:355-1461",
+      "page": 1,
+      "text": "Abstract\nThe present work presents the experimental analyses of a rigid (short) and of a flexible (long) rotor\nsubject to thermal unbalance effects. The rotors are supported by a ball bearing and by a cylindrical\njournal bearing. The differential heating generated in the journal bearing is responsible for the thermal\nunbalance. The results obtained with the short rotor at 7 krpm showed an increase of the synchronous\namplitudes but slight phase changes before stabilization. The pronounced hysteresis of the\nsynchronous amplitudes obtained during coast-down proved that the amplitude increase is due to the\nthermal unbalance. The results obtained for the long rotor at 6.6 krpm showed the same stabilized\nresponse when start-up was performed in 180 s. However, an instability leading to journal bearing\ncontact was triggered when the start-up time was decreased to 80 s. The presented experimental\nresults are the synchronous amplitudes and phases, the mean temperatures and the maximum\ntemperature differences of the journal and of the bearing and the phase lags between the high spot\nand the hot spot."
+    },
+    {
+      "id": "ev:742178038a41d5ea:2:0-713",
+      "page": 2,
+      "text": "In 1987, Schmied [5] mentioned that a very similar phenomenon might appear in lubricated journal\nbearings. This time there is no light contact between the rotor and the bearing. The rotor point where\nthe lubricant film thickness is minimum is called the “high spot”. Heat is generated by the lubricant\nshear stresses and the heat flux is not uniform around the rotor circumference. The hot spot is located\nbefore the high spot and produces the same effect as a light contact. As for the Newkirk effect, the\nrotor thermal bow modifies the unbalance and the synchronous vibration vector will describe a spiral.\nHowever, because it occurs due to heat generated in lubricated bearings, it is called the Morton effect."
+    },
+    {
+      "id": "ev:742178038a41d5ea:2:1106-2579",
+      "page": 2,
+      "text": "In 1996, de Jongh and Morton [8] studied a centrifugal compressor guided by two tilting pad bearings\nand subject to a hysteretic behavior and spiral vibrations. The compressor was built to operate at 12\nkrpm far from the critical speed located at 14.5 krpm (2nd bending mode). However, during run-up\nsynchronous vibrations began to increase between 10 krpm and 11.5 krpm. At 11.5 krpm the\namplitudes continued to grow rapidly up to 50% of the bearing clearance while the phase was\ncontinuously changing. The shaft speed was reduced to 10 krpm and after few minutes, vibrations\nreturned to their initial values. After rebalancing, refitting and without oil seals, the compressor\nshowed the same instability. Further runs with light overhung weights showed that the speed at which\nthe instability occurred became 10% higher than the operating speed. In order to understand the\nsource of the instability, de Jongh and Morton developed a test rotor with the same dynamic\ncharacteristics as the compressor and with four temperature sensors mounted in the journal. The test\nrotor showed the same behavior and the temperature sensors proved that the journal bearing was the\nsource of synchronous instability. At 10.5 krpm, the rotor temperature difference was 3°C, the phase\nlag between the hot spot and the high spot was 20° and the vibration amplitudes increased but\nremained stable. At 11.5 krpm, the differential temperature was 10°C and the spiral vibrations became\nunstable."
+    },
+    {
+      "id": "ev:742178038a41d5ea:20:499-839",
+      "page": 20,
+      "text": "All tests showed an important temperature difference on the journal that can bend the rotor. The\nresulting thermal unbalance had a clear impact on the amplitude of synchronous vibrations. However,\nthe short rotor operated with a stable orbit and showed no instability even for very large vibration\namplitudes, close to the radial clearance."
+    },
+    {
+      "id": "ev:742178038a41d5ea:4:196-571",
+      "page": 4,
+      "text": "The test rig is illustrated in Figure 1. It consists of a hollow rotor guided by a ball bearing at its left end\nand by a journal bearing close to its right end. The first rotor is 430 mm long, its outer and inner\ndiameters being 45 mm and 35 mm. The distance between the bearing centerlines is 198.5 mm. A\nsecond rotor of 700 mm long will be presented in a further paragraph."
+    },
+    {
+      "id": "ev:1be1ecd65c1482c8:1:319-1439",
+      "page": 1,
+      "text": "Abstract. Gearbox fault diagnosis is one of the most important parts in\nany industrial systems. Failure of components inside gearbox can lead to\na catastrophic failure, uneven breakdown, and financial losses in indus-\ntrial organization. In that case intelligent maintenance of the gearbox\ncomes into context. This paper presents an integrated gearbox fault diag-\nnosis approach which can easily deploy in online condition monitoring.\nThis work introduces a nonparametric data preprocessing technique i.e.,\ncalculus enhanced energy operator (CEEO) to preserve the characteris-\ntics frequencies in the noisy and inferred vibrational signal. A set of time\ndomain and spectral domain features are calculated from the raw and\nCEEO vibration signal and inputted to the multiclass support vector ma-\nchine (MCSVM) to diagnose the faults on the system. An effective com-\nparison between raw signal and CEEO signal are presented to show the\nimpact of CEEO in gearbox fault diagnosis. The obtained results of this\nwork look very promising and can be implemented in any type of indus-\ntrial system due to its nonparametric nature."
+    },
+    {
+      "id": "ev:1be1ecd65c1482c8:1:2073-2503",
+      "page": 1,
+      "text": "Fault diagnosis of the gearbox system can be done based on the vibration [1-4], current\n[5-6], acoustic or oil-based signal analysis etc. [2,7]. Among them vibration signal-\nbased analysis is extremely sensitive to any type of gearbox faults and also, it is widely\nused techniques for gearbox fault diagnosis. Gearboxes are operated under harsh envi-\nronmental condition such as sudden shock load, high compressive contact stress,"
+    },
+    {
+      "id": "ev:1be1ecd65c1482c8:3:2297-3020",
+      "page": 3,
+      "text": "3 Experimental Setup and Data Collection\nAll the experimental work were conducted on the machine fault simulator (MFS) as\nshown in Figure 2. Overall experimental setup comprises four major subsystems: MFS,\nOros NV gate data acquisition system, various sensors, and a computer, as shown in\nFigure 2. In this work, the main experimental investigations were performed on a sin-\ngle-stage bevel gearbox which has 18 teeth in driver gear and 27 teeth in the driven\ngear. Figure 3 shows the faulty condition of gear tooth which were used in the experi-\nmental analysis. Samples were recorded at different operating condition such as by var-\nying the frequency of motor (15 Hz, 25 Hz, 35 Hz), load on gearbox (0 lb., 2 lb., 4 lb.)"
+    },
+    {
+      "id": "ev:4f88106f26629c63:4:1549-2086",
+      "page": 4,
+      "text": "Experimental Results\nTo evaluate the efficiency of exact wavelet, the\nalgorithm was implemented on an experimental\nvibration signal of gearbox. This process was done for\ntwo conditions, normal and chipped tooth gear (as\nshown in Fig. 3). In the chipped tooth case, 50% of a\ntooth profile from top to pitch circle (addendum) was\neliminated with linear slop from top to pitch circle.\nThe signals were acquired from a gearbox setup test\ndesigned in Amirkabir University of Technology\n(Tehran Polytechnic) for this proposes, as shown in Fig."
+    },
+    {
+      "id": "ev:4f88106f26629c63:4:2087-2536",
+      "page": 4,
+      "text": "5. The vibrating signals were obtained from 2D\naccelerometer (ADXL210JQC) mounted on gearbox\nframe (Fig. 4). Sampling frequency was set as 10kHz.\nThe acceleration frequency content is in the range of\n0~5kHz. These obtained signals were fed to A/D\nconverter (Advantech™ PCI-1710, 12-bit, 100kS/s) and\nwas recorded by real-time workshop of MATLAB\nsoftware. The gearbox rotates with nominal speed of 3-\nphase electromotor (1420 RPM). The driver (N 15)"
+    }
+  ],
+  "expected_entities": [
+    {
+      "evidence_id": "ev:c169b3184c37a610:1:12-262",
+      "name": "齿轮副",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:1:12-262",
+      "name": "齿轮故障",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:1:12-262",
+      "name": "振动信号",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:1:12-262",
+      "name": "齿轮故障分类器",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:1:12-262",
+      "name": "样本熵特征向量",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:2:1341-1508",
+      "name": "齿轮副",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:2:1341-1508",
+      "name": "齿轮故障",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:2:1341-1508",
+      "name": "加速度传感器",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:2:1341-1508",
+      "name": "振动信号",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:2:1341-1508",
+      "name": "傅里叶变换",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:3:1209-1291",
+      "name": "转子实验台",
+      "type": "equipment_class"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:3:1209-1291",
+      "name": "齿轮箱",
+      "type": "equipment_class"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:3:1209-1291",
+      "name": "滚动轴承",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:3:1209-1291",
+      "name": "轴",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:3:1209-1291",
+      "name": "齿轮副",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:3:1209-1291",
+      "name": "变速驱动电机",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:3:1209-1291",
+      "name": "加速度传感器",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:3:1374-1434",
+      "name": "齿轮副",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:3:1374-1434",
+      "name": "齿面磨粒磨损",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:3:1374-1434",
+      "name": "齿面点蚀",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:3:1374-1434",
+      "name": "断齿",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:3:1374-1434",
+      "name": "振动信号",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:5:1498-1813",
+      "name": "设备",
+      "type": "equipment_class"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:5:1498-1813",
+      "name": "转速传感器",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:5:1498-1813",
+      "name": "振动传感器",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:5:1498-1813",
+      "name": "叶轮",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:5:1498-1813",
+      "name": "滚动轴承",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:5:1498-1813",
+      "name": "齿轮副",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:5:1498-1813",
+      "name": "转速信号",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:5:1498-1813",
+      "name": "振动信号",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:5-291",
+      "name": "滚动轴承",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:5-291",
+      "name": "外圈故障",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:5-291",
+      "name": "内圈故障",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:5-291",
+      "name": "滚动体故障",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:5-291",
+      "name": "保持架故障",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:5-291",
+      "name": "外圈频率",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:5-291",
+      "name": "内圈频率",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:5-291",
+      "name": "滚动体频率",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:5-291",
+      "name": "保持架频率",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:570-1024",
+      "name": "转子",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:570-1024",
+      "name": "转子不平衡",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:570-1024",
+      "name": "1倍频幅值",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:1025-1347",
+      "name": "转子",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:1025-1347",
+      "name": "转子不对中",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:1025-1347",
+      "name": "2倍频幅值",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:1025-1347",
+      "name": "1倍频幅值",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:22-334",
+      "name": "轴承座",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:22-334",
+      "name": "基础松动",
+      "type": "fault_cause"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:22-334",
+      "name": "轴承座轴向振动大",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:22-334",
+      "name": "轴向振动",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:22-334",
+      "name": "测振传感器",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:22-334",
+      "name": "基础螺丝",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:22-334",
+      "name": "基础底板",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:22-334",
+      "name": "振动值",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:1327-1653",
+      "name": "轴承座轴向振动大",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:1327-1653",
+      "name": "轴弯曲",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:1327-1653",
+      "name": "轴颈跳动",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:1327-1653",
+      "name": "轴承座",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:1327-1653",
+      "name": "轴承座支撑刚度不对称",
+      "type": "fault_cause"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:1327-1653",
+      "name": "转子不对中",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:1327-1653",
+      "name": "联轴器",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:1327-1653",
+      "name": "轴承座轴向共振",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:1327-1653",
+      "name": "转子不平衡",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:1327-1653",
+      "name": "转子",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:1327-1653",
+      "name": "检查轴颈跳动",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:1327-1653",
+      "name": "检查联轴器平直度及同心度",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:1327-1653",
+      "name": "敲击测固有频率",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:1327-1653",
+      "name": "测量基础振动值",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:2:1218-1427",
+      "name": "轴承座轴向振动大",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:2:1218-1427",
+      "name": "基础螺丝松动",
+      "type": "fault_cause"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:2:1218-1427",
+      "name": "轴承座支撑刚度不对称",
+      "type": "fault_cause"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:2:1218-1427",
+      "name": "基础螺丝",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:2:1218-1427",
+      "name": "轴承座",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:1:355-1461",
+      "name": "转子",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:1:355-1461",
+      "name": "ball bearing",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:1:355-1461",
+      "name": "journal bearing",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:1:355-1461",
+      "name": "thermal unbalance",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:1:355-1461",
+      "name": "synchronous amplitude",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:1:355-1461",
+      "name": "phase",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:2:0-713",
+      "name": "journal bearing",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:2:0-713",
+      "name": "转子",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:2:0-713",
+      "name": "thermal bow",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:2:0-713",
+      "name": "unbalance",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:2:0-713",
+      "name": "synchronous vibration vector",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:2:0-713",
+      "name": "hot spot",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:2:0-713",
+      "name": "high spot",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:2:1106-2579",
+      "name": "centrifugal compressor",
+      "type": "equipment_class"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:2:1106-2579",
+      "name": "tilting pad bearing",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:2:1106-2579",
+      "name": "转子",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:2:1106-2579",
+      "name": "synchronous vibration",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:2:1106-2579",
+      "name": "spiral vibration",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:2:1106-2579",
+      "name": "phase",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:2:1106-2579",
+      "name": "temperature sensor",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:20:499-839",
+      "name": "转子",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:20:499-839",
+      "name": "journal",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:20:499-839",
+      "name": "thermal unbalance",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:20:499-839",
+      "name": "synchronous vibration",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:4:196-571",
+      "name": "test rig",
+      "type": "equipment_class"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:4:196-571",
+      "name": "转子",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:4:196-571",
+      "name": "ball bearing",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:4:196-571",
+      "name": "journal bearing",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:319-1439",
+      "name": "齿轮箱",
+      "type": "equipment_class"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:319-1439",
+      "name": "CEEO",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:319-1439",
+      "name": "MCSVM",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:319-1439",
+      "name": "vibration signal",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:319-1439",
+      "name": "gearbox fault",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:2073-2503",
+      "name": "齿轮箱",
+      "type": "equipment_class"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:2073-2503",
+      "name": "vibration signal-based analysis",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:2073-2503",
+      "name": "current signal analysis",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:2073-2503",
+      "name": "acoustic signal analysis",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:2073-2503",
+      "name": "oil-based signal analysis",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:2073-2503",
+      "name": "gearbox fault",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:2073-2503",
+      "name": "shock load",
+      "type": "fault_cause"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:2073-2503",
+      "name": "compressive contact stress",
+      "type": "fault_cause"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:3:2297-3020",
+      "name": "齿轮箱",
+      "type": "equipment_class"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:3:2297-3020",
+      "name": "gear",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:3:2297-3020",
+      "name": "machine fault simulator",
+      "type": "equipment_class"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:3:2297-3020",
+      "name": "sensor",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:3:2297-3020",
+      "name": "faulty gear tooth",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:4f88106f26629c63:4:1549-2086",
+      "name": "齿轮箱",
+      "type": "equipment_class"
+    },
+    {
+      "evidence_id": "ev:4f88106f26629c63:4:1549-2086",
+      "name": "gear",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:4f88106f26629c63:4:1549-2086",
+      "name": "chipped tooth",
+      "type": "fault_mode"
+    },
+    {
+      "evidence_id": "ev:4f88106f26629c63:4:1549-2086",
+      "name": "vibration signal",
+      "type": "symptom"
+    },
+    {
+      "evidence_id": "ev:4f88106f26629c63:4:1549-2086",
+      "name": "exact wavelet",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:4f88106f26629c63:4:2087-2536",
+      "name": "accelerometer",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:4f88106f26629c63:4:2087-2536",
+      "name": "齿轮箱",
+      "type": "equipment_class"
+    },
+    {
+      "evidence_id": "ev:4f88106f26629c63:4:2087-2536",
+      "name": "A/D converter",
+      "type": "detection_method"
+    },
+    {
+      "evidence_id": "ev:4f88106f26629c63:4:2087-2536",
+      "name": "electromotor",
+      "type": "component"
+    },
+    {
+      "evidence_id": "ev:4f88106f26629c63:4:2087-2536",
+      "name": "vibration signal",
+      "type": "symptom"
+    }
+  ],
+  "expected_relations": [
+    {
+      "evidence_id": "ev:c169b3184c37a610:1:12-262",
+      "head": "齿轮副",
+      "type": "has_fault_mode",
+      "tail": "齿轮故障"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:1:12-262",
+      "head": "齿轮故障",
+      "type": "indicated_by",
+      "tail": "振动信号"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:1:12-262",
+      "head": "齿轮故障",
+      "type": "detected_by",
+      "tail": "齿轮故障分类器"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:2:1341-1508",
+      "head": "齿轮副",
+      "type": "has_fault_mode",
+      "tail": "齿轮故障"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:2:1341-1508",
+      "head": "齿轮故障",
+      "type": "detected_by",
+      "tail": "加速度传感器"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:3:1209-1291",
+      "head": "转子实验台",
+      "type": "has_component",
+      "tail": "滚动轴承"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:3:1209-1291",
+      "head": "转子实验台",
+      "type": "has_component",
+      "tail": "轴"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:3:1209-1291",
+      "head": "转子实验台",
+      "type": "has_component",
+      "tail": "变速驱动电机"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:3:1374-1434",
+      "head": "齿轮副",
+      "type": "has_fault_mode",
+      "tail": "齿面磨粒磨损"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:3:1374-1434",
+      "head": "齿轮副",
+      "type": "has_fault_mode",
+      "tail": "齿面点蚀"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:3:1374-1434",
+      "head": "齿轮副",
+      "type": "has_fault_mode",
+      "tail": "断齿"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:3:1374-1434",
+      "head": "齿面磨粒磨损",
+      "type": "indicated_by",
+      "tail": "振动信号"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:3:1374-1434",
+      "head": "齿面点蚀",
+      "type": "indicated_by",
+      "tail": "振动信号"
+    },
+    {
+      "evidence_id": "ev:c169b3184c37a610:3:1374-1434",
+      "head": "断齿",
+      "type": "indicated_by",
+      "tail": "振动信号"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:5:1498-1813",
+      "head": "设备",
+      "type": "has_component",
+      "tail": "叶轮"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:5:1498-1813",
+      "head": "设备",
+      "type": "has_component",
+      "tail": "滚动轴承"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:5:1498-1813",
+      "head": "设备",
+      "type": "has_component",
+      "tail": "齿轮副"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:5-291",
+      "head": "滚动轴承",
+      "type": "has_fault_mode",
+      "tail": "外圈故障"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:5-291",
+      "head": "滚动轴承",
+      "type": "has_fault_mode",
+      "tail": "内圈故障"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:5-291",
+      "head": "滚动轴承",
+      "type": "has_fault_mode",
+      "tail": "滚动体故障"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:5-291",
+      "head": "滚动轴承",
+      "type": "has_fault_mode",
+      "tail": "保持架故障"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:5-291",
+      "head": "外圈故障",
+      "type": "indicated_by",
+      "tail": "外圈频率"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:5-291",
+      "head": "内圈故障",
+      "type": "indicated_by",
+      "tail": "内圈频率"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:5-291",
+      "head": "滚动体故障",
+      "type": "indicated_by",
+      "tail": "滚动体频率"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:5-291",
+      "head": "保持架故障",
+      "type": "indicated_by",
+      "tail": "保持架频率"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:570-1024",
+      "head": "转子",
+      "type": "has_fault_mode",
+      "tail": "转子不平衡"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:570-1024",
+      "head": "转子不平衡",
+      "type": "indicated_by",
+      "tail": "1倍频幅值"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:1025-1347",
+      "head": "转子",
+      "type": "has_fault_mode",
+      "tail": "转子不对中"
+    },
+    {
+      "evidence_id": "ev:ddaef5ea68310f1b:6:1025-1347",
+      "head": "转子不对中",
+      "type": "indicated_by",
+      "tail": "2倍频幅值"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:22-334",
+      "head": "轴承座轴向振动大",
+      "type": "has_cause",
+      "tail": "基础松动"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:22-334",
+      "head": "轴承座轴向振动大",
+      "type": "indicated_by",
+      "tail": "轴向振动"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:22-334",
+      "head": "轴承座轴向振动大",
+      "type": "detected_by",
+      "tail": "测振传感器"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:1327-1653",
+      "head": "轴承座轴向振动大",
+      "type": "has_cause",
+      "tail": "轴承座支撑刚度不对称"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:1327-1653",
+      "head": "轴弯曲",
+      "type": "indicated_by",
+      "tail": "轴颈跳动"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:1327-1653",
+      "head": "轴弯曲",
+      "type": "detected_by",
+      "tail": "检查轴颈跳动"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:1327-1653",
+      "head": "转子不对中",
+      "type": "detected_by",
+      "tail": "检查联轴器平直度及同心度"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:1:1327-1653",
+      "head": "轴承座轴向共振",
+      "type": "detected_by",
+      "tail": "敲击测固有频率"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:2:1218-1427",
+      "head": "轴承座轴向振动大",
+      "type": "has_cause",
+      "tail": "基础螺丝松动"
+    },
+    {
+      "evidence_id": "ev:66f9a7c0b49899ca:2:1218-1427",
+      "head": "轴承座轴向振动大",
+      "type": "has_cause",
+      "tail": "轴承座支撑刚度不对称"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:1:355-1461",
+      "head": "转子",
+      "type": "has_fault_mode",
+      "tail": "thermal unbalance"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:1:355-1461",
+      "head": "thermal unbalance",
+      "type": "indicated_by",
+      "tail": "synchronous amplitude"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:1:355-1461",
+      "head": "thermal unbalance",
+      "type": "indicated_by",
+      "tail": "phase"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:2:0-713",
+      "head": "thermal bow",
+      "type": "indicated_by",
+      "tail": "synchronous vibration vector"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:2:0-713",
+      "head": "unbalance",
+      "type": "indicated_by",
+      "tail": "synchronous vibration vector"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:2:1106-2579",
+      "head": "centrifugal compressor",
+      "type": "has_component",
+      "tail": "tilting pad bearing"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:20:499-839",
+      "head": "转子",
+      "type": "has_fault_mode",
+      "tail": "thermal unbalance"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:20:499-839",
+      "head": "thermal unbalance",
+      "type": "indicated_by",
+      "tail": "synchronous vibration"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:4:196-571",
+      "head": "test rig",
+      "type": "has_component",
+      "tail": "转子"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:4:196-571",
+      "head": "test rig",
+      "type": "has_component",
+      "tail": "ball bearing"
+    },
+    {
+      "evidence_id": "ev:742178038a41d5ea:4:196-571",
+      "head": "test rig",
+      "type": "has_component",
+      "tail": "journal bearing"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:319-1439",
+      "head": "gearbox fault",
+      "type": "detected_by",
+      "tail": "CEEO"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:319-1439",
+      "head": "gearbox fault",
+      "type": "detected_by",
+      "tail": "MCSVM"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:319-1439",
+      "head": "gearbox fault",
+      "type": "indicated_by",
+      "tail": "vibration signal"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:2073-2503",
+      "head": "gearbox fault",
+      "type": "detected_by",
+      "tail": "vibration signal-based analysis"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:2073-2503",
+      "head": "gearbox fault",
+      "type": "detected_by",
+      "tail": "current signal analysis"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:2073-2503",
+      "head": "gearbox fault",
+      "type": "detected_by",
+      "tail": "acoustic signal analysis"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:2073-2503",
+      "head": "gearbox fault",
+      "type": "detected_by",
+      "tail": "oil-based signal analysis"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:2073-2503",
+      "head": "gearbox fault",
+      "type": "has_cause",
+      "tail": "shock load"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:1:2073-2503",
+      "head": "gearbox fault",
+      "type": "has_cause",
+      "tail": "compressive contact stress"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:3:2297-3020",
+      "head": "齿轮箱",
+      "type": "has_component",
+      "tail": "gear"
+    },
+    {
+      "evidence_id": "ev:1be1ecd65c1482c8:3:2297-3020",
+      "head": "gear",
+      "type": "has_fault_mode",
+      "tail": "faulty gear tooth"
+    },
+    {
+      "evidence_id": "ev:4f88106f26629c63:4:1549-2086",
+      "head": "gear",
+      "type": "has_fault_mode",
+      "tail": "chipped tooth"
+    },
+    {
+      "evidence_id": "ev:4f88106f26629c63:4:1549-2086",
+      "head": "chipped tooth",
+      "type": "indicated_by",
+      "tail": "vibration signal"
+    },
+    {
+      "evidence_id": "ev:4f88106f26629c63:4:1549-2086",
+      "head": "chipped tooth",
+      "type": "detected_by",
+      "tail": "exact wavelet"
+    }
+  ]
+}
