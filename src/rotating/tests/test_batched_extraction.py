@@ -165,6 +165,7 @@ class CrossBatchCitationLLM:
                         "name": name,
                         "type": entity_type,
                         "evidence_ids": [self._first_evidence_id],
+                        "quote": evidence[0][1],
                         "confidence": 0.9,
                     }
                 ],
@@ -217,6 +218,7 @@ class SecondBatchFailsLLM:
                         "name": "首批部件",
                         "type": "component",
                         "evidence_ids": [evidence[0][0]],
+                        "quote": evidence[0][1],
                         "confidence": 0.9,
                     }
                 ],
@@ -293,12 +295,14 @@ class RepeatedBatchFakeLLM:
                         "name": "跨批共现部件",
                         "type": "component",
                         "evidence_ids": [evidence_id],
+                        "quote": evidence[0][1],
                         "confidence": 0.9,
                     },
                     {
                         "name": "跨批共现故障",
                         "type": "fault_mode",
                         "evidence_ids": [evidence_id],
+                        "quote": evidence[0][1],
                         "confidence": 0.8,
                     },
                 ],
@@ -308,6 +312,7 @@ class RepeatedBatchFakeLLM:
                         "type": "has_fault_mode",
                         "tail": "跨批共现故障",
                         "evidence_ids": [evidence_id],
+                        "quote": evidence[0][1],
                         "confidence": 0.7,
                     }
                 ],
@@ -358,12 +363,14 @@ class DriftingNameFakeLLM:
                         "name": shared_name,
                         "type": "symptom",
                         "evidence_ids": [evidence[0][0]],
+                        "quote": evidence[0][1],
                         "confidence": 0.9,
                     },
                     {
                         "name": unique_name,
                         "type": "fault_mode",
                         "evidence_ids": [evidence[-1][0]],
+                        "quote": evidence[-1][1],
                         "confidence": 0.8,
                     },
                 ],
@@ -373,6 +380,7 @@ class DriftingNameFakeLLM:
                         "type": "indicated_by",
                         "tail": shared_name,
                         "evidence_ids": [evidence[-1][0]],
+                        "quote": evidence[-1][1],
                         "confidence": 0.7,
                     }
                 ],

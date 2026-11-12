@@ -273,12 +273,14 @@ def test_skipped_documents_carry_their_previously_recorded_counts(
                     "name": "外圈剥落",
                     "type": "fault_mode",
                     "evidence_ids": [segment_id],
+                    "quote": TEXT,
                     "confidence": 0.9,
                 },
                 {
                     "name": "BPFO 倍频",
                     "type": "symptom",
                     "evidence_ids": [segment_id],
+                    "quote": TEXT,
                     "confidence": 0.8,
                 },
             ],
@@ -288,6 +290,7 @@ def test_skipped_documents_carry_their_previously_recorded_counts(
                     "type": "indicated_by",
                     "tail": "BPFO 倍频",
                     "evidence_ids": [segment_id],
+                    "quote": TEXT,
                     "confidence": 0.8,
                 }
             ],

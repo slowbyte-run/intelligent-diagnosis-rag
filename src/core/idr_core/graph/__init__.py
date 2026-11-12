@@ -1,5 +1,6 @@
 """图谱存储的公共模型与端口。"""
 
+from idr_core.anchors import EvidenceAnchor
 from idr_core.graph.models import (
     ConceptEvidenceLink,
     ConceptNode,
@@ -24,6 +25,7 @@ __all__ = [
     "ConceptEvidenceLink",
     "ConceptNode",
     "ConceptRelation",
+    "EvidenceAnchor",
     "EvidenceRecord",
     "EvidenceTextSearch",
     "FactEdge",

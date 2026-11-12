@@ -5,6 +5,8 @@
 - 解析失败有界重试；重试仍失败时抛出带尝试次数的 ``ExtractionError``，
   由入库门面记录原因并继续处理下一篇，不中断整批。
 - 类型或关系越界不抛异常，而是进入待审队列；静默丢弃是禁止的。
+- 每条断言必须带一段支撑原文片段，且片段要在所引证据段里逐字出现；
+  校验通过后固化成 ``(evidence_id, start, end)`` 锚点随出处一起入库。
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ from dataclasses import dataclass, field
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from idr_core.anchors import EvidenceAnchor, locate_anchor
 from idr_core.llm import LLMClient
 from idr_core.models import EvidenceSegment
 from idr_rotating.aliases import AliasResolver, CanonicalEntity, normalize_term
@@ -86,6 +89,10 @@ class ExtractedEntity(BaseModel):
     type: str = Field(min_length=1)
     evidence_ids: list[str]
     confidence: float = Field(ge=0.0, le=1.0)
+    # 支撑这条断言的原文片段，必须逐字摘自所引证据段。缺省为空串而不是
+    # 必填：模型漏给片段是这一条断言的数据问题，不该让整篇文献判失败；
+    # 校验阶段会把它送进待审队列。
+    quote: str = ""
     # 本体为 fault_mode 声明的两个建模维度（ADR-0004）；其他类型可为空。
     location: str | None = None
     damage_form: str | None = None
@@ -99,6 +106,9 @@ class ExtractedRelation(BaseModel):
     tail: str = Field(min_length=1)
     evidence_ids: list[str]
     confidence: float = Field(ge=0.0, le=1.0)
+    # 同实体：模型给出的支撑片段；校验通过后 ``anchors`` 固化它的区间。
+    quote: str = ""
+    anchors: tuple[EvidenceAnchor, ...] = ()
 
 
 class Extraction(BaseModel):
@@ -126,6 +136,8 @@ class ValidatedEntity:
     key: str
     canonical: bool = False
     attributes: dict[str, str] = field(default_factory=dict)
+    # 每条被引用证据段至多一个锚点；没有锚点的证据段按整段引用。
+    anchors: tuple[EvidenceAnchor, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -146,6 +158,7 @@ class _EntityAccumulator:
     key: str
     canonical: bool = False
     attributes: dict[str, str] = field(default_factory=dict)
+    anchors: list[EvidenceAnchor] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -155,6 +168,7 @@ class _RelationAccumulator:
     tail: str
     evidence_ids: list[str]
     confidence: float
+    anchors: list[EvidenceAnchor] = field(default_factory=list)
 
 
 def parse_extraction(response: str) -> Extraction:
@@ -298,6 +312,24 @@ def validate_extraction(
             )
             continue
 
+        anchor = locate_anchor(entity.quote, evidence_ids, evidence_text)
+        if anchor is None:
+            # 片段没在所引证据段里逐字出现（含模型没给片段）：这条断言没有
+            # 可核对的原句，不写图，进待审队列等人复核。
+            rejected_entities += 1
+            pending.append(
+                _observation(
+                    kind=PendingKind.ENTITY,
+                    value=canonical_type,
+                    reason=RejectionReason.ANCHOR_NOT_FOUND,
+                    doc_id=doc_id,
+                    name=entity.name.strip(),
+                    evidence_ids=entity.evidence_ids,
+                    evidence_text=evidence_text,
+                )
+            )
+            continue
+
         key = (
             canonical.id
             if canonical is not None
@@ -311,6 +343,7 @@ def validate_extraction(
             evidence_ids,
             entity,
             attributes,
+            (anchor,),
             canonical=canonical is not None,
         )
         raw_to_canonical.setdefault(entity.name.strip(), set()).add(name)
@@ -325,6 +358,7 @@ def validate_extraction(
             key=accumulator.key,
             canonical=accumulator.canonical,
             attributes=dict(accumulator.attributes),
+            anchors=tuple(accumulator.anchors),
         )
         for accumulator in entities.values()
     )
@@ -430,6 +464,23 @@ def validate_extraction(
             )
             continue
 
+        anchor = locate_anchor(relation.quote, evidence_ids, evidence_text)
+        if anchor is None:
+            # 同实体：关系断言也必须带可核对的原文片段。
+            rejected_relations += 1
+            pending.append(
+                _observation(
+                    kind=PendingKind.RELATION,
+                    value=relation_type,
+                    reason=RejectionReason.ANCHOR_NOT_FOUND,
+                    doc_id=doc_id,
+                    name=_relation_name(relation),
+                    evidence_ids=relation.evidence_ids,
+                    evidence_text=evidence_text,
+                )
+            )
+            continue
+
         key = (head[0], relation_type, tail[0])
         accumulator = relations.get(key)
         if accumulator is None:
@@ -439,9 +490,11 @@ def validate_extraction(
                 tail=tail[0],
                 evidence_ids=list(evidence_ids),
                 confidence=relation.confidence,
+                anchors=[anchor],
             )
         else:
             _extend_unique(accumulator.evidence_ids, evidence_ids)
+            _extend_anchors(accumulator.anchors, (anchor,))
             accumulator.confidence = max(
                 accumulator.confidence, relation.confidence
             )
@@ -453,6 +506,7 @@ def validate_extraction(
             tail=accumulator.tail,
             evidence_ids=accumulator.evidence_ids,
             confidence=accumulator.confidence,
+            anchors=tuple(accumulator.anchors),
         )
         for accumulator in relations.values()
     )
@@ -474,6 +528,7 @@ def _merge_entity(
     evidence_ids: tuple[str, ...],
     entity: ExtractedEntity,
     attributes: Mapping[str, str],
+    anchors: Sequence[EvidenceAnchor],
     *,
     canonical: bool,
 ) -> None:
@@ -487,9 +542,11 @@ def _merge_entity(
             key=key,
             canonical=canonical,
             attributes=dict(attributes),
+            anchors=list(anchors),
         )
         return
     _extend_unique(accumulator.evidence_ids, evidence_ids)
+    _extend_anchors(accumulator.anchors, anchors)
     accumulator.confidence = max(accumulator.confidence, entity.confidence)
     for attribute, value in attributes.items():
         accumulator.attributes.setdefault(attribute, value)
@@ -567,9 +624,11 @@ def merge_validated_extractions(
                 tail=tail,
                 evidence_ids=list(relation.evidence_ids),
                 confidence=relation.confidence,
+                anchors=list(relation.anchors),
             )
         else:
             _extend_unique(accumulator.evidence_ids, relation.evidence_ids)
+            _extend_anchors(accumulator.anchors, relation.anchors)
             accumulator.confidence = max(
                 accumulator.confidence, relation.confidence
             )
@@ -584,6 +643,7 @@ def merge_validated_extractions(
                 key=accumulator.key,
                 canonical=accumulator.canonical,
                 attributes=dict(accumulator.attributes),
+                anchors=tuple(accumulator.anchors),
             )
             for accumulator in entities.values()
         ),
@@ -594,6 +654,7 @@ def merge_validated_extractions(
                 tail=accumulator.tail,
                 evidence_ids=accumulator.evidence_ids,
                 confidence=accumulator.confidence,
+                anchors=tuple(accumulator.anchors),
             )
             for accumulator in merged_relations.values()
         ),
@@ -616,9 +677,11 @@ def _merge_validated_entity(
             key=entity.key,
             canonical=entity.canonical,
             attributes=dict(entity.attributes),
+            anchors=list(entity.anchors),
         )
         return
     _extend_unique(accumulator.evidence_ids, entity.evidence_ids)
+    _extend_anchors(accumulator.anchors, entity.anchors)
     accumulator.confidence = max(accumulator.confidence, entity.confidence)
     for attribute, value in entity.attributes.items():
         accumulator.attributes.setdefault(attribute, value)
@@ -705,6 +768,17 @@ def _extend_unique(target: list[str], values: Sequence[str]) -> None:
     for value in values:
         if value not in target:
             target.append(value)
+
+
+def _extend_anchors(
+    target: list[EvidenceAnchor], anchors: Sequence[EvidenceAnchor]
+) -> None:
+    """每条证据段只留一个锚点；多条断言命中同一段时取首次出现的那个。"""
+    seen = {anchor.evidence_id for anchor in target}
+    for anchor in anchors:
+        if anchor.evidence_id not in seen:
+            target.append(anchor)
+            seen.add(anchor.evidence_id)
 
 
 def _valid_evidence(

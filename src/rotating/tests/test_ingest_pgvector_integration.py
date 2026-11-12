@@ -52,6 +52,7 @@ def test_ingest_writes_one_vector_per_evidence_segment(
                     "name": "外圈剥落",
                     "type": "fault_mode",
                     "evidence_ids": [first_id],
+                    "quote": first_text,
                     "confidence": 0.9,
                 }
             ],

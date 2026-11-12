@@ -30,6 +30,9 @@ class RejectionReason(StrEnum):
     AMBIGUOUS_ALIAS = "ambiguous_alias"
     MISSING_EVIDENCE = "missing_evidence"
     UNKNOWN_EVIDENCE = "unknown_evidence"
+    # 模型没给支撑片段，或片段在它所引的证据段里不是逐字出现：没有可核对
+    # 的原句，断言不得入库。
+    ANCHOR_NOT_FOUND = "anchor_not_found"
     UNKNOWN_RELATION_ENDPOINT = "unknown_relation_endpoint"
     DOMAIN_RANGE_MISMATCH = "domain_range_mismatch"
     # 类型/关系在「内部」段声明：属于流水线自己维护的证据层，模型不得抽取。

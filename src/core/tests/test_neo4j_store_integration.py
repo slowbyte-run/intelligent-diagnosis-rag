@@ -15,6 +15,7 @@ from uuid import uuid4
 import pytest
 from neo4j import Driver, GraphDatabase
 
+from idr_core.anchors import EvidenceAnchor
 from idr_core.graph import (
     ConceptEvidenceLink,
     ConceptNode,
@@ -111,6 +112,9 @@ def make_batch(
         type="kind_c",
         doc_id=doc_id,
     )
+    # 首个词作为支撑片段：锚点描述的是「证据段里的哪一句」，不是新证据。
+    quote = evidence_text.split(" ")[0]
+    anchor = EvidenceAnchor(evidence_id=evidence.id, start=0, end=len(quote))
     return GraphBatch(
         doc_id=doc_id,
         concepts=(head, tail, scoped),
@@ -125,6 +129,7 @@ def make_batch(
                     evidence_ids=(evidence.id,),
                     confidence=confidence,
                     source="extracted",
+                    anchors=(anchor,),
                 ),
             ),
         ),
@@ -136,8 +141,10 @@ def make_batch(
                     evidence_ids=(evidence.id,),
                     confidence=0.9,
                     source="extracted",
+                    anchors=(anchor,),
                 ),
             ),
+            # 这条边没有锚点：同一批次里「有锚点」与「无锚点」并存是合法状态。
             ConceptEvidenceLink(
                 concept_id=scoped.id,
                 provenance=Provenance(
@@ -191,7 +198,11 @@ def test_written_concepts_and_evidence_are_queryable(
                        link.doc_id AS link_doc_id,
                        link.evidence_ids AS link_evidence_ids,
                        link.confidence AS link_confidence,
-                       link.source AS link_source
+                       link.source AS link_source,
+                       link.anchor_evidence_ids AS anchor_evidence_ids,
+                       link.anchor_starts AS anchor_starts,
+                       link.anchor_ends AS anchor_ends,
+                       link.anchor_ambiguous AS anchor_ambiguous
                 ORDER BY concept_id
                 """,
                 doc_id=doc_id,
@@ -221,6 +232,18 @@ def test_written_concepts_and_evidence_are_queryable(
     assert [record["link_confidence"] for record in records] == [0.9, 0.85]
     assert all(record["link_source"] == "extracted" for record in records)
 
+    # 锚点固化在边上：概念—证据边与概念—概念边共用同一组扁平列。
+    quote_end = len(batch.evidence[0].text.split(" ")[0])
+    assert by_name["entity-a"]["anchor_evidence_ids"] == [batch.evidence[0].id]
+    assert by_name["entity-a"]["anchor_starts"] == [0]
+    assert by_name["entity-a"]["anchor_ends"] == [quote_end]
+    assert by_name["entity-a"]["anchor_ambiguous"] == [False]
+    # 没有锚点的边写空数组：读取侧据此退回整段引用。
+    assert by_name["entity-c"]["anchor_evidence_ids"] == []
+    assert by_name["entity-c"]["anchor_starts"] == []
+    assert by_name["entity-c"]["anchor_ends"] == []
+    assert by_name["entity-c"]["anchor_ambiguous"] == []
+
     with driver.session() as session:
         relation = session.run(
             """
@@ -230,7 +253,11 @@ def test_written_concepts_and_evidence_are_queryable(
             RETURN edge.doc_id AS doc_id,
                    edge.evidence_ids AS evidence_ids,
                    edge.confidence AS confidence,
-                   edge.source AS source
+                   edge.source AS source,
+                   edge.anchor_evidence_ids AS anchor_evidence_ids,
+                   edge.anchor_starts AS anchor_starts,
+                   edge.anchor_ends AS anchor_ends,
+                   edge.anchor_ambiguous AS anchor_ambiguous
             """,
             head_id=batch.relations[0].head_id,
             tail_id=batch.relations[0].tail_id,
@@ -241,6 +268,10 @@ def test_written_concepts_and_evidence_are_queryable(
     assert relation["evidence_ids"] == [batch.evidence[0].id]
     assert relation["confidence"] == 0.8
     assert relation["source"] == "extracted"
+    assert relation["anchor_evidence_ids"] == [batch.evidence[0].id]
+    assert relation["anchor_starts"] == [0]
+    assert relation["anchor_ends"] == [quote_end]
+    assert relation["anchor_ambiguous"] == [False]
 
 
 def test_rewriting_same_batch_does_not_duplicate_graph(

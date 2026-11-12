@@ -8,6 +8,7 @@ from typing import Any, LiteralString, cast
 
 from neo4j import Driver, GraphDatabase, ManagedTransaction
 
+from idr_core.anchors import EvidenceAnchor
 from idr_core.graph.models import GraphBatch
 from idr_core.graph.read import Concept, EvidenceRecord, FactEdge
 from idr_core.models import EvidenceSegment
@@ -226,7 +227,11 @@ class Neo4jGraphStore:
             SET edge.evidence_ids = row.evidence_ids,
                 edge.confidence = row.confidence,
                 edge.source = row.source,
-                edge.doc_id = row.doc_id
+                edge.doc_id = row.doc_id,
+                edge.anchor_evidence_ids = row.anchor_evidence_ids,
+                edge.anchor_starts = row.anchor_starts,
+                edge.anchor_ends = row.anchor_ends,
+                edge.anchor_ambiguous = row.anchor_ambiguous
             """,
             rows=[
                 {
@@ -236,6 +241,7 @@ class Neo4jGraphStore:
                     "evidence_ids": list(link.provenance.evidence_ids),
                     "confidence": link.provenance.confidence,
                     "source": link.provenance.source,
+                    **_anchor_columns(link.provenance.anchors),
                 }
                 for link in batch.evidence_links
             ],
@@ -251,6 +257,7 @@ class Neo4jGraphStore:
                     "evidence_ids": list(relation.provenance.evidence_ids),
                     "confidence": relation.provenance.confidence,
                     "source": relation.provenance.source,
+                    **_anchor_columns(relation.provenance.anchors),
                 }
             )
 
@@ -267,10 +274,31 @@ class Neo4jGraphStore:
                 SET edge.evidence_ids = row.evidence_ids,
                     edge.confidence = row.confidence,
                     edge.source = row.source,
-                    edge.doc_id = row.doc_id
+                    edge.doc_id = row.doc_id,
+                    edge.anchor_evidence_ids = row.anchor_evidence_ids,
+                    edge.anchor_starts = row.anchor_starts,
+                    edge.anchor_ends = row.anchor_ends,
+                    edge.anchor_ambiguous = row.anchor_ambiguous
                 """,
             )
             tx.run(query, rows=rows).consume()
+
+
+def _anchor_columns(
+    anchors: Sequence[EvidenceAnchor],
+) -> dict[str, list[str] | list[int] | list[bool]]:
+    """锚点在图里的扁平列。
+
+    Neo4j 的属性不支持嵌套映射，四条平行数组按下标一一对应：第 i 个锚点的
+    ``(evidence_id, start, end, ambiguous)``。没有锚点时写空数组；锚点上线前
+    写入的旧边根本没有这些属性（读取为 null），读取侧要同时接受两种形态。
+    """
+    return {
+        "anchor_evidence_ids": [anchor.evidence_id for anchor in anchors],
+        "anchor_starts": [anchor.start for anchor in anchors],
+        "anchor_ends": [anchor.end for anchor in anchors],
+        "anchor_ambiguous": [anchor.ambiguous for anchor in anchors],
+    }
 
 
 def _upper_relation_type(name: str) -> str:

@@ -48,6 +48,7 @@ def entity(
         "name": name,
         "type": "fault_mode",
         "evidence_ids": [f"ev:{document_id}:1:0-{len(TEXT)}"],
+        "quote": TEXT,
         "confidence": 0.9,
     }
     if location is not None:

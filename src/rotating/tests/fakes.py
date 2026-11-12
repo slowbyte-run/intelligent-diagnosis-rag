@@ -150,12 +150,14 @@ class BatchwiseFakeLLM:
                         "name": self._shared_name,
                         "type": "component",
                         "evidence_ids": [evidence[0][0]],
+                        "quote": evidence[0][1],
                         "confidence": 0.9,
                     },
                     {
                         "name": unique_name,
                         "type": "fault_mode",
                         "evidence_ids": [evidence[-1][0]],
+                        "quote": evidence[-1][1],
                         "confidence": 0.8,
                     },
                 ],
@@ -165,6 +167,7 @@ class BatchwiseFakeLLM:
                         "type": "has_fault_mode",
                         "tail": unique_name,
                         "evidence_ids": [evidence[-1][0]],
+                        "quote": evidence[-1][1],
                         "confidence": 0.7,
                     }
                 ],
