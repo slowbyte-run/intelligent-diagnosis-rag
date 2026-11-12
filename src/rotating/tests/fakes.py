@@ -355,9 +355,30 @@ class FakeGraphStore:
                 doc_id=segment.doc_id,
                 page=segment.page,
                 text=segment.text,
+                charspan=segment.charspan,
             )
             for segment in (self.evidence.get(evidence_id) for evidence_id in evidence_ids)
             if segment is not None
+        )
+
+    def evidence_by_page(self, doc_id: str, page: int) -> tuple[EvidenceRecord, ...]:
+        """同页证据段按字符区间升序，与 Neo4j 适配器的读取契约一致。"""
+        return tuple(
+            EvidenceRecord(
+                id=segment.id,
+                doc_id=segment.doc_id,
+                page=segment.page,
+                text=segment.text,
+                charspan=segment.charspan,
+            )
+            for segment in sorted(
+                (
+                    segment
+                    for segment in self.evidence.values()
+                    if segment.doc_id == doc_id and segment.page == page
+                ),
+                key=lambda segment: segment.charspan.start,
+            )
         )
 
 

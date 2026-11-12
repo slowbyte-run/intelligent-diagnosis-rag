@@ -15,6 +15,7 @@ import pytest
 
 from idr_core.documents import document_id
 from idr_core.graph import Concept, EvidenceRecord, FactEdge
+from idr_core.models import CharSpan
 from idr_core.parsing.pdf import page_text
 from idr_rotating import AskDeps
 
@@ -73,7 +74,11 @@ class FakeGraphReader:
             BPFO: Concept(id=BPFO, name="外圈故障频率及其倍频", type="symptom"),
         }
         self._evidence = EvidenceRecord(
-            id=evidence_id, doc_id=doc_id, page=1, text=PDF_TEXT
+            id=evidence_id,
+            doc_id=doc_id,
+            page=1,
+            text=PDF_TEXT,
+            charspan=CharSpan(0, len(PDF_TEXT)),
         )
 
     def facts_from(
@@ -105,6 +110,11 @@ class FakeGraphReader:
         return tuple(
             self._evidence for evidence_id in evidence_ids if evidence_id == self._evidence.id
         )
+
+    def evidence_by_page(self, doc_id: str, page: int) -> tuple[EvidenceRecord, ...]:
+        if (doc_id, page) == (self._evidence.doc_id, self._evidence.page):
+            return (self._evidence,)
+        return ()
 
 
 def corpus_with_pdf(directory: Path) -> tuple[Path, str, str, str]:

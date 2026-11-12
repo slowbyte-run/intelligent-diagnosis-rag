@@ -44,7 +44,7 @@ def refusal_answer(
 def test_refusal_reason_is_part_of_the_answer_contract() -> None:
     payload = answer_to_dict(refusal_answer())
 
-    assert payload["schema_version"] == 5
+    assert payload["schema_version"] == 6
     assert payload["path"] == "refusal"
     assert payload["refusal_reason"] == "no_concept"
     assert payload["facts"] == []
@@ -190,7 +190,7 @@ def comparison_answer() -> Answer:
 def test_comparison_is_part_of_the_answer_contract() -> None:
     payload = answer_to_dict(comparison_answer())
 
-    assert payload["schema_version"] == 5
+    assert payload["schema_version"] == 6
     comparison = payload["comparison"]
     assert comparison is not None
     assert comparison["left"]["concept"]["id"] == OUTER.id

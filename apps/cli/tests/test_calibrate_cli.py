@@ -15,6 +15,7 @@ import pytest
 from idr_core.graph import Concept, EvidenceRecord, FactEdge
 from idr_core.llm import EmbeddingResponse
 from idr_core.llm.rerank import RerankResponse, RerankScore
+from idr_core.models import CharSpan
 from idr_core.vector_store import VectorMatch
 from idr_rotating import AskDeps
 from idr_rotating.calibration import VectorSample
@@ -34,10 +35,18 @@ class FakeGraphReader:
     def __init__(self) -> None:
         self._evidence = {
             ANCHOR_EVIDENCE: EvidenceRecord(
-                id=ANCHOR_EVIDENCE, doc_id="doc-a", page=1, text=ANCHOR_TEXT
+                id=ANCHOR_EVIDENCE,
+                doc_id="doc-a",
+                page=1,
+                text=ANCHOR_TEXT,
+                charspan=CharSpan(0, len(ANCHOR_TEXT)),
             ),
             OTHER_EVIDENCE: EvidenceRecord(
-                id=OTHER_EVIDENCE, doc_id="doc-a", page=1, text=OTHER_TEXT
+                id=OTHER_EVIDENCE,
+                doc_id="doc-a",
+                page=1,
+                text=OTHER_TEXT,
+                charspan=CharSpan(10, 10 + len(OTHER_TEXT)),
             ),
         }
 
@@ -56,6 +65,15 @@ class FakeGraphReader:
             self._evidence[evidence_id]
             for evidence_id in evidence_ids
             if evidence_id in self._evidence
+        )
+
+    def evidence_by_page(self, doc_id: str, page: int) -> tuple[EvidenceRecord, ...]:
+        return tuple(
+            segment
+            for segment in sorted(
+                self._evidence.values(), key=lambda item: item.charspan.start
+            )
+            if segment.doc_id == doc_id and segment.page == page
         )
 
 

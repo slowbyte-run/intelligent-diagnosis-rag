@@ -11,7 +11,7 @@ from neo4j import Driver, GraphDatabase, ManagedTransaction
 from idr_core.anchors import EvidenceAnchor
 from idr_core.graph.models import GraphBatch
 from idr_core.graph.read import Concept, EvidenceRecord, FactEdge
-from idr_core.models import EvidenceSegment
+from idr_core.models import CharSpan, EvidenceSegment
 
 _RELATION_TYPE_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 
@@ -115,20 +115,31 @@ class Neo4jGraphStore:
                 RETURN evidence.id AS id,
                        evidence.doc_id AS doc_id,
                        evidence.page AS page,
-                       evidence.text AS text
+                       evidence.text AS text,
+                       evidence.charspan AS charspan
                 ORDER BY id
                 """,
                 evidence_ids=list(evidence_ids),
             )
-            return tuple(
-                EvidenceRecord(
-                    id=str(row["id"]),
-                    doc_id=str(row["doc_id"]),
-                    page=int(row["page"]),
-                    text=str(row["text"]),
-                )
-                for row in rows
+            return tuple(_evidence_record(row) for row in rows)
+
+    def evidence_by_page(self, doc_id: str, page: int) -> tuple[EvidenceRecord, ...]:
+        """同页证据段按字符区间升序；短锚点合并展示上下文时按这个顺序取邻居。"""
+        with self._driver.session() as session:
+            rows = session.run(
+                """
+                MATCH (evidence:Evidence {doc_id: $doc_id, page: $page})
+                RETURN evidence.id AS id,
+                       evidence.doc_id AS doc_id,
+                       evidence.page AS page,
+                       evidence.text AS text,
+                       evidence.charspan AS charspan
+                ORDER BY evidence.charspan[0]
+                """,
+                doc_id=doc_id,
+                page=page,
             )
+            return tuple(_evidence_record(row) for row in rows)
 
     def search_evidence(
         self, terms: Sequence[str], *, limit: int
@@ -287,6 +298,18 @@ class Neo4jGraphStore:
                 """,
             )
             tx.run(query, rows=rows).consume()
+
+
+def _evidence_record(row: Any) -> EvidenceRecord:
+    """一行证据节点 → 读模型；``charspan`` 在页面上是两元素数组。"""
+    start, end = row["charspan"]
+    return EvidenceRecord(
+        id=str(row["id"]),
+        doc_id=str(row["doc_id"]),
+        page=int(row["page"]),
+        text=str(row["text"]),
+        charspan=CharSpan(start=int(start), end=int(end)),
+    )
 
 
 def _anchors_from_row(row: Any) -> tuple[EvidenceAnchor, ...]:

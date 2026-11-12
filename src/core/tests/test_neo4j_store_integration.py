@@ -516,3 +516,82 @@ def test_edges_written_before_anchors_are_read_as_whole_segment_evidence(
     (edge,) = edges
     assert edge.evidence_ids == (evidence_id,)
     assert edge.anchors == ()
+
+
+def test_evidence_read_model_carries_charspan_and_reads_page_neighbours(
+    graph_keys: tuple[str, str, str],
+) -> None:
+    """读模型带字符区间；同页证据段按区间升序返回，别的页不混进来。
+
+    引用上下文合并（票据 #26）依赖这两个契约：没有 ``charspan`` 就判断不了
+    两段是否连续，没有同页读取就找不到相邻段。
+    """
+    doc_id, _, _ = graph_keys
+    first_text = "first fragment."
+    second_text = "second fragment."
+    other_page_text = "other page."
+    evidence = (
+        EvidenceSegment(
+            id=f"ev:{doc_id}:1:0-{len(first_text)}",
+            doc_id=doc_id,
+            page=1,
+            bbox=BBox(72.0, 72.0, 540.0, 720.0),
+            charspan=CharSpan(0, len(first_text)),
+            text=first_text,
+        ),
+        EvidenceSegment(
+            id=f"ev:{doc_id}:1:{len(first_text) + 1}-{len(first_text) + 1 + len(second_text)}",
+            doc_id=doc_id,
+            page=1,
+            # 与上一段之间隔一个换行：切分器 _tighten 之后的真实形态。
+            charspan=CharSpan(
+                len(first_text) + 1, len(first_text) + 1 + len(second_text)
+            ),
+            bbox=BBox(72.0, 80.0, 540.0, 720.0),
+            text=second_text,
+        ),
+        EvidenceSegment(
+            id=f"ev:{doc_id}:2:0-{len(other_page_text)}",
+            doc_id=doc_id,
+            page=2,
+            bbox=BBox(72.0, 72.0, 540.0, 720.0),
+            charspan=CharSpan(0, len(other_page_text)),
+            text=other_page_text,
+        ),
+    )
+    graph_store = store()
+    try:
+        graph_store.write_document(
+            GraphBatch(
+                doc_id=doc_id,
+                concepts=(),
+                evidence=evidence,
+                relations=(),
+                evidence_links=(),
+            )
+        )
+        by_id = {
+            record.id: record
+            for record in graph_store.evidence_by_ids([item.id for item in evidence])
+        }
+        first_page = graph_store.evidence_by_page(doc_id, 1)
+        other_page = graph_store.evidence_by_page(doc_id, 2)
+        missing_page = graph_store.evidence_by_page(doc_id, 99)
+    finally:
+        graph_store.close()
+
+    assert set(by_id) == {item.id for item in evidence}
+    assert by_id[evidence[0].id].charspan == CharSpan(0, len(first_text))
+    assert by_id[evidence[1].id].charspan == CharSpan(
+        len(first_text) + 1, len(first_text) + 1 + len(second_text)
+    )
+    # 同页读取按页面字符区间升序，跨页的段不出现。
+    assert [record.id for record in first_page] == [
+        evidence[0].id,
+        evidence[1].id,
+    ]
+    assert [record.charspan for record in first_page] == [
+        item.charspan for item in evidence[:2]
+    ]
+    assert [record.id for record in other_page] == [evidence[2].id]
+    assert missing_page == ()
