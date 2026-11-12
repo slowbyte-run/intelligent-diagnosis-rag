@@ -29,7 +29,7 @@ def one_page(text: str) -> FakeParser:
     )
 
 
-def extraction_response(segment_id: str) -> str:
+def extraction_response(segment_id: str, quote: str) -> str:
     return json.dumps(
         {
             "entities": [
@@ -37,6 +37,7 @@ def extraction_response(segment_id: str) -> str:
                     "name": "外圈剥落",
                     "type": "fault_mode",
                     "evidence_ids": [segment_id],
+                    "quote": quote,
                     "confidence": 0.9,
                 }
             ],
@@ -54,7 +55,7 @@ def test_report_records_each_model_call_with_model_tokens_and_elapsed_time(
     text = "外圈剥落表现为 BPFO 倍频，且能量集中在高频段。"
     doc_id = content_doc_id(content)
     llm = InstrumentedFakeLLM(
-        extraction_response(evidence_id(doc_id, 1, text)),
+        extraction_response(evidence_id(doc_id, 1, text), text),
         model="deepseek-chat",
         input_tokens=1234,
         output_tokens=321,
@@ -96,7 +97,7 @@ def test_report_records_enough_to_reproduce_the_model_and_parameter_combination(
         "response_format": "json_object",
     }
     llm = InstrumentedFakeLLM(
-        extraction_response(evidence_id(doc_id, 1, text)),
+        extraction_response(evidence_id(doc_id, 1, text), text),
         model="deepseek-chat",
         parameters=parameters,
     )
@@ -128,7 +129,7 @@ def test_run_metadata_records_the_limit_that_was_applied(tmp_path: Path) -> None
     (tmp_path / "b.pdf").write_bytes(b"%PDF-1.4 second")
     text = "外圈剥落会在振动频谱上留下明显的特征频率。"
     doc_id = content_doc_id(b"%PDF-1.4 first")
-    llm = InstrumentedFakeLLM(extraction_response(evidence_id(doc_id, 1, text)))
+    llm = InstrumentedFakeLLM(extraction_response(evidence_id(doc_id, 1, text), text))
 
     report = ingest(
         tmp_path,
@@ -189,18 +190,21 @@ def test_ontology_rejected_extractions_become_pending_review_items(
                     "name": "外圈剥落",
                     "type": "fault_mode",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.9,
                 },
                 {
                     "name": "神秘实体",
                     "type": "alien_type",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.9,
                 },
                 {
                     "name": "神秘实体",
                     "type": "alien_type",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.8,
                 },
             ],
@@ -210,6 +214,7 @@ def test_ontology_rejected_extractions_become_pending_review_items(
                     "type": "magic_link",
                     "tail": "外圈故障频率",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.8,
                 }
             ],

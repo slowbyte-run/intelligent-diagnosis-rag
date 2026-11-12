@@ -151,3 +151,15 @@ def test_prompt_asks_for_location_and_damage_form_with_allowed_values() -> None:
     assert '"damage_form"' in prompt
     assert "outer_race（外圈）" in prompt
     assert "rolling_contact_fatigue（滚动接触疲劳）" in prompt
+
+
+def test_prompt_asks_for_a_verbatim_supporting_quote_per_assertion() -> None:
+    """每条断言都要给支撑片段：输出字段与规则都必须明确要求逐字摘录。"""
+    prompt = build_extraction_prompt(load_ontology(), (evidence_segment(),))
+
+    assert '"quote"' in prompt
+    assert "逐字" in prompt
+    # 片段属于所引证据段、不得改写或拼接，否则校验会拒收。
+    assert "不要改写" in prompt
+    assert "逐字复制" in prompt
+    assert "不要输出这条断言" in prompt

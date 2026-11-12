@@ -48,7 +48,12 @@ def build_graph_batch(
         )
         concepts.append(concept)
         concept_by_name.setdefault(entity.name, concept)
+        # 锚点按证据段挂到对应的概念—证据边上；没有锚点的证据段照旧整段引用。
+        anchors_by_evidence = {
+            anchor.evidence_id: anchor for anchor in entity.anchors
+        }
         for evidence_id in entity.evidence_ids:
+            anchor = anchors_by_evidence.get(evidence_id)
             links.append(
                 ConceptEvidenceLink(
                     concept_id=concept.id,
@@ -57,6 +62,7 @@ def build_graph_batch(
                         evidence_ids=(evidence_id,),
                         confidence=entity.confidence,
                         source="extracted",
+                        anchors=() if anchor is None else (anchor,),
                     ),
                 )
             )
@@ -82,6 +88,7 @@ def build_graph_batch(
                     evidence_ids=tuple(relation.evidence_ids),
                     confidence=relation.confidence,
                     source="extracted",
+                    anchors=tuple(relation.anchors),
                 ),
             )
         )

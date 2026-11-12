@@ -33,18 +33,21 @@ def test_out_of_ontology_entities_and_relations_are_reported_with_examples(
                     "name": "未知甲",
                     "type": "alien_type",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.9,
                 },
                 {
                     "name": "未知乙",
                     "type": "alien_type",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.8,
                 },
                 {
                     "name": "外圈剥落",
                     "type": "fault_mode",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.9,
                 },
             ],
@@ -54,6 +57,7 @@ def test_out_of_ontology_entities_and_relations_are_reported_with_examples(
                     "type": "magic_link",
                     "tail": "未知乙",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.8,
                 },
                 {
@@ -61,6 +65,7 @@ def test_out_of_ontology_entities_and_relations_are_reported_with_examples(
                     "type": "magic_link",
                     "tail": "未知甲",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.7,
                 },
             ],
@@ -125,12 +130,14 @@ def test_relation_that_violates_domain_or_range_is_queued_not_written(
                     "name": "外圈剥落",
                     "type": "fault_mode",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.9,
                 },
                 {
                     "name": "滚动轴承",
                     "type": "component",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.9,
                 },
             ],
@@ -140,6 +147,7 @@ def test_relation_that_violates_domain_or_range_is_queued_not_written(
                     "type": "indicated_by",
                     "tail": "滚动轴承",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.8,
                 }
             ],
@@ -196,6 +204,7 @@ def test_batch_report_merges_pending_frequency_across_documents(
                         "name": name,
                         "type": "alien_type",
                         "evidence_ids": [segment_id],
+                        "quote": text,
                         "confidence": 0.9,
                     }
                 ],
@@ -249,6 +258,7 @@ def test_ambiguous_alias_is_queued_instead_of_stored_as_raw_name(
                     "name": "塑性变形",
                     "type": "fault_mode",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.9,
                 }
             ],
@@ -300,6 +310,7 @@ def test_relation_with_an_unknown_endpoint_is_queued_not_written(
                     "name": "外圈剥落",
                     "type": "fault_mode",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.9,
                 }
             ],
@@ -309,6 +320,7 @@ def test_relation_with_an_unknown_endpoint_is_queued_not_written(
                     "type": "indicated_by",
                     "tail": "不在抽取结果里的终点",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.8,
                 }
             ],

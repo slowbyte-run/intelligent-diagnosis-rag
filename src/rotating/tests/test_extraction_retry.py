@@ -32,6 +32,7 @@ def valid_response(doc_id: str) -> str:
                     "name": "外圈剥落",
                     "type": "fault_mode",
                     "evidence_ids": [segment_id],
+                    "quote": TEXT,
                     "confidence": 0.9,
                 }
             ],
