@@ -37,6 +37,7 @@ def entity(name: str, type_: str, evidence: str) -> dict[str, object]:
         "name": name,
         "type": type_,
         "evidence_ids": [evidence],
+        "quote": TEXT,
         "confidence": 0.9,
     }
 
@@ -47,6 +48,7 @@ def relation(head: str, type_: str, tail: str, evidence: str) -> dict[str, objec
         "type": type_,
         "tail": tail,
         "evidence_ids": [evidence],
+        "quote": TEXT,
         "confidence": 0.8,
     }
 

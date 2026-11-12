@@ -38,6 +38,9 @@ class FakeGraphReader:
     ) -> tuple[EvidenceRecord, ...]:
         return ()
 
+    def evidence_by_page(self, doc_id: str, page: int) -> tuple[EvidenceRecord, ...]:
+        return ()
+
 
 class FakeEmbedder:
     def __init__(self) -> None:

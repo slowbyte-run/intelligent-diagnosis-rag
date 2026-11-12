@@ -15,6 +15,7 @@ from uuid import uuid4
 import pytest
 from neo4j import Driver, GraphDatabase
 
+from idr_core.anchors import EvidenceAnchor
 from idr_core.graph import (
     ConceptEvidenceLink,
     ConceptNode,
@@ -81,6 +82,7 @@ def make_batch(
     evidence_text: str,
     scoped_name: str,
     confidence: float = 0.8,
+    with_anchor: bool = True,
 ) -> GraphBatch:
     """一篇文献的写入批次：两个共享概念、一个文档作用域概念和一条关系。"""
     evidence = EvidenceSegment(
@@ -111,6 +113,10 @@ def make_batch(
         type="kind_c",
         doc_id=doc_id,
     )
+    # 首个词作为支撑片段：锚点描述的是「证据段里的哪一句」，不是新证据。
+    quote = evidence_text.split(" ")[0]
+    anchor = EvidenceAnchor(evidence_id=evidence.id, start=0, end=len(quote))
+    relation_anchors = (anchor,) if with_anchor else ()
     return GraphBatch(
         doc_id=doc_id,
         concepts=(head, tail, scoped),
@@ -125,6 +131,7 @@ def make_batch(
                     evidence_ids=(evidence.id,),
                     confidence=confidence,
                     source="extracted",
+                    anchors=relation_anchors,
                 ),
             ),
         ),
@@ -136,8 +143,10 @@ def make_batch(
                     evidence_ids=(evidence.id,),
                     confidence=0.9,
                     source="extracted",
+                    anchors=(anchor,),
                 ),
             ),
+            # 这条边没有锚点：同一批次里「有锚点」与「无锚点」并存是合法状态。
             ConceptEvidenceLink(
                 concept_id=scoped.id,
                 provenance=Provenance(
@@ -191,7 +200,11 @@ def test_written_concepts_and_evidence_are_queryable(
                        link.doc_id AS link_doc_id,
                        link.evidence_ids AS link_evidence_ids,
                        link.confidence AS link_confidence,
-                       link.source AS link_source
+                       link.source AS link_source,
+                       link.anchor_evidence_ids AS anchor_evidence_ids,
+                       link.anchor_starts AS anchor_starts,
+                       link.anchor_ends AS anchor_ends,
+                       link.anchor_ambiguous AS anchor_ambiguous
                 ORDER BY concept_id
                 """,
                 doc_id=doc_id,
@@ -221,6 +234,18 @@ def test_written_concepts_and_evidence_are_queryable(
     assert [record["link_confidence"] for record in records] == [0.9, 0.85]
     assert all(record["link_source"] == "extracted" for record in records)
 
+    # 锚点固化在边上：概念—证据边与概念—概念边共用同一组扁平列。
+    quote_end = len(batch.evidence[0].text.split(" ")[0])
+    assert by_name["entity-a"]["anchor_evidence_ids"] == [batch.evidence[0].id]
+    assert by_name["entity-a"]["anchor_starts"] == [0]
+    assert by_name["entity-a"]["anchor_ends"] == [quote_end]
+    assert by_name["entity-a"]["anchor_ambiguous"] == [False]
+    # 没有锚点的边写空数组：读取侧据此退回整段引用。
+    assert by_name["entity-c"]["anchor_evidence_ids"] == []
+    assert by_name["entity-c"]["anchor_starts"] == []
+    assert by_name["entity-c"]["anchor_ends"] == []
+    assert by_name["entity-c"]["anchor_ambiguous"] == []
+
     with driver.session() as session:
         relation = session.run(
             """
@@ -230,7 +255,11 @@ def test_written_concepts_and_evidence_are_queryable(
             RETURN edge.doc_id AS doc_id,
                    edge.evidence_ids AS evidence_ids,
                    edge.confidence AS confidence,
-                   edge.source AS source
+                   edge.source AS source,
+                   edge.anchor_evidence_ids AS anchor_evidence_ids,
+                   edge.anchor_starts AS anchor_starts,
+                   edge.anchor_ends AS anchor_ends,
+                   edge.anchor_ambiguous AS anchor_ambiguous
             """,
             head_id=batch.relations[0].head_id,
             tail_id=batch.relations[0].tail_id,
@@ -241,6 +270,10 @@ def test_written_concepts_and_evidence_are_queryable(
     assert relation["evidence_ids"] == [batch.evidence[0].id]
     assert relation["confidence"] == 0.8
     assert relation["source"] == "extracted"
+    assert relation["anchor_evidence_ids"] == [batch.evidence[0].id]
+    assert relation["anchor_starts"] == [0]
+    assert relation["anchor_ends"] == [quote_end]
+    assert relation["anchor_ambiguous"] == [False]
 
 
 def test_rewriting_same_batch_does_not_duplicate_graph(
@@ -395,3 +428,170 @@ def test_reingesting_one_document_replaces_only_its_contribution(
     assert first_before.evidence[0].id not in evidence_ids
     assert first_after.evidence[0].id in evidence_ids
     assert other.evidence[0].id in evidence_ids
+
+
+def test_relation_anchors_round_trip_through_the_graph(
+    driver: Driver, graph_keys: tuple[str, str, str]
+) -> None:
+    """关系边上的锚点能被读模型取回：引用层据此展示片段而不是整段。"""
+    doc_id, _, prefix = graph_keys
+    batch = make_batch(
+        doc_id,
+        prefix=prefix,
+        evidence_text="entity-a relates to entity-b.",
+        scoped_name="entity-c",
+    )
+    graph_store = store()
+    try:
+        graph_store.write_document(batch)
+        edges = graph_store.facts_from(batch.relations[0].head_id, ["linked_to"])
+    finally:
+        graph_store.close()
+
+    (edge,) = edges
+    assert edge.evidence_ids == (batch.evidence[0].id,)
+    assert edge.anchors == batch.relations[0].provenance.anchors
+    (anchor,) = edge.anchors
+    assert anchor.evidence_id == batch.evidence[0].id
+    assert anchor.start == 0
+    assert anchor.end == len(batch.evidence[0].text.split(" ")[0])
+
+
+def test_edges_with_empty_anchor_arrays_are_read_as_whole_segment_evidence(
+    driver: Driver, graph_keys: tuple[str, str, str]
+) -> None:
+    """边写了空锚点数组（锚点上线后没有片段的断言）时读出空元组，不报错。"""
+    doc_id, _, prefix = graph_keys
+    batch = make_batch(
+        doc_id,
+        prefix=prefix,
+        evidence_text="entity-a relates to entity-b.",
+        scoped_name="entity-c",
+        with_anchor=False,
+    )
+    graph_store = store()
+    try:
+        graph_store.write_document(batch)
+        edges = graph_store.facts_from(batch.relations[0].head_id, ["linked_to"])
+    finally:
+        graph_store.close()
+
+    (edge,) = edges
+    assert edge.evidence_ids == (batch.evidence[0].id,)
+    assert edge.anchors == ()
+
+
+def test_edges_written_before_anchors_are_read_as_whole_segment_evidence(
+    driver: Driver, graph_keys: tuple[str, str, str]
+) -> None:
+    """锚点上线前写入的边根本没有那四个属性（读成 null），读取侧必须容忍。"""
+    doc_id, _, prefix = graph_keys
+    head_id = f"{prefix}-legacy-head"
+    tail_id = f"{prefix}-legacy-tail"
+    evidence_id = f"ev:{doc_id}:1:0-4"
+    with driver.session() as session:
+        session.run(
+            """
+            MERGE (head:Concept {id: $head_id})
+            SET head.name = 'legacy-head', head.type = 'kind_a'
+            MERGE (tail:Concept {id: $tail_id})
+            SET tail.name = 'legacy-tail', tail.type = 'kind_b'
+            MERGE (head)-[edge:LINKED_TO {doc_id: $doc_id}]->(tail)
+            SET edge.evidence_ids = [$evidence_id],
+                edge.confidence = 0.7,
+                edge.source = 'extracted'
+            """,
+            head_id=head_id,
+            tail_id=tail_id,
+            doc_id=doc_id,
+            evidence_id=evidence_id,
+        ).consume()
+
+    graph_store = store()
+    try:
+        edges = graph_store.facts_from(head_id, ["linked_to"])
+    finally:
+        graph_store.close()
+
+    (edge,) = edges
+    assert edge.evidence_ids == (evidence_id,)
+    assert edge.anchors == ()
+
+
+def test_evidence_read_model_carries_charspan_and_reads_page_neighbours(
+    graph_keys: tuple[str, str, str],
+) -> None:
+    """读模型带字符区间；同页证据段按区间升序返回，别的页不混进来。
+
+    引用上下文合并（票据 #26）依赖这两个契约：没有 ``charspan`` 就判断不了
+    两段是否连续，没有同页读取就找不到相邻段。
+    """
+    doc_id, _, _ = graph_keys
+    first_text = "first fragment."
+    second_text = "second fragment."
+    other_page_text = "other page."
+    evidence = (
+        EvidenceSegment(
+            id=f"ev:{doc_id}:1:0-{len(first_text)}",
+            doc_id=doc_id,
+            page=1,
+            bbox=BBox(72.0, 72.0, 540.0, 720.0),
+            charspan=CharSpan(0, len(first_text)),
+            text=first_text,
+        ),
+        EvidenceSegment(
+            id=f"ev:{doc_id}:1:{len(first_text) + 1}-{len(first_text) + 1 + len(second_text)}",
+            doc_id=doc_id,
+            page=1,
+            # 与上一段之间隔一个换行：切分器 _tighten 之后的真实形态。
+            charspan=CharSpan(
+                len(first_text) + 1, len(first_text) + 1 + len(second_text)
+            ),
+            bbox=BBox(72.0, 80.0, 540.0, 720.0),
+            text=second_text,
+        ),
+        EvidenceSegment(
+            id=f"ev:{doc_id}:2:0-{len(other_page_text)}",
+            doc_id=doc_id,
+            page=2,
+            bbox=BBox(72.0, 72.0, 540.0, 720.0),
+            charspan=CharSpan(0, len(other_page_text)),
+            text=other_page_text,
+        ),
+    )
+    graph_store = store()
+    try:
+        graph_store.write_document(
+            GraphBatch(
+                doc_id=doc_id,
+                concepts=(),
+                evidence=evidence,
+                relations=(),
+                evidence_links=(),
+            )
+        )
+        by_id = {
+            record.id: record
+            for record in graph_store.evidence_by_ids([item.id for item in evidence])
+        }
+        first_page = graph_store.evidence_by_page(doc_id, 1)
+        other_page = graph_store.evidence_by_page(doc_id, 2)
+        missing_page = graph_store.evidence_by_page(doc_id, 99)
+    finally:
+        graph_store.close()
+
+    assert set(by_id) == {item.id for item in evidence}
+    assert by_id[evidence[0].id].charspan == CharSpan(0, len(first_text))
+    assert by_id[evidence[1].id].charspan == CharSpan(
+        len(first_text) + 1, len(first_text) + 1 + len(second_text)
+    )
+    # 同页读取按页面字符区间升序，跨页的段不出现。
+    assert [record.id for record in first_page] == [
+        evidence[0].id,
+        evidence[1].id,
+    ]
+    assert [record.charspan for record in first_page] == [
+        item.charspan for item in evidence[:2]
+    ]
+    assert [record.id for record in other_page] == [evidence[2].id]
+    assert missing_page == ()

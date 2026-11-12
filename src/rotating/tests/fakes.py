@@ -150,12 +150,14 @@ class BatchwiseFakeLLM:
                         "name": self._shared_name,
                         "type": "component",
                         "evidence_ids": [evidence[0][0]],
+                        "quote": evidence[0][1],
                         "confidence": 0.9,
                     },
                     {
                         "name": unique_name,
                         "type": "fault_mode",
                         "evidence_ids": [evidence[-1][0]],
+                        "quote": evidence[-1][1],
                         "confidence": 0.8,
                     },
                 ],
@@ -165,6 +167,7 @@ class BatchwiseFakeLLM:
                         "type": "has_fault_mode",
                         "tail": unique_name,
                         "evidence_ids": [evidence[-1][0]],
+                        "quote": evidence[-1][1],
                         "confidence": 0.7,
                     }
                 ],
@@ -329,6 +332,7 @@ class FakeGraphStore:
                 evidence_ids=relation.provenance.evidence_ids,
                 confidence=relation.provenance.confidence,
                 doc_id=relation.provenance.doc_id,
+                anchors=relation.provenance.anchors,
             )
             for relation in self.relations
             if relation.head_id == concept_id
@@ -351,9 +355,30 @@ class FakeGraphStore:
                 doc_id=segment.doc_id,
                 page=segment.page,
                 text=segment.text,
+                charspan=segment.charspan,
             )
             for segment in (self.evidence.get(evidence_id) for evidence_id in evidence_ids)
             if segment is not None
+        )
+
+    def evidence_by_page(self, doc_id: str, page: int) -> tuple[EvidenceRecord, ...]:
+        """同页证据段按字符区间升序，与 Neo4j 适配器的读取契约一致。"""
+        return tuple(
+            EvidenceRecord(
+                id=segment.id,
+                doc_id=segment.doc_id,
+                page=segment.page,
+                text=segment.text,
+                charspan=segment.charspan,
+            )
+            for segment in sorted(
+                (
+                    segment
+                    for segment in self.evidence.values()
+                    if segment.doc_id == doc_id and segment.page == page
+                ),
+                key=lambda segment: segment.charspan.start,
+            )
         )
 
 

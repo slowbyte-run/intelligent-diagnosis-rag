@@ -6,6 +6,7 @@
 
 from dataclasses import dataclass, field
 
+from idr_core.anchors import EvidenceAnchor
 from idr_core.models import EvidenceSegment
 
 
@@ -16,12 +17,30 @@ class Provenance:
     关系边与概念—证据边共用这一份形状，避免两处各写一遍这几个字段。
     ``doc_id`` 是每条边的归属：同一对概念在不同文献里的断言各留一条并行边，
     重跑某篇文献时只替换该文献贡献的边。
+
+    ``anchors`` 与 ``evidence_ids`` 平行：每个锚点指明它属于哪一段证据，
+    指向的区间是入库时固化的逐字出处。某个证据段没有锚点是合法状态（旧数据
+    或模型没给出片段），该段仍按整段引用；但锚点不得指向没被引用的证据段。
     """
 
     doc_id: str
     evidence_ids: tuple[str, ...]
     confidence: float
     source: str
+    anchors: tuple[EvidenceAnchor, ...] = ()
+
+    def __post_init__(self) -> None:
+        anchor_evidence_ids = [anchor.evidence_id for anchor in self.anchors]
+        for anchor in self.anchors:
+            if anchor.evidence_id not in self.evidence_ids:
+                raise ValueError(
+                    f"锚点指向未被引用的证据段 {anchor.evidence_id}："
+                    f"证据段清单为 {self.evidence_ids}"
+                )
+        if len(anchor_evidence_ids) != len(set(anchor_evidence_ids)):
+            raise ValueError(
+                f"同一条证据段出现了多个锚点：{self.evidence_ids}"
+            )
 
 
 @dataclass(frozen=True, slots=True)

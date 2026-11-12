@@ -15,6 +15,9 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
+from idr_core.anchors import EvidenceAnchor
+from idr_core.models import CharSpan
+
 
 @dataclass(frozen=True, slots=True)
 class Concept:
@@ -27,7 +30,13 @@ class Concept:
 
 @dataclass(frozen=True, slots=True)
 class FactEdge:
-    """一条未经聚合的事实边；同一 ``(head, relation, tail)`` 可有多条。"""
+    """一条未经聚合的事实边；同一 ``(head, relation, tail)`` 可有多条。
+
+    ``anchors`` 是这条断言在证据段内的逐字出处（``(evidence_id, start, end)``），
+    与 ``evidence_ids`` 平行但可以更少：锚点上线前写入的边没有锚点，读取侧
+    必须把「没有锚点」当成整段引用，而不是把边丢掉。锚点实现见
+    :mod:`idr_core.anchors`；图里以四条平行数组属性持久化。
+    """
 
     head_id: str
     relation: str
@@ -35,27 +44,40 @@ class FactEdge:
     evidence_ids: tuple[str, ...]
     confidence: float
     doc_id: str
+    anchors: tuple[EvidenceAnchor, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
 class AggregatedFact:
-    """聚合后的一条事实：同一概念对的全部并行边合成一条。"""
+    """聚合后的一条事实：同一概念对的全部并行边合成一条。
+
+    ``anchors`` 与 ``evidence_ids`` 平行（每个证据段至多一个锚点），按证据段
+    首次出现的顺序排列；没有锚点的证据段不在其中——引用层据此退回整段。
+    """
 
     head_id: str
     relation: str
     tail_id: str
     evidence_ids: tuple[str, ...]
     confidence: float
+    anchors: tuple[EvidenceAnchor, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
 class EvidenceRecord:
-    """证据段在图谱里的定位信息；文献名由调用方按 ``doc_id`` 补上。"""
+    """证据段在图谱里的定位信息；文献名由调用方按 ``doc_id`` 补上。
+
+    ``charspan`` 是证据段在所属页面文字中的字符区间。引用只要展示片段
+    （锚点）时它用不上；要把相邻证据段并进展示上下文，就必须知道每段在
+    页面上的确切位置，才能判断两段是否连续、拼接结果是否仍是页面文字的
+    连续切片。
+    """
 
     id: str
     doc_id: str
     page: int
     text: str
+    charspan: CharSpan
 
 
 class GraphReader(Protocol):
@@ -81,6 +103,14 @@ class GraphReader(Protocol):
         """按标识批量取证据段；不存在的标识不出现在结果里。"""
         ...
 
+    def evidence_by_page(self, doc_id: str, page: int) -> tuple[EvidenceRecord, ...]:
+        """取一篇文献某一页的全部证据段，按页面字符区间升序。
+
+        引用层只有需要并入上下文时才调用它（短锚点），且只用来找同一页上
+        与锚点相邻的证据段；跨页的段不在这里返回，合并也就不会跨页。
+        """
+        ...
+
 
 class EvidenceTextSearch(Protocol):
     """证据段原文的词面检索端口；与图遍历分开，实现方可以是同一个存储。
@@ -102,18 +132,29 @@ def aggregate_facts(edges: Iterable[FactEdge]) -> tuple[AggregatedFact, ...]:
     结果保持边首次出现的顺序：关系类型的先后由检索编排决定（例如先观测、
     后原因），聚合层不重排。证据并集同样按首次出现的顺序去重。
     """
-    merged: dict[tuple[str, str, str], tuple[list[str], float]] = {}
+    merged: dict[
+        tuple[str, str, str],
+        tuple[list[str], dict[str, EvidenceAnchor], float],
+    ] = {}
     for edge in edges:
         if not edge.evidence_ids:
             continue
         key = (edge.head_id, edge.relation, edge.tail_id)
         if key not in merged:
-            merged[key] = ([], edge.confidence)
-        evidence_ids, confidence = merged[key]
+            merged[key] = ([], {}, edge.confidence)
+        evidence_ids, anchors, confidence = merged[key]
         for evidence_id in edge.evidence_ids:
             if evidence_id not in evidence_ids:
                 evidence_ids.append(evidence_id)
-        merged[key] = (evidence_ids, max(confidence, edge.confidence))
+        for anchor in edge.anchors:
+            # 同一证据段只会由同一篇文献的一条边引用；万一聚合时重复出现，
+            # 保留先到的那个锚点，顺序因此与证据并集一致。
+            anchors.setdefault(anchor.evidence_id, anchor)
+        merged[key] = (
+            evidence_ids,
+            anchors,
+            max(confidence, edge.confidence),
+        )
 
     return tuple(
         AggregatedFact(
@@ -122,6 +163,15 @@ def aggregate_facts(edges: Iterable[FactEdge]) -> tuple[AggregatedFact, ...]:
             tail_id=tail_id,
             evidence_ids=tuple(evidence_ids),
             confidence=confidence,
+            anchors=tuple(
+                anchor
+                for evidence_id in evidence_ids
+                if (anchor := anchors.get(evidence_id)) is not None
+            ),
         )
-        for (head_id, relation, tail_id), (evidence_ids, confidence) in merged.items()
+        for (head_id, relation, tail_id), (
+            evidence_ids,
+            anchors,
+            confidence,
+        ) in merged.items()
     )

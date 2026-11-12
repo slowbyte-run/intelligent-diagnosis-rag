@@ -1,8 +1,11 @@
 """答案的值对象：检索路径、命中概念、结论与引用。
 
 答案分两层：``facts`` 是图谱上的结论（带关系、置信度与证据段标识），
-``citations`` 是这些证据段的出处（文献名、页码、原文）。一条事实的证据用
-``evidence_ids`` 指向引用层，同一段证据被多条结论引用时只出现一次。
+``citations`` 是这些证据段的出处（文献名、页码、引文）。一条事实的证据用
+``evidence_ids`` 指向引用层。引用带锚点时引文是证据段内的支撑片段，同一段
+证据支撑多条断言时每条断言各有一条引用；短锚点的引文会并入同页相邻证据段
+作为展示上下文（``citation_context``），锚点区间本身不变。没有锚点时整段引用，
+同一证据段只出现一次。
 
 ``path`` 明确回答「这条答案是怎么来的」——图命中、向量兜底还是拒答。图命中的
 结论还带 ``Fact.path``：从结论起点走到终点的每一步及其证据，答案因此能说明
@@ -32,7 +35,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
-from idr_core.graph import Concept
+from idr_core.graph import Concept, EvidenceAnchor
 from idr_core.llm import ModelCall
 from idr_rotating.linking import ConceptMatch
 from idr_rotating.traversal import PathStep
@@ -67,6 +70,14 @@ class RefusalReason(StrEnum):
 class Citation:
     """一条结论的出处；``document`` 缺省表示按标识查不到文献名。
 
+    ``text`` 是要展示给用户的引文：有锚点时以锚点区间对应的原文为基础，短于
+    阈值时并入同页相邻证据段作为上下文（文本仍是页面文字的连续切片）；没有
+    锚点时是整段证据原文。``anchor`` 记录支撑片段在 ``evidence_id`` 所指证据
+    段里的字符区间（``None`` 表示整段）——它始终是原碎片，不随展示文本扩大：
+    同一段证据支撑多条断言时，每条引用各有自己的锚点与引文，因此引用列表里
+    同一个 ``evidence_id`` 可以出现多次。页码与证据段标识不因锚点改变，回源
+    校验仍按「所标页逐字比对」进行。
+
     ``score`` 只有向量兜底路径有值：它是这条证据段的重排分数，也是它排在这个
     位置的原因；图路径的引用没有分数，顺序由关系类型决定。
     """
@@ -77,6 +88,15 @@ class Citation:
     page: int
     text: str
     score: float | None = None
+    anchor: EvidenceAnchor | None = None
+
+    def __post_init__(self) -> None:
+        """锚点必须属于本引用指向的证据段，不能张冠李戴。"""
+        if self.anchor is not None and self.anchor.evidence_id != self.evidence_id:
+            raise ValueError(
+                f"引用的锚点属于 {self.anchor.evidence_id}，"
+                f"但引用指向 {self.evidence_id}"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,6 +122,21 @@ class Fact:
         if not self.path:
             return (self.head, self.tail)
         return (self.head, *(step.tail for step in self.path))
+
+    def cited_spans(self) -> tuple[tuple[str, EvidenceAnchor | None], ...]:
+        """这条结论要引用的 ``(证据段, 锚点)`` 序列，按路径逐条展开。
+
+        一步就是一条断言，锚点挂在步上：两跳结论的不同跳可以引用同一段证据的
+        不同句子，因此同一证据段可能出现多次。没有图路径的结论没有锚点，逐段
+        整段引用。引用层的去重键是 ``(证据段, 锚点)``，不是证据段。
+        """
+        if not self.path:
+            return tuple((evidence_id, None) for evidence_id in self.evidence_ids)
+        return tuple(
+            (evidence_id, step.anchor_for(evidence_id))
+            for step in self.path
+            for evidence_id in step.evidence_ids
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -186,9 +221,11 @@ class Answer:
 
 # 2：结论增加图路径、引用增加重排分数，答案增加模型调用记录与截断标记；
 # 3：答案增加 refusal_reason（拒答原因）；
-# 4：答案增加 comparison（对比型回答的分区），单焦点答案的字段不变。
+# 4：答案增加 comparison（对比型回答的分区），单焦点答案的字段不变；
+# 5：引用增加 anchor（锚点区间），有锚点时 text 变为该区间原文；
+# 6：短锚点的 text 并入同页相邻证据段作为展示上下文，anchor 仍是原区间。
 # 字段只增不改，评估按版本号读。
-ANSWER_SCHEMA_VERSION = 4
+ANSWER_SCHEMA_VERSION = 6
 
 
 def answer_to_dict(answer: Answer) -> dict[str, Any]:
@@ -216,6 +253,7 @@ def answer_to_dict(answer: Answer) -> dict[str, Any]:
                 "page": citation.page,
                 "text": citation.text,
                 "score": citation.score,
+                "anchor": _anchor_to_dict(citation.anchor),
             }
             for citation in answer.citations
         ],
@@ -228,6 +266,18 @@ def answer_to_dict(answer: Answer) -> dict[str, Any]:
             }
             for call in answer.model_calls
         ],
+    }
+
+
+def _anchor_to_dict(anchor: EvidenceAnchor | None) -> dict[str, Any] | None:
+    """引用的锚点：证据段内的字符区间；整段引用时为 ``None``（旧形态）。"""
+    if anchor is None:
+        return None
+    return {
+        "evidence_id": anchor.evidence_id,
+        "start": anchor.start,
+        "end": anchor.end,
+        "ambiguous": anchor.ambiguous,
     }
 
 

@@ -8,9 +8,10 @@ from typing import Any, LiteralString, cast
 
 from neo4j import Driver, GraphDatabase, ManagedTransaction
 
+from idr_core.anchors import EvidenceAnchor
 from idr_core.graph.models import GraphBatch
 from idr_core.graph.read import Concept, EvidenceRecord, FactEdge
-from idr_core.models import EvidenceSegment
+from idr_core.models import CharSpan, EvidenceSegment
 
 _RELATION_TYPE_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 
@@ -52,7 +53,11 @@ class Neo4jGraphStore:
                        tail.id AS tail_id,
                        coalesce(edge.evidence_ids, []) AS evidence_ids,
                        coalesce(edge.confidence, 0.0) AS confidence,
-                       coalesce(edge.doc_id, '') AS doc_id
+                       coalesce(edge.doc_id, '') AS doc_id,
+                       coalesce(edge.anchor_evidence_ids, []) AS anchor_evidence_ids,
+                       coalesce(edge.anchor_starts, []) AS anchor_starts,
+                       coalesce(edge.anchor_ends, []) AS anchor_ends,
+                       coalesce(edge.anchor_ambiguous, []) AS anchor_ambiguous
                 ORDER BY tail.id, edge.doc_id
                 """,
                 concept_id=concept_id,
@@ -68,6 +73,7 @@ class Neo4jGraphStore:
                     ),
                     confidence=float(row["confidence"]),
                     doc_id=str(row["doc_id"]),
+                    anchors=_anchors_from_row(row),
                 )
                 for row in rows
             )
@@ -109,20 +115,31 @@ class Neo4jGraphStore:
                 RETURN evidence.id AS id,
                        evidence.doc_id AS doc_id,
                        evidence.page AS page,
-                       evidence.text AS text
+                       evidence.text AS text,
+                       evidence.charspan AS charspan
                 ORDER BY id
                 """,
                 evidence_ids=list(evidence_ids),
             )
-            return tuple(
-                EvidenceRecord(
-                    id=str(row["id"]),
-                    doc_id=str(row["doc_id"]),
-                    page=int(row["page"]),
-                    text=str(row["text"]),
-                )
-                for row in rows
+            return tuple(_evidence_record(row) for row in rows)
+
+    def evidence_by_page(self, doc_id: str, page: int) -> tuple[EvidenceRecord, ...]:
+        """同页证据段按字符区间升序；短锚点合并展示上下文时按这个顺序取邻居。"""
+        with self._driver.session() as session:
+            rows = session.run(
+                """
+                MATCH (evidence:Evidence {doc_id: $doc_id, page: $page})
+                RETURN evidence.id AS id,
+                       evidence.doc_id AS doc_id,
+                       evidence.page AS page,
+                       evidence.text AS text,
+                       evidence.charspan AS charspan
+                ORDER BY evidence.charspan[0]
+                """,
+                doc_id=doc_id,
+                page=page,
             )
+            return tuple(_evidence_record(row) for row in rows)
 
     def search_evidence(
         self, terms: Sequence[str], *, limit: int
@@ -226,7 +243,11 @@ class Neo4jGraphStore:
             SET edge.evidence_ids = row.evidence_ids,
                 edge.confidence = row.confidence,
                 edge.source = row.source,
-                edge.doc_id = row.doc_id
+                edge.doc_id = row.doc_id,
+                edge.anchor_evidence_ids = row.anchor_evidence_ids,
+                edge.anchor_starts = row.anchor_starts,
+                edge.anchor_ends = row.anchor_ends,
+                edge.anchor_ambiguous = row.anchor_ambiguous
             """,
             rows=[
                 {
@@ -236,6 +257,7 @@ class Neo4jGraphStore:
                     "evidence_ids": list(link.provenance.evidence_ids),
                     "confidence": link.provenance.confidence,
                     "source": link.provenance.source,
+                    **_anchor_columns(link.provenance.anchors),
                 }
                 for link in batch.evidence_links
             ],
@@ -251,6 +273,7 @@ class Neo4jGraphStore:
                     "evidence_ids": list(relation.provenance.evidence_ids),
                     "confidence": relation.provenance.confidence,
                     "source": relation.provenance.source,
+                    **_anchor_columns(relation.provenance.anchors),
                 }
             )
 
@@ -267,10 +290,73 @@ class Neo4jGraphStore:
                 SET edge.evidence_ids = row.evidence_ids,
                     edge.confidence = row.confidence,
                     edge.source = row.source,
-                    edge.doc_id = row.doc_id
+                    edge.doc_id = row.doc_id,
+                    edge.anchor_evidence_ids = row.anchor_evidence_ids,
+                    edge.anchor_starts = row.anchor_starts,
+                    edge.anchor_ends = row.anchor_ends,
+                    edge.anchor_ambiguous = row.anchor_ambiguous
                 """,
             )
             tx.run(query, rows=rows).consume()
+
+
+def _evidence_record(row: Any) -> EvidenceRecord:
+    """一行证据节点 → 读模型；``charspan`` 在页面上是两元素数组。"""
+    start, end = row["charspan"]
+    return EvidenceRecord(
+        id=str(row["id"]),
+        doc_id=str(row["doc_id"]),
+        page=int(row["page"]),
+        text=str(row["text"]),
+        charspan=CharSpan(start=int(start), end=int(end)),
+    )
+
+
+def _anchors_from_row(row: Any) -> tuple[EvidenceAnchor, ...]:
+    """四条平行数组 → 锚点元组；旧边没有这些属性（读成 null）时返回空。
+
+    数组长度不一致或区间非法时跳过那一条：一条坏数据让整次检索失败，比少给
+    一个锚点（退回整段引用）更糟。旧边与没有片段的边都是空数组，两者同样
+    退回整段引用。
+    """
+    ids = row["anchor_evidence_ids"]
+    starts = row["anchor_starts"]
+    ends = row["anchor_ends"]
+    ambiguous = row["anchor_ambiguous"]
+    anchors: list[EvidenceAnchor] = []
+    for evidence_id, start, end, is_ambiguous in zip(
+        ids, starts, ends, ambiguous, strict=False
+    ):
+        if not isinstance(evidence_id, str) or not evidence_id:
+            continue
+        try:
+            anchor = EvidenceAnchor(
+                evidence_id=evidence_id,
+                start=int(start),
+                end=int(end),
+                ambiguous=bool(is_ambiguous),
+            )
+        except (TypeError, ValueError):
+            continue
+        anchors.append(anchor)
+    return tuple(anchors)
+
+
+def _anchor_columns(
+    anchors: Sequence[EvidenceAnchor],
+) -> dict[str, list[str] | list[int] | list[bool]]:
+    """锚点在图里的扁平列。
+
+    Neo4j 的属性不支持嵌套映射，四条平行数组按下标一一对应：第 i 个锚点的
+    ``(evidence_id, start, end, ambiguous)``。没有锚点时写空数组；锚点上线前
+    写入的旧边根本没有这些属性（读取为 null），读取侧要同时接受两种形态。
+    """
+    return {
+        "anchor_evidence_ids": [anchor.evidence_id for anchor in anchors],
+        "anchor_starts": [anchor.start for anchor in anchors],
+        "anchor_ends": [anchor.end for anchor in anchors],
+        "anchor_ambiguous": [anchor.ambiguous for anchor in anchors],
+    }
 
 
 def _upper_relation_type(name: str) -> str:

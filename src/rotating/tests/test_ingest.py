@@ -59,12 +59,14 @@ def test_single_document_ingest_writes_traceable_concepts(tmp_path: Path) -> Non
                     "name": "外圈剥落",
                     "type": "fault_mode",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.91,
                 },
                 {
                     "name": "BPFO 倍频",
                     "type": "symptom",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.88,
                 },
             ],
@@ -74,6 +76,7 @@ def test_single_document_ingest_writes_traceable_concepts(tmp_path: Path) -> Non
                     "type": "indicated_by",
                     "tail": "BPFO 倍频",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.8,
                 }
             ],
@@ -157,24 +160,28 @@ def test_extractions_that_fail_ontology_validation_are_not_written(
                     "name": "外圈剥落",
                     "type": "fault_mode",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.9,
                 },
                 {
                     "name": "外圈故障频率",
                     "type": "symptom",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.9,
                 },
                 {
                     "name": "滚动轴承",
                     "type": "component",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.9,
                 },
                 {
                     "name": "神秘实体",
                     "type": "alien_type",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.9,
                 },
                 {
@@ -196,6 +203,7 @@ def test_extractions_that_fail_ontology_validation_are_not_written(
                     "type": "indicated_by",
                     "tail": "外圈故障频率",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.8,
                 },
                 {
@@ -271,12 +279,14 @@ def test_reprocessing_same_document_yields_same_identifiers(tmp_path: Path) -> N
                     "name": "内圈剥落",
                     "type": "fault_mode",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.9,
                 },
                 {
                     "name": "BPFI 倍频",
                     "type": "symptom",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.9,
                 },
             ],
@@ -286,6 +296,7 @@ def test_reprocessing_same_document_yields_same_identifiers(tmp_path: Path) -> N
                     "type": "indicated_by",
                     "tail": "BPFI 倍频",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.8,
                 }
             ],
@@ -329,6 +340,7 @@ def test_limit_processes_only_the_first_documents(tmp_path: Path) -> None:
                     "name": "外圈剥落",
                     "type": "fault_mode",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.9,
                 }
             ],
@@ -369,6 +381,7 @@ def test_every_evidence_segment_gets_a_vector_keyed_by_its_id(tmp_path: Path) ->
                     "name": "外圈剥落",
                     "type": "fault_mode",
                     "evidence_ids": [first_id],
+                    "quote": first_text,
                     "confidence": 0.9,
                 }
             ],
@@ -423,6 +436,7 @@ def test_vector_write_failure_does_not_write_graph_data(tmp_path: Path) -> None:
                     "name": "外圈剥落",
                     "type": "fault_mode",
                     "evidence_ids": [segment_id],
+                    "quote": text,
                     "confidence": 0.9,
                 }
             ],
@@ -499,6 +513,7 @@ def test_concept_node_ids_follow_concept_identity_not_extraction_order(
             "name": name,
             "type": type_,
             "evidence_ids": [segment_id],
+            "quote": text,
             "confidence": confidence,
         }
 
@@ -589,3 +604,4 @@ def test_relation_endpoint_missing_from_validated_entities_fails_the_document(
     assert "幽灵乙" in document.error
     assert report.failed == 1
     assert graph_store.batches == []
+
