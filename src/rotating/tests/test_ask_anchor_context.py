@@ -316,3 +316,49 @@ def test_merged_text_is_a_contiguous_slice_of_the_page_text() -> None:
     quote = fragment.text[citation.anchor.start : citation.anchor.end]
     assert quote == fragment.text
     assert quote in citation.text
+
+
+# 与 #25（无锚点按断言选句）的组合边界：选句窗口已经落在句子边界上，
+# 引用层不再拿它当短锚点去并入上下文，否则刚收窄的引用又会摊回整段。
+def test_selected_window_for_an_anchorless_assertion_is_not_rewidened() -> None:
+    """无锚点断言走选句兜底时，展示文本就是选出的句子，不并入相邻证据段。"""
+    paragraph = (
+        "外圈剥落会在频谱上出现 BPFO 及其倍频。"
+        "内圈剥落会产生 BPFI 特征频率，与转速同步。"
+    )
+    page_text, segments = layered_page(
+        ("上一段说明测点布置。", paragraph, "下一段讨论包络解调。")
+    )
+    outer = concept(OUTER_RACE.removeprefix("concept:"), "轴承外圈疲劳剥落", "fault_mode")
+    bpfo = concept(BPFO.removeprefix("concept:"), "外圈故障频率及其倍频", "symptom")
+    graph = FakeGraphStore()
+    graph.write_document(
+        GraphBatch(
+            doc_id=DOC,
+            concepts=(outer, bpfo),
+            evidence=segments,
+            relations=(
+                ConceptRelation(
+                    head_id=outer.id,
+                    type="indicated_by",
+                    tail_id=bpfo.id,
+                    provenance=Provenance(
+                        doc_id=DOC,
+                        evidence_ids=(segments[1].id,),
+                        confidence=0.8,
+                        source="extracted",
+                    ),
+                ),
+            ),
+            evidence_links=(),
+        )
+    )
+
+    answer = ask(QUESTION, deps=AskDeps(graph_store=graph))
+
+    (citation,) = answer.citations
+    assert citation.text == "外圈剥落会在频谱上出现 BPFO 及其倍频。"
+    assert citation.text in page_text
+    assert citation.anchor is not None
+    assert "上一段说明测点布置。" not in citation.text
+    assert "下一段讨论包络解调。" not in citation.text

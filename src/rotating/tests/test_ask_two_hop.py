@@ -538,3 +538,63 @@ def test_result_set_at_the_limit_is_not_flagged_as_truncated() -> None:
     assert answer.truncated is False
     assert answer.detail is None
     assert len(answer.facts) == MAX_PATHS
+
+
+def test_two_hop_citations_score_each_step_with_its_own_assertion() -> None:
+    """两跳结论的每一跳按自己的头尾概念选句，不拿整条结论的头尾去套每一跳。"""
+    graph = FakeGraphStore()
+    doc_id = "doc-a"
+    pump = concept("centrifugal_pump", "离心泵", "equipment_class")
+    coupling = concept("coupling", "联轴器", "component")
+    misalignment = concept("misalignment", "对中不良", "fault_mode")
+    component_text = "本机组的传动链包含联轴器。泵体与底座刚性连接。"
+    component_segment = evidence(doc_id, page=2, offset=0, text=component_text)
+    fault_segment = evidence(
+        doc_id, page=3, offset=0, text="联轴器对中不良会引起附加振动。"
+    )
+    write_document(
+        graph,
+        doc_id,
+        concepts=(pump, coupling, misalignment),
+        segments=(component_segment, fault_segment),
+        relations=(
+            relation(
+                pump,
+                "has_component",
+                coupling,
+                doc_id=doc_id,
+                evidence_ids=(component_segment.id,),
+                confidence=0.9,
+            ),
+            relation(
+                coupling,
+                "has_fault_mode",
+                misalignment,
+                doc_id=doc_id,
+                evidence_ids=(fault_segment.id,),
+                confidence=0.7,
+            ),
+        ),
+    )
+
+    answer = ask(
+        "离心泵有哪些故障模式",
+        deps=AskDeps(
+            graph_store=graph,
+            document_names=FakeDocumentNames({doc_id: "论文A.pdf"}),
+        ),
+    )
+
+    assert answer.path is AnswerPath.GRAPH
+    # 两跳结论的第一跳与一跳结论引用同一段证据、同一条断言：选句一致，
+    # 因此去重后只留一条引用。若拿结论的头尾去套第一跳，这里会多出一条
+    # 整段引用。
+    component_citations = [
+        citation
+        for citation in answer.citations
+        if citation.evidence_id == component_segment.id
+    ]
+    assert len(component_citations) == 1
+    (citation,) = component_citations
+    assert citation.anchor is not None
+    assert citation.text == "本机组的传动链包含联轴器。"
