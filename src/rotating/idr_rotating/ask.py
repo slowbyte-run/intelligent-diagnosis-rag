@@ -9,8 +9,9 @@
    关系走至多两跳（见 ``traversal``），每条结论的证据段回填文献名、页码与
    原文。结论本身带完整路径，答案因此能说明「怎么走到的」。图拿出结论时
    向量检索一次都不发生——结构化结论不该被一堆语义相近的段落盖住。
-2. **图没有依据时落向量**：``vector_recall`` 顺序扫描 pgvector 取候选、过重排、
-   过阈值，答案标 ``AnswerPath.VECTOR``，``facts`` 为空，证据段直接进
+2. **图没有依据时落向量**：``vector_recall`` 按检索配置改写查询（概念补全与
+   检索指令只影响嵌入，见 ``query_rewrite``），顺序扫描 pgvector 取候选、过
+   重排、过阈值，答案标 ``AnswerPath.VECTOR``，``facts`` 为空，证据段直接进
    ``citations`` 并带上重排分数。
 3. **两边都没有依据才拒答**：``detail`` 分别写清图路径缺在哪、向量兜底差多少；
    ``refusal_reason`` 区分 ``no_concept``（概念没识别出来）与 ``no_evidence``
@@ -39,6 +40,7 @@ from idr_core.documents import DocumentNames
 from idr_core.embedding import Embedder
 from idr_core.graph import (
     EvidenceRecord,
+    EvidenceTextSearch,
     GraphReader,
 )
 from idr_core.llm import ModelCall
@@ -88,6 +90,8 @@ class AskDeps:
     embedder: Embedder | None = None
     vector_store: VectorReader | None = None
     reranker: Reranker | None = None
+    # 词面召回端口（通常由同一个图存储实现）；缺省时向量兜底只走语义通道。
+    text_search: EvidenceTextSearch | None = None
     retrieval_settings: RetrievalSettings | None = None
 
 
@@ -106,6 +110,7 @@ def ask(question: str, *, deps: AskDeps) -> Answer:
                 detail="本体别名表没有在问题中匹配到概念，无法定位检索起点。",
                 reason=RefusalReason.NO_CONCEPT,
             ),
+            ontology,
         )
 
     candidates = _focus_candidates(matches, ontology)
@@ -120,6 +125,7 @@ def ask(question: str, *, deps: AskDeps) -> Answer:
                 detail="命中的概念不在本次图检索的关系范围内，无法取事实。",
                 reason=RefusalReason.NO_EVIDENCE,
             ),
+            ontology,
         )
 
     anchors = _comparison_anchors(candidates)
@@ -154,11 +160,11 @@ def ask(question: str, *, deps: AskDeps) -> Answer:
 
     if graph_answer.path is AnswerPath.GRAPH:
         return graph_answer
-    return _fall_back_or_refuse(question, deps, graph_answer)
+    return _fall_back_or_refuse(question, deps, graph_answer, ontology)
 
 
 def _fall_back_or_refuse(
-    question: str, deps: AskDeps, graph_answer: Answer
+    question: str, deps: AskDeps, graph_answer: Answer, ontology: Ontology
 ) -> Answer:
     """图路径没拿出依据时改走向量；没有注入向量依赖就原样返回图的空答案。"""
     if (
@@ -176,6 +182,8 @@ def _fall_back_or_refuse(
         reranker=deps.reranker,
         graph_store=deps.graph_store,
         settings=settings,
+        ontology=ontology,
+        text_search=deps.text_search,
     )
     if not recall.segments:
         return _refusal(

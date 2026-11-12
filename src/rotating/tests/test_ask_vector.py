@@ -19,6 +19,7 @@ from idr_core.llm.rerank import RerankResponse, RerankScore
 from idr_core.models import BBox, CharSpan, EvidenceSegment
 from idr_core.vector_store import VectorMatch
 from idr_rotating import AnswerPath, AskDeps, RefusalReason, ask
+from idr_rotating.query_rewrite import CROSS_LINGUAL_INSTRUCTION
 from idr_rotating.retrieval import RetrievalSettings
 
 OUTER_RACE = "concept:bearing_outer_race_fatigue_spalling"
@@ -55,6 +56,20 @@ class FakeVectorReader:
     ) -> tuple[VectorMatch, ...]:
         self.calls.append((list(vector), limit))
         return self._matches[:limit]
+
+
+class FakeTextSearch:
+    """词面检索假实现：返回固定标识，并记录收到的词与条数。"""
+
+    def __init__(self, evidence_ids: Sequence[str] = ()) -> None:
+        self._evidence_ids = tuple(evidence_ids)
+        self.calls: list[tuple[tuple[str, ...], int]] = []
+
+    def search_evidence(
+        self, terms: Sequence[str], *, limit: int
+    ) -> tuple[str, ...]:
+        self.calls.append((tuple(terms), limit))
+        return self._evidence_ids[:limit]
 
 
 class FakeReranker:
@@ -196,6 +211,7 @@ class VectorDeps:
     embedder: FakeEmbedder
     vector_store: FakeVectorReader
     reranker: FakeReranker
+    text_search: FakeTextSearch | None = None
 
 
 def build_vector_deps(
@@ -206,6 +222,9 @@ def build_vector_deps(
     min_score: float = 0.35,
     max_results: int | None = None,
     usage_embedder: bool = False,
+    query_enrichment: bool = False,
+    query_instruction: str = "",
+    lexical_ids: Sequence[str] | None = None,
 ) -> VectorDeps:
     """候选来自向量召回，分数来自重排；证据段原文与页码挂在图存储上。"""
     graph = FakeGraphStore()
@@ -218,16 +237,23 @@ def build_vector_deps(
         )
     )
     reranker = FakeReranker(rerank_scores or {})
+    text_search = (
+        FakeTextSearch(lexical_ids) if lexical_ids is not None else None
+    )
     deps = AskDeps(
         graph_store=graph,
         document_names=FakeDocumentNames({"doc-a": "论文A.pdf"}),
         embedder=embedder,
         vector_store=vector_store,
         reranker=reranker,
+        text_search=text_search,
         retrieval_settings=RetrievalSettings(
             vector_top_k=top_k,
             vector_min_rerank_score=min_score,
             vector_max_results=max_results or top_k,
+            query_enrichment=query_enrichment,
+            query_instruction=query_instruction,
+            lexical_recall=lexical_ids is not None,
         ),
     )
     return VectorDeps(
@@ -236,6 +262,7 @@ def build_vector_deps(
         embedder=embedder,
         vector_store=vector_store,
         reranker=reranker,
+        text_search=text_search,
     )
 
 
@@ -304,6 +331,77 @@ def test_vector_recall_embeds_the_question_and_asks_for_top_k_candidates() -> No
     (query_vector, limit) = built.vector_store.calls[0]
     assert query_vector == [float(len(OUT_OF_GRAPH_QUESTION))] * 4
     assert limit == 2
+
+
+def test_a_configured_instruction_wraps_the_embedded_query_only() -> None:
+    """指令只影响查询嵌入；重排仍拿原问句比，不能把指令当成用户的话。"""
+    built = build_vector_deps(
+        matches=((SYMPTOM_ID, 0.05),),
+        rerank_scores={SYMPTOM_TEXT: 0.8},
+        query_instruction="crosslingual",
+    )
+
+    ask(OUT_OF_GRAPH_QUESTION, deps=built.deps)
+
+    assert built.embedder.texts == [
+        f"Instruct: {CROSS_LINGUAL_INSTRUCTION}\nQuery:{OUT_OF_GRAPH_QUESTION}"
+    ]
+    assert built.reranker.calls[0][0] == OUT_OF_GRAPH_QUESTION
+
+
+def test_a_configured_enrichment_appends_ontology_terms_to_the_query() -> None:
+    built = build_vector_deps(
+        matches=((SYMPTOM_ID, 0.05),),
+        rerank_scores={SYMPTOM_TEXT: 0.8},
+        query_enrichment=True,
+    )
+
+    ask(GRAPH_MISS_QUESTION, deps=built.deps)
+
+    query = built.embedder.texts[0]
+    assert query.startswith(f"{GRAPH_MISS_QUESTION}\n")
+    assert "转子不平衡" in query
+    assert "rotor" in query.split()
+    assert built.reranker.calls[0][0] == GRAPH_MISS_QUESTION
+
+
+def test_lexical_hits_join_the_vector_candidates_before_rerank() -> None:
+    """词面命中把候选往前提，但最终顺序仍由重排分数决定。"""
+    built = build_vector_deps(
+        matches=((SYMPTOM_ID, 0.01), (DETECTION_ID, 0.02)),
+        rerank_scores={SYMPTOM_TEXT: 0.91, DETECTION_TEXT: 0.42},
+        top_k=2,
+        lexical_ids=(DETECTION_ID,),
+    )
+
+    answer = ask(GRAPH_MISS_QUESTION, deps=built.deps)
+
+    assert built.text_search is not None
+    # 融合后检测段从向量第 2 升到第 1；重排仍按分数把征兆段排在前面。
+    assert built.reranker.calls == [
+        (GRAPH_MISS_QUESTION, (DETECTION_TEXT, SYMPTOM_TEXT))
+    ]
+    assert [citation.evidence_id for citation in answer.citations] == [
+        SYMPTOM_ID,
+        DETECTION_ID,
+    ]
+
+
+def test_lexical_terms_are_the_ontology_terms_with_short_english_removed() -> None:
+    built = build_vector_deps(
+        matches=((SYMPTOM_ID, 0.01),),
+        rerank_scores={SYMPTOM_TEXT: 0.9},
+        lexical_ids=(SYMPTOM_ID,),
+    )
+
+    ask(GRAPH_MISS_QUESTION, deps=built.deps)
+
+    assert built.text_search is not None
+    terms, limit = built.text_search.calls[0]
+    assert "转子不平衡" in terms
+    assert "rotor" in terms
+    assert all(not term.isascii() or len(term) >= 4 for term in terms)
+    assert limit == 3
 
 
 def test_rerank_scores_decide_the_citation_order_not_vector_distance() -> None:

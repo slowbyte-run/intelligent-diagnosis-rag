@@ -12,7 +12,7 @@ from idr_core.documents import DocumentNames, document_id
 from idr_core.graph import Concept, EvidenceRecord, FactEdge
 from idr_core.llm.rerank import RerankResponse, RerankScore
 from idr_core.vector_store import VectorMatch
-from idr_rotating import AskDeps
+from idr_rotating import AskDeps, RetrievalSettings
 
 from idr_cli.ask import CorpusDocumentNames, run_ask
 from idr_cli.main import main
@@ -334,6 +334,9 @@ def deps_with_vector_only_basis() -> AskDeps:
         embedder=FakeEmbedder(),
         vector_store=FakeVectorReader([EVIDENCE_ID]),
         reranker=FakeReranker(),
+        # 这个测试验的是向量路径的渲染，不是校准值；自己钉一个低于假重排分的阈值，
+        # 免得打包配置重新校准后它跟着红。
+        retrieval_settings=RetrievalSettings(vector_min_rerank_score=0.5),
     )
 
 

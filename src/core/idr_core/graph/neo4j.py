@@ -124,6 +124,40 @@ class Neo4jGraphStore:
                 for row in rows
             )
 
+    def search_evidence(
+        self, terms: Sequence[str], *, limit: int
+    ) -> tuple[str, ...]:
+        """按词面命中数取证据段：每个词一次 ``CONTAINS``，命中多者靠前。
+
+        这是词面通道，不是语义通道：中文不分词、英文只做小写化，命中数相同
+        时按标识排序，保证同一查询每次得到同一个候选集。6806 条证据段上是
+        顺序扫描（实测约 60ms），只在图路径落空、向量兜底启动时调用，不为
+        它建索引。
+        """
+        if limit < 1:
+            raise ValueError(f"召回条数必须是正整数，收到 {limit}")
+        normalized = tuple(
+            dict.fromkeys(term.casefold() for term in terms if term.strip())
+        )
+        if not normalized:
+            return ()
+        with self._driver.session() as session:
+            rows = session.run(
+                """
+                MATCH (evidence:Evidence)
+                WITH evidence,
+                     size([term IN $terms
+                           WHERE toLower(evidence.text) CONTAINS term]) AS matched
+                WHERE matched > 0
+                RETURN evidence.id AS id
+                ORDER BY matched DESC, id
+                LIMIT $limit
+                """,
+                terms=list(normalized),
+                limit=limit,
+            )
+            return tuple(str(row["id"]) for row in rows)
+
     @staticmethod
     def _write_batch(tx: ManagedTransaction, batch: GraphBatch) -> None:
         # 文档替换语义：先删这篇文献上一次贡献的节点与边，再写本次结果。

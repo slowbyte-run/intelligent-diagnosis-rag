@@ -26,12 +26,48 @@ def test_the_packaged_configuration_records_the_calibrated_threshold() -> None:
         vector_min_rerank_score=0.78,
         vector_min_rerank_score_calibrated=True,
         vector_max_results=5,
+        query_enrichment=False,
+        query_instruction="",
+        lexical_recall=False,
     )
     assert settings.vector_max_results <= settings.vector_top_k
 
 
 def test_settings_without_provenance_are_treated_as_uncalibrated() -> None:
     assert RetrievalSettings().vector_min_rerank_score_calibrated is False
+
+
+def test_an_unknown_query_instruction_preset_fails(tmp_path: Path) -> None:
+    path = tmp_path / "retrieval.yaml"
+    path.write_text("query_instruction: translate\n")
+
+    with pytest.raises(RetrievalSettingsError, match="预设"):
+        load_retrieval_settings(path)
+
+
+def test_the_query_instruction_can_be_disabled_with_an_empty_value(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "retrieval.yaml"
+    path.write_text("query_instruction: ''\n")
+
+    assert load_retrieval_settings(path).query_instruction == ""
+
+
+def test_query_enrichment_is_opt_in(tmp_path: Path) -> None:
+    path = tmp_path / "retrieval.yaml"
+    path.write_text("query_enrichment: true\n")
+
+    assert load_retrieval_settings(path).query_enrichment is True
+    assert RetrievalSettings().query_enrichment is False
+
+
+def test_lexical_recall_is_opt_in(tmp_path: Path) -> None:
+    path = tmp_path / "retrieval.yaml"
+    path.write_text("lexical_recall: true\n")
+
+    assert load_retrieval_settings(path).lexical_recall is True
+    assert RetrievalSettings().lexical_recall is False
 
 
 def test_a_configuration_file_can_mark_the_threshold_as_calibrated(

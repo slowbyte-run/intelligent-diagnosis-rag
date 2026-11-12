@@ -32,6 +32,7 @@ from idr_rotating.evaluation import (
     GoldenSetError,
     load_golden_set,
 )
+from idr_rotating.ontology import load_ontology
 from idr_rotating.retrieval import (
     DEFAULT_RETRIEVAL_PATH,
     RetrievalSettings,
@@ -72,6 +73,8 @@ def collect_samples(
             "vector_max_results": settings.vector_top_k,
         }
     )
+    # 采样必须与线上走同一套查询改写，否则校准出来的分数分布不是线上看到的。
+    ontology = load_ontology()
     samples: list[VectorSample] = []
     for question in questions:
         recall = recall_evidence(
@@ -81,6 +84,8 @@ def collect_samples(
             reranker=deps.reranker,
             graph_store=deps.graph_store,
             settings=scan_settings,
+            ontology=ontology,
+            text_search=deps.text_search,
         )
         samples.append(
             VectorSample(
