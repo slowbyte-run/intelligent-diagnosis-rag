@@ -205,6 +205,26 @@ def extract_with_retry(
     )
 
 
+def _resolve_anchor(
+    quote: str, evidence_ids: Sequence[str], evidence_text: Mapping[str, str]
+) -> tuple[EvidenceAnchor | None, bool]:
+    """把模型给的支撑片段定位成锚点，并区分「没给」与「给错」。
+
+    - 没给片段（空串）：断言本身可能没错，只是没有可核对的定位，保留它但不带
+      锚点，引用时走查询期选句兜底。
+    - 给了片段但对不上原文：这是编造的引用，必须拒收进待审。
+
+    两者混为一谈会让模型在拿不准时干脆不下结论，知识因此丢失（实测关系产出
+    从 7 条掉到 2 条）。
+    """
+
+    text = (quote or "").strip()
+    if not text:
+        return None, False
+    anchor = locate_anchor(text, evidence_ids, evidence_text)
+    return anchor, anchor is None
+
+
 def validate_extraction(
     extraction: Extraction,
     ontology: Ontology,
@@ -312,10 +332,11 @@ def validate_extraction(
             )
             continue
 
-        anchor = locate_anchor(entity.quote, evidence_ids, evidence_text)
-        if anchor is None:
-            # 片段没在所引证据段里逐字出现（含模型没给片段）：这条断言没有
-            # 可核对的原句，不写图，进待审队列等人复核。
+        anchor, fabricated = _resolve_anchor(
+            entity.quote, evidence_ids, evidence_text
+        )
+        if fabricated:
+            # 模型给了片段但原文里找不到：这是编造的引用，不写图，进待审。
             rejected_entities += 1
             pending.append(
                 _observation(
@@ -464,9 +485,11 @@ def validate_extraction(
             )
             continue
 
-        anchor = locate_anchor(relation.quote, evidence_ids, evidence_text)
-        if anchor is None:
-            # 同实体：关系断言也必须带可核对的原文片段。
+        anchor, fabricated = _resolve_anchor(
+            relation.quote, evidence_ids, evidence_text
+        )
+        if fabricated:
+            # 同实体：给了片段但对不上就是编造，拒收进待审。
             rejected_relations += 1
             pending.append(
                 _observation(
@@ -490,7 +513,7 @@ def validate_extraction(
                 tail=tail[0],
                 evidence_ids=list(evidence_ids),
                 confidence=relation.confidence,
-                anchors=[anchor],
+                anchors=[anchor] if anchor is not None else [],
             )
         else:
             _extend_unique(accumulator.evidence_ids, evidence_ids)
@@ -528,7 +551,7 @@ def _merge_entity(
     evidence_ids: tuple[str, ...],
     entity: ExtractedEntity,
     attributes: Mapping[str, str],
-    anchors: Sequence[EvidenceAnchor],
+    anchors: Sequence[EvidenceAnchor | None],
     *,
     canonical: bool,
 ) -> None:
@@ -542,7 +565,7 @@ def _merge_entity(
             key=key,
             canonical=canonical,
             attributes=dict(attributes),
-            anchors=list(anchors),
+            anchors=[anchor for anchor in anchors if anchor is not None],
         )
         return
     _extend_unique(accumulator.evidence_ids, evidence_ids)
@@ -771,11 +794,17 @@ def _extend_unique(target: list[str], values: Sequence[str]) -> None:
 
 
 def _extend_anchors(
-    target: list[EvidenceAnchor], anchors: Sequence[EvidenceAnchor]
+    target: list[EvidenceAnchor],
+    anchors: Sequence[EvidenceAnchor | None],
 ) -> None:
-    """每条证据段只留一个锚点；多条断言命中同一段时取首次出现的那个。"""
+    """每条证据段只留一个锚点；多条断言命中同一段时取首次出现的那个。
+
+    没有锚点的断言（模型没给片段）照常放行，只是不加锚点。
+    """
     seen = {anchor.evidence_id for anchor in target}
     for anchor in anchors:
+        if anchor is None:
+            continue
         if anchor.evidence_id not in seen:
             target.append(anchor)
             seen.add(anchor.evidence_id)

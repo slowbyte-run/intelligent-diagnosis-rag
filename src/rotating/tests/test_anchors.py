@@ -237,8 +237,13 @@ def test_assertions_whose_quote_is_not_in_the_segment_are_queued_not_written(
     assert "BPFO 倍频" in relation_review.label
 
 
-def test_an_assertion_without_any_quote_is_queued_not_written(tmp_path: Path) -> None:
-    """模型漏给片段与给出对不上的片段同样处理：没有可核对的出处就不入库。"""
+def test_an_assertion_without_any_quote_is_kept_but_unanchored(tmp_path: Path) -> None:
+    """漏给片段不该丢知识：断言照常入库，只是不带锚点，引用走选句兜底。
+
+    「没给片段」与「给了对不上的片段」是两种错误：前者可能只是模型没定位，
+    后者是编造。混为一谈会让模型拿不准时干脆不下结论（实测关系产出从 7 条
+    掉到 2 条）。
+    """
     content = b"%PDF-1.4 missing quote fixture"
     write_pdf(tmp_path, "paper.pdf", content)
     doc_id = content_doc_id(content)
@@ -267,11 +272,14 @@ def test_an_assertion_without_any_quote_is_queued_not_written(tmp_path: Path) ->
 
     document = report.documents[0]
     assert document.error is None
-    assert (document.entities, document.rejected_entities) == (0, 1)
-    assert graph_store.batches[0].concepts == ()
+    assert (document.entities, document.rejected_entities) == (1, 0)
+    assert document.pending_reviews == ()
 
-    (review,) = document.pending_reviews
-    assert review.reason is RejectionReason.ANCHOR_NOT_FOUND
+    (concept,) = graph_store.batches[0].concepts
+    assert concept.name == "轴承外圈疲劳剥落"
+    # 断言照常入库，只是没有可核对的锚点：引用时走查询期选句兜底。
+    (link,) = graph_store.batches[0].evidence_links
+    assert link.provenance.anchors == ()
 
 
 def test_a_quote_that_occurs_twice_anchors_the_first_occurrence_and_is_flagged(
