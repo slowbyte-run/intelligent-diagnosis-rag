@@ -12,6 +12,7 @@ from idr_cli.doctor import run_doctor
 from idr_cli.eval import run_eval
 from idr_cli.ingest import build_deps, run_ingest
 from idr_cli.recall import DEFAULT_VARIANTS, run_recall
+from idr_cli.variance import build_variance_llm, run_variance
 from idr_rotating import AskDeps, IngestDeps
 
 
@@ -147,6 +148,24 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="把词面候选按 RRF 与向量候选融合后再统计（与线上 lexical_recall 同口径）",
     )
+    variance_command = commands.add_parser(
+        "variance",
+        help="同一篇文献重复抽取，报告实体/关系数与断言重合度（抽取方差诊断）",
+    )
+    variance_command.add_argument("source", type=Path, help="要重复抽取的 PDF")
+    variance_command.add_argument(
+        "--runs",
+        type=_positive_int,
+        default=3,
+        metavar="N",
+        help="重复抽取次数，默认 3（两次以下没有方差可言）",
+    )
+    variance_command.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="分布报告输出文件，默认只打印",
+    )
     return parser
 
 
@@ -178,6 +197,20 @@ def main(
             deps=deps,
             limit=arguments.limit,
             reports_dir=arguments.reports_dir,
+        )
+
+    if arguments.command == "variance":
+        try:
+            config = load_config()
+            llm = build_variance_llm(config)
+        except ConfigError as error:
+            print(f"配置错误：{error}", file=sys.stderr)
+            return 1
+        return run_variance(
+            arguments.source,
+            llm=llm,
+            runs=arguments.runs,
+            out=arguments.out,
         )
 
     if arguments.command == "ask":
