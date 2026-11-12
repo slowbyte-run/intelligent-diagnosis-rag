@@ -362,10 +362,14 @@ def _score_case(
         document_ok = not missing_documents
 
     refusal_correct = (path == "refusal") == question.expect_refusal
+    # 命中只看证据：证据段由固定的切分产生，重抽语料也不会变；而期望概念是
+    # 某一次抽取的产物，抽取本身有采样方差（同一篇同提示词两次重抽，实体
+    # 9→13、关系 7→11），把概念并进命中判据会让分数随抽样浮动几十个点，测
+    # 到的是运气而不是能力。概念覆盖作为独立诊断项保留在报告里。
     hit = (
         None
         if question.expect_refusal
-        else concept_ok and evidence_ok and document_ok
+        else evidence_ok and document_ok
     )
 
     return CaseResult(

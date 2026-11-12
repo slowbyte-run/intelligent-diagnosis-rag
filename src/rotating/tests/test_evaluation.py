@@ -276,7 +276,12 @@ def test_factual_answer_hits_when_every_expected_concept_and_evidence_is_present
     assert case.refusal_correct is True
 
 
-def test_hit_requires_every_expected_concept_not_just_one() -> None:
+def test_concept_coverage_is_reported_but_does_not_gate_the_hit() -> None:
+    """命中只看证据：期望概念是某一次抽取的产物，抽取有采样方差。
+
+    同一篇同提示词两次重抽，实体 9→13、关系 7→11；把概念并进命中判据会让
+    分数随抽样浮动几十个点。概念覆盖作为独立诊断项保留。
+    """
     report = evaluate_golden(
         [make_question(expected_concepts=("concept:alpha", "concept:missing"))],
         answer_for=lambda question: make_answer(),
@@ -284,10 +289,10 @@ def test_hit_requires_every_expected_concept_not_just_one() -> None:
     )
 
     case = report.cases[0]
-    assert case.hit is False
+    assert case.hit is True
     assert case.concept_ok is False
     assert case.missing_concepts == ("concept:missing",)
-    assert report.metrics.retrieval_hit_rate == 0.0
+    assert report.metrics.retrieval_hit_rate == 1.0
 
 
 def test_hit_requires_at_least_one_expected_evidence_segment() -> None:
