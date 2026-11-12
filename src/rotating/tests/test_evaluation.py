@@ -132,19 +132,19 @@ def valid_question(**overrides: object) -> dict[str, Any]:
     return question
 
 
-def test_shipped_golden_set_has_twenty_questions_across_three_classes() -> None:
+def test_shipped_golden_set_has_fifty_questions_across_three_classes() -> None:
     questions = load_golden_set()
 
-    assert len(questions) == 20
-    assert len({question.id for question in questions}) == 20
+    assert len(questions) == 50
+    assert len({question.id for question in questions}) == 50
     assert {question.question_class for question in questions} == {
         "factual",
         "comparative",
         "cross_document",
     }
-    assert sum(q.question_class == "factual" for q in questions) == 12
-    assert sum(q.question_class == "comparative" for q in questions) == 4
-    assert sum(q.question_class == "cross_document" for q in questions) == 4
+    assert sum(q.question_class == "factual" for q in questions) == 26
+    assert sum(q.question_class == "comparative" for q in questions) == 12
+    assert sum(q.question_class == "cross_document" for q in questions) == 12
     assert sum(q.expect_refusal for q in questions) == 2
 
 
