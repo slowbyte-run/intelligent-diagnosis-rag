@@ -171,24 +171,28 @@ def test_verbatim_quote_is_frozen_as_a_character_span_on_both_edge_kinds(
     assert text[relation_anchor.start : relation_anchor.end] == fault_quote
 
 
-def test_assertions_whose_quote_is_not_in_the_segment_are_queued_not_written(
+def test_assertions_whose_quote_is_not_in_the_segment_are_kept_but_unanchored(
     tmp_path: Path,
 ) -> None:
-    """片段不是所引证据段的子串（含模型没给片段）时，断言不得入库。"""
+    """片段定位不到时不拒收断言：知识保留，只是不带锚点。
+
+    定位不到不等于编造——文字层的间距常与模型复述的写法对不上。拒收会连带
+    丢掉知识，实测单篇关系产出从 7 条掉到 2 条。
+    """
     content = b"%PDF-1.4 fabricated quote fixture"
     write_pdf(tmp_path, "paper.pdf", content)
     doc_id = content_doc_id(content)
     text = "外圈剥落表现为 BPFO 倍频振动，能量集中在高频段。"
     segment_id = evidence_id(doc_id, 1, text)
     good_quote = "外圈剥落表现为 BPFO 倍频振动"
-    fabricated_quote = "外圈剥落会导致轴承烧毁"
+    missing_quote = "外圈剥落会导致轴承烧毁"
 
     response = json.dumps(
         {
             "entities": [
                 entity("外圈剥落", "fault_mode", segment_id, good_quote, 0.9),
                 entity("BPFO 倍频", "symptom", segment_id, "能量集中在高频段", 0.8),
-                entity("内圈剥落", "fault_mode", segment_id, fabricated_quote, 0.7),
+                entity("内圈剥落", "fault_mode", segment_id, missing_quote, 0.7),
             ],
             "relations": [
                 relation(
@@ -196,7 +200,7 @@ def test_assertions_whose_quote_is_not_in_the_segment_are_queued_not_written(
                     "indicated_by",
                     "BPFO 倍频",
                     segment_id,
-                    fabricated_quote,
+                    missing_quote,
                     0.8,
                 )
             ],
@@ -210,31 +214,72 @@ def test_assertions_whose_quote_is_not_in_the_segment_are_queued_not_written(
     )
 
     document = report.documents[0]
-    assert document.error is None, "片段对不上是待审数据，不是整篇失败"
-    assert (document.entities, document.relations) == (2, 0)
-    assert (document.rejected_entities, document.rejected_relations) == (1, 1)
+    assert document.error is None
+    assert (document.entities, document.relations) == (3, 1)
+    assert (document.rejected_entities, document.rejected_relations) == (0, 0)
+    assert document.pending_reviews == ()
 
     batch = graph_store.batches[0]
     assert {concept.name for concept in batch.concepts} == {
         "轴承外圈疲劳剥落",
         "外圈故障频率及其倍频",
+        "轴承内圈疲劳剥落",
     }
-    assert batch.relations == ()
-    assert len(batch.evidence_links) == 2
-    assert all(len(link.provenance.anchors) == 1 for link in batch.evidence_links)
+    # 定位到的带锚点，定位不到的不带，两者都入库。
+    anchored = {
+        link.concept_id
+        for link in batch.evidence_links
+        if link.provenance.anchors
+    }
+    assert len(batch.evidence_links) == 3
+    assert len(anchored) == 2
+    (rel,) = batch.relations
+    assert rel.provenance.anchors == ()
 
-    reviews = {(review.kind, review.value): review for review in document.pending_reviews}
-    entity_review = reviews[(PendingKind.ENTITY, "fault_mode")]
-    assert entity_review.reason is RejectionReason.ANCHOR_NOT_FOUND
-    assert entity_review.frequency == 1
-    assert "内圈剥落" in entity_review.label
-    assert entity_review.evidence_ids == (segment_id,)
-    assert entity_review.examples[0].text == text
 
-    relation_review = reviews[(PendingKind.RELATION, "indicated_by")]
-    assert relation_review.reason is RejectionReason.ANCHOR_NOT_FOUND
-    assert "外圈剥落" in relation_review.label
-    assert "BPFO 倍频" in relation_review.label
+def test_a_quote_with_different_spacing_still_anchors(tmp_path: Path) -> None:
+    """文字层的怪间距不该让锚点落空：空白折叠后比对，区间映射回原文。"""
+
+    content = b"%PDF-1.4 spacing fixture"
+    write_pdf(tmp_path, "paper.pdf", content)
+    doc_id = content_doc_id(content)
+    text = "Experimental results show the fault occurs."
+    segment_id = evidence_id(doc_id, 1, text)
+    # 模型按正常间距复述，原文里却是 "withahammer" 式的粘连。
+    glued_text = "Experimentalresultsshow the fault occurs."
+    glued_segment = evidence_id(doc_id, 1, glued_text)
+
+    response = json.dumps(
+        {
+            "entities": [
+                entity(
+                    "转子断条",
+                    "fault_mode",
+                    glued_segment,
+                    "Experimental results show the fault occurs.",
+                    0.9,
+                )
+            ],
+            "relations": [],
+        },
+        ensure_ascii=False,
+    )
+    graph_store = FakeGraphStore()
+
+    report = ingest(
+        tmp_path,
+        deps=deps_for(response, text=glued_text, graph_store=graph_store),
+    )
+
+    document = report.documents[0]
+    assert document.error is None, document.error
+    batch = graph_store.batches[0]
+    (link,) = batch.evidence_links
+    (anchor,) = link.provenance.anchors
+    # 折叠后空白数不同，"results show" 与 "resultsshow" 折成同一串才能命中。
+    assert glued_text[anchor.start : anchor.end].replace(" ", "").startswith(
+        "Experimentalresults"
+    )
 
 
 def test_an_assertion_without_any_quote_is_kept_but_unanchored(tmp_path: Path) -> None:

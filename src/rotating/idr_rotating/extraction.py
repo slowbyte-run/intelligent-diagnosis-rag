@@ -207,22 +207,18 @@ def extract_with_retry(
 
 def _resolve_anchor(
     quote: str, evidence_ids: Sequence[str], evidence_text: Mapping[str, str]
-) -> tuple[EvidenceAnchor | None, bool]:
-    """把模型给的支撑片段定位成锚点，并区分「没给」与「给错」。
+) -> EvidenceAnchor | None:
+    """把模型给的支撑片段定位成锚点，定位不到就返回 None。
 
-    - 没给片段（空串）：断言本身可能没错，只是没有可核对的定位，保留它但不带
-      锚点，引用时走查询期选句兜底。
-    - 给了片段但对不上原文：这是编造的引用，必须拒收进待审。
-
-    两者混为一谈会让模型在拿不准时干脆不下结论，知识因此丢失（实测关系产出
-    从 7 条掉到 2 条）。
+    定位不到不等于编造：语料是版面抽出来的，间距与模型复述的写法常常对不上
+    （``withahammer``、中英混排）。拒收整条断言会连带丢掉知识，实测单篇关系
+    产出从 7 条掉到 2 条。这里改成「有就锚、没有就整段回退」，编造检查交给
+    引用期的回源校验与待审队列的其它原因码。
     """
-
     text = (quote or "").strip()
     if not text:
-        return None, False
-    anchor = locate_anchor(text, evidence_ids, evidence_text)
-    return anchor, anchor is None
+        return None
+    return locate_anchor(text, evidence_ids, evidence_text)
 
 
 def validate_extraction(
@@ -332,24 +328,7 @@ def validate_extraction(
             )
             continue
 
-        anchor, fabricated = _resolve_anchor(
-            entity.quote, evidence_ids, evidence_text
-        )
-        if fabricated:
-            # 模型给了片段但原文里找不到：这是编造的引用，不写图，进待审。
-            rejected_entities += 1
-            pending.append(
-                _observation(
-                    kind=PendingKind.ENTITY,
-                    value=canonical_type,
-                    reason=RejectionReason.ANCHOR_NOT_FOUND,
-                    doc_id=doc_id,
-                    name=entity.name.strip(),
-                    evidence_ids=entity.evidence_ids,
-                    evidence_text=evidence_text,
-                )
-            )
-            continue
+        anchor = _resolve_anchor(entity.quote, evidence_ids, evidence_text)
 
         key = (
             canonical.id
@@ -485,24 +464,7 @@ def validate_extraction(
             )
             continue
 
-        anchor, fabricated = _resolve_anchor(
-            relation.quote, evidence_ids, evidence_text
-        )
-        if fabricated:
-            # 同实体：给了片段但对不上就是编造，拒收进待审。
-            rejected_relations += 1
-            pending.append(
-                _observation(
-                    kind=PendingKind.RELATION,
-                    value=relation_type,
-                    reason=RejectionReason.ANCHOR_NOT_FOUND,
-                    doc_id=doc_id,
-                    name=_relation_name(relation),
-                    evidence_ids=relation.evidence_ids,
-                    evidence_text=evidence_text,
-                )
-            )
-            continue
+        anchor = _resolve_anchor(relation.quote, evidence_ids, evidence_text)
 
         key = (head[0], relation_type, tail[0])
         accumulator = relations.get(key)

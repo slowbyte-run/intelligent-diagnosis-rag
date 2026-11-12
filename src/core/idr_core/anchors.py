@@ -19,7 +19,7 @@ from dataclasses import dataclass
 
 # 定位规则版本：逐字匹配、首次出现、歧义标记。改动这条规则必须递增，
 # 抽取指纹会随之改变，已入库的文献不会被静默跳过。
-ANCHOR_RULE_VERSION = "1"
+ANCHOR_RULE_VERSION = "2"
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,15 +60,72 @@ def locate_anchor(
         text = evidence_text.get(evidence_id)
         if text is None:
             continue
-        start = text.find(quote)
-        if start < 0:
-            continue
-        return EvidenceAnchor(
-            evidence_id=evidence_id,
-            start=start,
-            end=start + len(quote),
-            # 重叠出现的同一片段（如 "aaa" 里的 "aa"）同样算多次：宁可标记
-            # 歧义，也不能默认第一个位置就是本意。
-            ambiguous=text.find(quote, start + 1) >= 0,
-        )
+        anchor = _exact_anchor(evidence_id, text, quote)
+        if anchor is not None:
+            return anchor
+        anchor = _normalized_anchor(evidence_id, text, quote)
+        if anchor is not None:
+            return anchor
     return None
+
+
+def _exact_anchor(
+    evidence_id: str, text: str, quote: str
+) -> EvidenceAnchor | None:
+    start = text.find(quote)
+    if start < 0:
+        return None
+    return EvidenceAnchor(
+        evidence_id=evidence_id,
+        start=start,
+        end=start + len(quote),
+        # 重叠出现的同一片段（如 "aaa" 里的 "aa"）同样算多次：宁可标记
+        # 歧义，也不能默认第一个位置就是本意。
+        ambiguous=text.find(quote, start + 1) >= 0,
+    )
+
+
+def _normalized_anchor(
+    evidence_id: str, text: str, quote: str
+) -> EvidenceAnchor | None:
+    """空白不敏感地再找一次。
+
+    文字层抽出来的证据常有怪 spacing（``withahammer``、``Fig.,(4)``、中英
+    混排），模型复述时按正常间距写，逐字比对就会全数落空。把连续空白折叠成
+    一个空格再比，能救回这一大类；区间仍映射回原文偏移，切片依然是原文的
+    连续子串。
+    """
+    normalized_text, offsets = _fold_whitespace(text)
+    normalized_quote, _ = _fold_whitespace(quote)
+    if not normalized_quote:
+        return None
+    start = normalized_text.find(normalized_quote)
+    if start < 0:
+        return None
+    end = start + len(normalized_quote)
+    if end >= len(offsets):
+        return None
+    return EvidenceAnchor(
+        evidence_id=evidence_id,
+        start=offsets[start],
+        end=offsets[end],
+        ambiguous=normalized_text.find(normalized_quote, start + 1) >= 0,
+    )
+
+
+def _fold_whitespace(text: str) -> tuple[str, list[int]]:
+    """去掉全部空白，并给出每个保留字符在原文里的起始偏移。
+
+    文字层既有 ``withahammer`` 这种粘连，也有把一句话拆成多行留下的空白；
+    模型复述时的间距与两者都对不上。直接把空白从两侧都去掉，比只折叠连续空
+    白能多救回「粘连 vs 正常间距」这一大类。
+    """
+    kept: list[str] = []
+    offsets: list[int] = []
+    for index, char in enumerate(text):
+        if char.isspace():
+            continue
+        kept.append(char)
+        offsets.append(index)
+    offsets.append(len(text))
+    return "".join(kept), offsets
