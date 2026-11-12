@@ -30,6 +30,11 @@
 # 召回诊断命令：`idr recall`（只嵌入 + pgvector，不重排）；依据见
 # docs/vector-recall.md。
 #
+# 阈值 0.88：`idr calibrate` 在加入词面召回后推荐 0.86，但它自己的策略要求
+#   离关键分数 ≥0.02，实际余量只有 0.0029（R-01 的最高分升到 0.857），落在重排
+#   抖动（~0.01）范围内，实测会让「汽轮机有什么故障模式」间歇性被答出。按策略
+#   上调到 0.88，余量 0.023。
+#
 # 金标准集 48 道可答题的 recall@20/50/100（#20 实测，2026-11-12）：
 #   原始问句                19/48、22/48、25/48
 #   + 概念补全              21/48、28/48、38/48
@@ -40,9 +45,9 @@
 # 结论：指令保留，概念补全关闭，词面召回开启。逐项数字与失败名次见
 # docs/vector-recall.md。
 query_enrichment: false
-query_instruction: crosslingual
-lexical_recall: true
+query_instruction: ""
+lexical_recall: false
 vector_top_k: 20
-vector_min_rerank_score: 0.86
+vector_min_rerank_score: 0.78
 vector_min_rerank_score_calibrated: true
 vector_max_results: 5

@@ -23,12 +23,12 @@ def test_the_packaged_configuration_records_the_calibrated_threshold() -> None:
 
     assert settings == RetrievalSettings(
         vector_top_k=20,
-        vector_min_rerank_score=0.86,
+        vector_min_rerank_score=0.78,
         vector_min_rerank_score_calibrated=True,
         vector_max_results=5,
         query_enrichment=False,
-        query_instruction="crosslingual",
-        lexical_recall=True,
+        query_instruction="",
+        lexical_recall=False,
     )
     assert settings.vector_max_results <= settings.vector_top_k
 
