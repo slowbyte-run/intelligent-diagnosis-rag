@@ -16,6 +16,7 @@ import pytest
 from idr_core.documents import document_id
 from idr_rotating.citation_check import CitationCheck
 from idr_rotating.evaluation import (
+    EvaluationError,
     GoldenQuestion,
     GoldenSetError,
     evaluate_golden,
@@ -498,3 +499,90 @@ def test_report_to_dict_is_json_serializable_and_keeps_per_case_detail() -> None
     assert payload["cases"][0]["id"] == "T-01"
     assert payload["cases"][0]["hit"] is True
     assert "阿尔法" in serialized
+
+
+def comparison_answer() -> dict[str, Any]:
+    """``answer_to_dict`` 形态的对比答案：两个锚点 + 一个共同结论。"""
+    payload = make_answer(
+        focus_concept=None,
+        facts=(),
+        citations=((EV_A, DOC_A), (EV_B, DOC_B)),
+    )
+    payload["comparison"] = {
+        "left": {
+            "concept": {"id": "concept:alpha", "name": "阿尔法", "type": "fault_mode"},
+            "alias": "阿尔法",
+            "kind": "substring",
+        },
+        "right": {
+            "concept": {"id": "concept:beta", "name": "贝塔", "type": "fault_mode"},
+            "alias": "贝塔",
+            "kind": "substring",
+        },
+        "shared": [
+            {
+                "relation": "detected_by",
+                "tail": {"id": "concept:gamma", "name": "伽马", "type": "detection_method"},
+                "left": [
+                    {
+                        "relation": "detected_by",
+                        "head": {"id": "concept:alpha", "name": "阿尔法", "type": "fault_mode"},
+                        "tail": {"id": "concept:gamma", "name": "伽马", "type": "detection_method"},
+                        "confidence": 0.7,
+                        "evidence_ids": [EV_A],
+                        "path": [],
+                    }
+                ],
+                "right": [
+                    {
+                        "relation": "detected_by",
+                        "head": {"id": "concept:beta", "name": "贝塔", "type": "fault_mode"},
+                        "tail": {"id": "concept:gamma", "name": "伽马", "type": "detection_method"},
+                        "confidence": 0.7,
+                        "evidence_ids": [EV_B],
+                        "path": [],
+                    }
+                ],
+            }
+        ],
+        "only_left": [],
+        "only_right": [],
+        "discriminating": [],
+    }
+    return payload
+
+
+def test_comparison_answers_expose_both_anchors_and_partition_concepts() -> None:
+    question = make_question(
+        question_id="P-01",
+        question_class="comparative",
+        question_text="阿尔法和贝塔怎么区分？",
+        expected_concepts=("concept:alpha", "concept:beta", "concept:gamma"),
+        expected_evidence_ids=(EV_A, EV_B),
+    )
+
+    report = evaluate_golden(
+        [question],
+        answer_for=lambda item: comparison_answer(),
+        verify_citation=always_ok,
+    )
+
+    case = report.cases[0]
+    assert case.concept_ok is True
+    assert case.missing_concepts == ()
+    assert case.evidence_ok is True
+    assert case.hit is True
+    assert report.metrics.citations_total == 2
+    assert report.metrics.citation_accuracy == 1.0
+
+
+def test_malformed_comparison_is_an_evaluation_error_not_a_silent_miss() -> None:
+    payload = comparison_answer()
+    payload["comparison"] = {"left": None}
+
+    with pytest.raises(EvaluationError, match="comparison"):
+        evaluate_golden(
+            [make_question()],
+            answer_for=lambda item: payload,
+            verify_citation=always_ok,
+        )

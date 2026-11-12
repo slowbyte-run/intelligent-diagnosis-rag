@@ -14,10 +14,16 @@
 本层只表达事实，不设阈值：判定什么时候拒答是检索编排的事，答案只把结果如实
 标注。``truncated`` 表示结果集撞到上界被截断，``detail`` 里写明原因。
 
+对比型回答用 :class:`Comparison` 表达：两个锚点的事实按 ``(关系, 尾概念)``
+分成共同项、各自独有项，以及文献明确写下的易混淆声明。对比答案的 ``facts``
+为空、``focus`` 为空，结论只出现在分区里；单焦点答案的 ``facts`` / ``focus``
+形态不变。
+
 拒答有两种原因，由 :class:`RefusalReason` 区分：``no_concept`` 是问题里的概念
 没被识别出来，``no_evidence`` 是识别了概念却没有证据支撑。这个区分是给用户的
-行动指引——前者该换个问法，后者该补语料。两种拒答都不允许携带 ``facts`` 或
-``citations``：值对象在构造时就拒绝这种自相矛盾的答案，而不是靠调用点自觉。
+行动指引——前者该换个问法，后者该补语料。两种拒答都不允许携带 ``facts``、
+``citations`` 或 ``comparison``：值对象在构造时就拒绝这种自相矛盾的答案，而不是
+靠调用点自觉。
 """
 
 from __future__ import annotations
@@ -99,6 +105,49 @@ class Fact:
 
 
 @dataclass(frozen=True, slots=True)
+class SharedFact:
+    """两侧都成立的同一结论：关系与尾概念相同，证据分别来自两侧的路径。
+
+    两侧的路径各自独立（起点不同），因此不合并成一条 ``Fact``：把右侧的证据
+    塞进左侧的路径会破坏「每条证据都在它所属的边上」这一可核对性。
+    """
+
+    relation: str
+    tail: Concept
+    left: tuple[Fact, ...]
+    right: tuple[Fact, ...]
+
+    @property
+    def evidence_ids(self) -> tuple[str, ...]:
+        """两侧路径的证据并集，按首次出现顺序去重。"""
+        return tuple(
+            dict.fromkeys(
+                evidence_id
+                for fact in (*self.left, *self.right)
+                for evidence_id in fact.evidence_ids
+            )
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class Comparison:
+    """对比型回答：两个同级锚点，事实按 ``(关系, 尾概念)`` 分区。
+
+    ``shared`` 是两侧都成立的结论，``only_left`` / ``only_right`` 只有一侧成立；
+    用户问「怎么区分」要的是差异，不是两份各自的完整清单。``discriminating``
+    单独放两侧之间的 ``confused_with`` 结论：它是文献自己说「这两个容易混」，
+    与「我们据图谱归纳出的差异」不是一回事，不能混进 ``only_left``。
+    """
+
+    left: ConceptMatch
+    right: ConceptMatch
+    shared: tuple[SharedFact, ...]
+    only_left: tuple[Fact, ...]
+    only_right: tuple[Fact, ...]
+    discriminating: tuple[Fact, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class Answer:
     """一次提问的结果。空答案也是显式的：``path`` 说明为什么没答。"""
 
@@ -117,6 +166,8 @@ class Answer:
     model_calls: tuple[ModelCall, ...] = ()
     # 拒答原因；非拒答路径必须为 None。拒绝与原因一一对应，不靠调用方记得填。
     refusal_reason: RefusalReason | None = None
+    # 对比型回答的分区；非对比问题为 None，且此时 ``facts`` 仍是单焦点形态。
+    comparison: Comparison | None = None
 
     def __post_init__(self) -> None:
         """拒答必须说明原因，且不得携带任何结论或引用。"""
@@ -126,7 +177,7 @@ class Answer:
                 "拒答路径必须且只能带拒答原因："
                 f"{self.path.value} / {self.refusal_reason}"
             )
-        if refusing and (self.facts or self.citations):
+        if refusing and (self.facts or self.citations or self.comparison is not None):
             raise ValueError(
                 "拒答答案不能包含结论或引用：拒答是「没有依据」，"
                 "带结论或引用会让它变成低置信度答案"
@@ -134,9 +185,10 @@ class Answer:
 
 
 # 2：结论增加图路径、引用增加重排分数，答案增加模型调用记录与截断标记；
-# 3：答案增加 refusal_reason（拒答原因）。
+# 3：答案增加 refusal_reason（拒答原因）；
+# 4：答案增加 comparison（对比型回答的分区），单焦点答案的字段不变。
 # 字段只增不改，评估按版本号读。
-ANSWER_SCHEMA_VERSION = 3
+ANSWER_SCHEMA_VERSION = 4
 
 
 def answer_to_dict(answer: Answer) -> dict[str, Any]:
@@ -154,17 +206,8 @@ def answer_to_dict(answer: Answer) -> dict[str, Any]:
         "truncated": answer.truncated,
         "focus": _match_to_dict(answer.focus),
         "matches": [_match_to_dict(match) for match in answer.matches],
-        "facts": [
-            {
-                "relation": fact.relation,
-                "head": _concept_to_dict(fact.head),
-                "tail": _concept_to_dict(fact.tail),
-                "confidence": fact.confidence,
-                "evidence_ids": list(fact.evidence_ids),
-                "path": [_step_to_dict(step) for step in fact.path],
-            }
-            for fact in answer.facts
-        ],
+        "comparison": _comparison_to_dict(answer.comparison),
+        "facts": [_fact_to_dict(fact) for fact in answer.facts],
         "citations": [
             {
                 "evidence_id": citation.evidence_id,
@@ -185,6 +228,41 @@ def answer_to_dict(answer: Answer) -> dict[str, Any]:
             }
             for call in answer.model_calls
         ],
+    }
+
+
+def _comparison_to_dict(comparison: Comparison | None) -> dict[str, Any] | None:
+    """对比型回答的分区；共同项保留两侧各自的结论与证据。"""
+    if comparison is None:
+        return None
+    return {
+        "left": _match_to_dict(comparison.left),
+        "right": _match_to_dict(comparison.right),
+        "shared": [
+            {
+                "relation": shared.relation,
+                "tail": _concept_to_dict(shared.tail),
+                "left": [_fact_to_dict(fact) for fact in shared.left],
+                "right": [_fact_to_dict(fact) for fact in shared.right],
+            }
+            for shared in comparison.shared
+        ],
+        "only_left": [_fact_to_dict(fact) for fact in comparison.only_left],
+        "only_right": [_fact_to_dict(fact) for fact in comparison.only_right],
+        "discriminating": [
+            _fact_to_dict(fact) for fact in comparison.discriminating
+        ],
+    }
+
+
+def _fact_to_dict(fact: Fact) -> dict[str, Any]:
+    return {
+        "relation": fact.relation,
+        "head": _concept_to_dict(fact.head),
+        "tail": _concept_to_dict(fact.tail),
+        "confidence": fact.confidence,
+        "evidence_ids": list(fact.evidence_ids),
+        "path": [_step_to_dict(step) for step in fact.path],
     }
 
 

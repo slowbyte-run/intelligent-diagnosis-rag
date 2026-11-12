@@ -388,3 +388,190 @@ def test_ask_does_not_report_aliases_nested_inside_a_longer_match() -> None:
     answer = ask("轴承外圈疲劳剥落有什么征兆", deps=empty_deps())
 
     assert [match.concept.id for match in answer.matches] == [OUTER_RACE]
+
+
+INNER_RACE = "concept:bearing_inner_race_fatigue_spalling"
+ROLLING_ELEMENT = "concept:bearing_rolling_element_fatigue_spalling"
+BPFI = "concept:bpfi_harmonics"
+SPECTRUM = "concept:fft_spectrum_analysis"
+
+
+def deps_with_two_fault_modes(*, confused: bool = False) -> AskDeps:
+    """一篇文献：内外圈剥落各有自己的征兆，但共用同一种检测手段。"""
+    graph = FakeGraphStore()
+    doc_id = "doc-a"
+    outer_symptom = evidence(
+        doc_id, page=2, offset=0, text="外圈剥落会出现 BPFO 及其倍频。"
+    )
+    inner_symptom = evidence(
+        doc_id, page=2, offset=100, text="内圈剥落会出现 BPFI 及其倍频。"
+    )
+    outer_detection = evidence(
+        doc_id, page=3, offset=0, text="外圈剥落常用频谱分析确认。"
+    )
+    inner_detection = evidence(
+        doc_id, page=3, offset=100, text="内圈剥落也常用频谱分析确认。"
+    )
+    confused_statement = evidence(
+        doc_id, page=4, offset=0, text="外圈剥落与内圈剥落容易混淆，需看特征频率。"
+    )
+    outer = concept(OUTER_RACE.removeprefix("concept:"), "轴承外圈疲劳剥落", "fault_mode")
+    inner = concept(INNER_RACE.removeprefix("concept:"), "轴承内圈疲劳剥落", "fault_mode")
+    bpfo = concept(BPFO.removeprefix("concept:"), "外圈故障频率及其倍频", "symptom")
+    bpfi = concept(BPFI.removeprefix("concept:"), "内圈故障频率及其倍频", "symptom")
+    spectrum = concept(SPECTRUM.removeprefix("concept:"), "频谱分析", "detection_method")
+    write_document(
+        graph,
+        doc_id,
+        concepts=(outer, inner, bpfo, bpfi, spectrum),
+        segments=(
+            outer_symptom,
+            inner_symptom,
+            outer_detection,
+            inner_detection,
+            confused_statement,
+        ),
+        relations=(
+            relation(
+                outer,
+                "indicated_by",
+                bpfo,
+                doc_id=doc_id,
+                evidence_ids=(outer_symptom.id,),
+                confidence=0.8,
+            ),
+            relation(
+                inner,
+                "indicated_by",
+                bpfi,
+                doc_id=doc_id,
+                evidence_ids=(inner_symptom.id,),
+                confidence=0.8,
+            ),
+            relation(
+                outer,
+                "detected_by",
+                spectrum,
+                doc_id=doc_id,
+                evidence_ids=(outer_detection.id,),
+                confidence=0.7,
+            ),
+            relation(
+                inner,
+                "detected_by",
+                spectrum,
+                doc_id=doc_id,
+                evidence_ids=(inner_detection.id,),
+                confidence=0.7,
+            ),
+            *(
+                (
+                    relation(
+                        outer,
+                        "confused_with",
+                        inner,
+                        doc_id=doc_id,
+                        evidence_ids=(confused_statement.id,),
+                        confidence=0.9,
+                    ),
+                )
+                if confused
+                else ()
+            ),
+        ),
+    )
+    return AskDeps(
+        graph_store=graph,
+        document_names=FakeDocumentNames({doc_id: "论文A.pdf"}),
+    )
+
+
+def test_ask_compares_two_equally_specific_fault_modes() -> None:
+    """两个同级锚点不再判歧义拒答，而是按 (关系, 尾概念) 分成共同项与各自独有项。"""
+    answer = ask("轴承外圈剥落和轴承内圈剥落怎么区分？", deps=deps_with_two_fault_modes())
+
+    assert answer.path is AnswerPath.GRAPH
+    assert answer.focus is None
+    assert answer.facts == ()
+    comparison = answer.comparison
+    assert comparison is not None
+    assert comparison.left.concept.id == OUTER_RACE
+    assert comparison.right.concept.id == INNER_RACE
+
+    # 两侧都检测「频谱分析」：这是共同点，两侧证据都要保留。
+    assert [(shared.relation, shared.tail.id) for shared in comparison.shared] == [
+        ("detected_by", SPECTRUM)
+    ]
+    shared = comparison.shared[0]
+    assert len(shared.left) == 1 and len(shared.right) == 1
+    assert [fact.tail.name for fact in shared.left] == ["频谱分析"]
+    assert [fact.tail.name for fact in shared.right] == ["频谱分析"]
+
+    # 各自独有的征兆：外圈 BPFO、内圈 BPFI。
+    assert [(fact.relation, fact.tail.id) for fact in comparison.only_left] == [
+        ("indicated_by", BPFO)
+    ]
+    assert [(fact.relation, fact.tail.id) for fact in comparison.only_right] == [
+        ("indicated_by", BPFI)
+    ]
+    assert comparison.discriminating == ()
+
+    # 引用覆盖两侧全部结论，按「共同项、仅左、仅右」的顺序展开。
+    assert [citation.evidence_id for citation in answer.citations] == [
+        shared.left[0].evidence_ids[0],
+        shared.right[0].evidence_ids[0],
+        comparison.only_left[0].evidence_ids[0],
+        comparison.only_right[0].evidence_ids[0],
+    ]
+
+
+def test_ask_reports_confused_with_as_a_separate_discriminating_statement() -> None:
+    """两侧之间的 confused_with 是文献自己说的「易混淆」，不混进「仅左侧」。"""
+    answer = ask(
+        "轴承外圈剥落和轴承内圈剥落怎么区分？",
+        deps=deps_with_two_fault_modes(confused=True),
+    )
+
+    comparison = answer.comparison
+    assert comparison is not None
+    assert [(fact.relation, fact.tail.id) for fact in comparison.discriminating] == [
+        ("confused_with", INNER_RACE)
+    ]
+    assert all(
+        fact.relation != "confused_with" for fact in comparison.only_left
+    )
+    discriminating = comparison.discriminating[0]
+    assert any(
+        citation.evidence_id == discriminating.evidence_ids[0]
+        and "容易混淆" in citation.text
+        for citation in answer.citations
+    )
+
+
+def test_ask_links_the_rolling_element_spalling_alias() -> None:
+    """「滚动体剥落」是文献里的常用说法，别名表缺了它就只能答一侧。"""
+    answer = ask("轴承外圈剥落和滚动体剥落怎么区分？", deps=empty_deps())
+
+    matched = {match.concept.id for match in answer.matches}
+    assert ROLLING_ELEMENT in matched
+    assert OUTER_RACE in matched
+
+
+def test_ask_keeps_single_focus_when_specificity_is_far_apart() -> None:
+    """泛称与专称相差太多时不强行配对：仍是单焦点，不是对比。"""
+    answer = ask("轴承和鼠笼转子绕组有什么不同", deps=empty_deps())
+
+    assert answer.comparison is None
+    assert answer.focus is not None
+    assert answer.focus.concept.id == "concept:squirrel_cage"
+
+
+def test_ask_refuses_more_than_two_anchors_as_out_of_scope() -> None:
+    """一次只比较两个：三个同级锚点不静默丢弃，也不假装答全。"""
+    answer = ask(
+        "轴承外圈剥落、内圈剥落和滚动体疲劳剥落怎么区分？", deps=empty_deps()
+    )
+
+    assert answer.path is AnswerPath.REFUSAL
+    assert answer.comparison is None
+    assert answer.detail is not None and "两两" in answer.detail

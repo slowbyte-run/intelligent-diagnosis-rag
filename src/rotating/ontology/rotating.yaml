@@ -8,10 +8,15 @@
 #   2. 只列文献中真实出现过的组合，不做笛卡尔展开。
 #   3. 无标准可依的类别（转子、结构）自建，并如实标注 source: 自建。
 #   4. ISO 标准为付费版权文本：只借用术语与条款号，不复制其表格结构。
+#
+# 注意：别名表同时被问题侧链接器在查询期读取，补别名立即对 ask 生效，不需要
+# 重跑语料。但本体内容参与抽取指纹（extraction_fingerprint），任何改动都会让
+# 已入库文档的抽取结果被视为过期；补别名是有意的「只改查询期行为」，不要因此
+# 重跑入库，否则会改变图谱与金标准绑定的证据段。
 
-version: 0.2.0
+version: 0.2.1
 domain: rotating
-updated: 2026-11-11
+updated: 2026-11-12
 
 standards:
   - id: ISO 15243:2017
@@ -237,7 +242,7 @@ instances:
       source: extracted
     - id: bearing_rolling_element_fatigue_spalling
       label: 滚动体疲劳剥落
-      aliases: [滚珠剥落, 滚子剥落, 滚动体点蚀]
+      aliases: [滚珠剥落, 滚子剥落, 滚动体剥落, 滚动体点蚀]
       location: rolling_element
       damage_form: rolling_contact_fatigue
       external_code: "ISO 15243:2017 §5.1"

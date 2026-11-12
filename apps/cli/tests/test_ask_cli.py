@@ -128,7 +128,7 @@ def test_ask_prints_machine_readable_json(
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 0
-    assert payload["schema_version"] == 3
+    assert payload["schema_version"] == 4
     assert payload["question"] == "轴承外圈疲劳剥落有什么征兆"
     assert payload["path"] == "graph"
     assert payload["detail"] is None
@@ -225,7 +225,7 @@ def test_ask_puts_the_refusal_reason_in_json(
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 0
-    assert payload["schema_version"] == 3
+    assert payload["schema_version"] == 4
     assert payload["path"] == "refusal"
     assert payload["refusal_reason"] == "no_concept"
     assert payload["facts"] == []
@@ -471,3 +471,110 @@ def test_ask_prints_the_full_two_hop_route_with_evidence_for_each_step(
     assert (
         "依据（轴承外圈疲劳剥落 → 外圈故障频率及其倍频）：论文A.pdf 第 4 页："
     ) in output
+
+
+INNER_RACE = "concept:bearing_inner_race_fatigue_spalling"
+BPFI = "concept:bpfi_harmonics"
+SPECTRUM = "concept:fft_spectrum_analysis"
+OUTER_SYMPTOM_ID = "ev:doc-b:2:0-18"
+INNER_SYMPTOM_ID = "ev:doc-b:2:30-48"
+OUTER_DETECTION_ID = "ev:doc-b:3:0-15"
+INNER_DETECTION_ID = "ev:doc-b:3:20-35"
+
+
+def deps_with_two_fault_modes() -> AskDeps:
+    """两个同级故障模式：各有征兆，共用检测手段。"""
+    outer = Concept(id=OUTER_RACE, name="轴承外圈疲劳剥落", type="fault_mode")
+    inner = Concept(id=INNER_RACE, name="轴承内圈疲劳剥落", type="fault_mode")
+    bpfo = Concept(id=BPFO, name="外圈故障频率及其倍频", type="symptom")
+    bpfi = Concept(id=BPFI, name="内圈故障频率及其倍频", type="symptom")
+    spectrum = Concept(id=SPECTRUM, name="频谱分析", type="detection_method")
+    evidence = (
+        EvidenceRecord(
+            id=OUTER_SYMPTOM_ID,
+            doc_id=DOC_ID,
+            page=2,
+            text="外圈剥落会出现 BPFO 及其倍频。",
+        ),
+        EvidenceRecord(
+            id=INNER_SYMPTOM_ID,
+            doc_id=DOC_ID,
+            page=2,
+            text="内圈剥落会出现 BPFI 及其倍频。",
+        ),
+        EvidenceRecord(
+            id=OUTER_DETECTION_ID,
+            doc_id=DOC_ID,
+            page=3,
+            text="外圈剥落常用频谱分析确认。",
+        ),
+        EvidenceRecord(
+            id=INNER_DETECTION_ID,
+            doc_id=DOC_ID,
+            page=3,
+            text="内圈剥落也常用频谱分析确认。",
+        ),
+    )
+    graph = FakeGraphReader(
+        facts=(
+            FactEdge(
+                head_id=OUTER_RACE,
+                relation="indicated_by",
+                tail_id=BPFO,
+                evidence_ids=(OUTER_SYMPTOM_ID,),
+                confidence=0.8,
+                doc_id=DOC_ID,
+            ),
+            FactEdge(
+                head_id=INNER_RACE,
+                relation="indicated_by",
+                tail_id=BPFI,
+                evidence_ids=(INNER_SYMPTOM_ID,),
+                confidence=0.8,
+                doc_id=DOC_ID,
+            ),
+            FactEdge(
+                head_id=OUTER_RACE,
+                relation="detected_by",
+                tail_id=SPECTRUM,
+                evidence_ids=(OUTER_DETECTION_ID,),
+                confidence=0.7,
+                doc_id=DOC_ID,
+            ),
+            FactEdge(
+                head_id=INNER_RACE,
+                relation="detected_by",
+                tail_id=SPECTRUM,
+                evidence_ids=(INNER_DETECTION_ID,),
+                confidence=0.7,
+                doc_id=DOC_ID,
+            ),
+        ),
+        concepts=(outer, inner, bpfo, bpfi, spectrum),
+        evidence=evidence,
+    )
+    return AskDeps(
+        graph_store=graph,
+        document_names=FakeDocumentNames({DOC_ID: "论文B.pdf"}),
+    )
+
+
+def test_ask_prints_comparison_partitions(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = run_ask(
+        "轴承外圈剥落和轴承内圈剥落怎么区分？", deps=deps_with_two_fault_modes()
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "检索路径：图命中" in output
+    assert "对比：轴承外圈疲劳剥落" in output
+    assert "共同点：" in output
+    assert "仅「轴承外圈疲劳剥落」有：" in output
+    assert "仅「轴承内圈疲劳剥落」有：" in output
+    assert "—表现为→ 外圈故障频率及其倍频" in output
+    assert "—表现为→ 内圈故障频率及其倍频" in output
+    assert "依据（轴承外圈疲劳剥落 → 频谱分析）：论文B.pdf 第 3 页" in output
+    assert "依据（轴承内圈疲劳剥落 → 频谱分析）：论文B.pdf 第 3 页" in output
+    assert "论文B.pdf 第 2 页" in output

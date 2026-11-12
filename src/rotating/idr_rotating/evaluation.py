@@ -14,9 +14,11 @@
 
 答案只按 ``answer_to_dict`` 的 dict 形态读取，不依赖 ``Answer`` 数据类。评估器
 只校验自己真正要用的字段（``path`` / ``focus`` / ``facts[].head|tail`` /
-``citations[]``），对**新增**字段（例如 #15 的 ``Fact.path``、``truncated``）
-保持兼容；删除或改名这些字段才会失败。评估过程只读图谱、只读语料，唯一写出
-的是报告文件。
+``comparison`` 的两个锚点与各分区 / ``citations[]``），对**新增**字段（例如
+#15 的 ``Fact.path``、``truncated``）保持兼容；删除或改名这些字段才会失败。
+对比型答案的结论在 ``comparison`` 下、``facts`` 为空，概念集合必须把两侧锚点
+与分区里的事实都算进来，否则每一道对比题都会缺概念。评估过程只读图谱、只读
+语料，唯一写出的是报告文件。
 """
 
 from __future__ import annotations
@@ -410,6 +412,12 @@ def _read_answer(
         if focus_id is not None:
             concepts.append(focus_id)
 
+    comparison = answer.get("comparison")
+    if comparison is not None:
+        if not isinstance(comparison, Mapping):
+            raise EvaluationError("答案的 comparison 不是对象")
+        concepts.extend(_comparison_concept_ids(comparison))
+
     facts = answer.get("facts")
     if not isinstance(facts, list):
         raise EvaluationError("答案的 facts 不是数组")
@@ -428,6 +436,54 @@ def _read_answer(
         citation_rows.append(dict(citation))
 
     return path, detail, tuple(dict.fromkeys(concepts)), tuple(citation_rows)
+
+
+def _comparison_concept_ids(comparison: Mapping[str, Any]) -> tuple[str, ...]:
+    """对比答案提到的全部概念：两个锚点、共同项与各分区的事实。
+
+    对比答案的 ``facts`` 为空（结论在 ``comparison`` 下），不读这里会让每一道
+    对比题都缺概念、被误判成未命中。
+    """
+    concept_ids: list[str] = []
+    for side in ("left", "right"):
+        match = comparison.get(side)
+        if not isinstance(match, Mapping):
+            raise EvaluationError(f"答案的 comparison 缺少 {side}")
+        concept_id = _nested_concept_id(match)
+        if concept_id is None:
+            raise EvaluationError(f"答案的 comparison.{side} 缺少 concept.id")
+        concept_ids.append(concept_id)
+
+    shared = comparison.get("shared")
+    if not isinstance(shared, list):
+        raise EvaluationError("答案的 comparison.shared 不是数组")
+    for item in shared:
+        if not isinstance(item, Mapping):
+            raise EvaluationError("答案的 comparison.shared 含非对象元素")
+        tail = item.get("tail")
+        if not isinstance(tail, Mapping) or not isinstance(tail.get("id"), str):
+            raise EvaluationError("答案的 comparison.shared 缺少 tail.id")
+        concept_ids.append(str(tail["id"]))
+        for side in ("left", "right"):
+            facts = item.get(side)
+            if not isinstance(facts, list):
+                raise EvaluationError(f"答案的 comparison.shared 缺少 {side} 数组")
+            for fact in facts:
+                if not isinstance(fact, Mapping):
+                    raise EvaluationError("答案的 comparison.shared 含非对象事实")
+                concept_ids.extend(_fact_concept_ids(fact))
+
+    for partition in ("only_left", "only_right", "discriminating"):
+        facts = comparison.get(partition)
+        if not isinstance(facts, list):
+            raise EvaluationError(f"答案的 comparison.{partition} 不是数组")
+        for fact in facts:
+            if not isinstance(fact, Mapping):
+                raise EvaluationError(
+                    f"答案的 comparison.{partition} 含非对象元素"
+                )
+            concept_ids.extend(_fact_concept_ids(fact))
+    return tuple(concept_ids)
 
 
 def _fact_concept_ids(fact: Mapping[str, Any]) -> tuple[str, ...]:
