@@ -53,7 +53,11 @@ class Neo4jGraphStore:
                        tail.id AS tail_id,
                        coalesce(edge.evidence_ids, []) AS evidence_ids,
                        coalesce(edge.confidence, 0.0) AS confidence,
-                       coalesce(edge.doc_id, '') AS doc_id
+                       coalesce(edge.doc_id, '') AS doc_id,
+                       coalesce(edge.anchor_evidence_ids, []) AS anchor_evidence_ids,
+                       coalesce(edge.anchor_starts, []) AS anchor_starts,
+                       coalesce(edge.anchor_ends, []) AS anchor_ends,
+                       coalesce(edge.anchor_ambiguous, []) AS anchor_ambiguous
                 ORDER BY tail.id, edge.doc_id
                 """,
                 concept_id=concept_id,
@@ -69,6 +73,7 @@ class Neo4jGraphStore:
                     ),
                     confidence=float(row["confidence"]),
                     doc_id=str(row["doc_id"]),
+                    anchors=_anchors_from_row(row),
                 )
                 for row in rows
             )
@@ -282,6 +287,36 @@ class Neo4jGraphStore:
                 """,
             )
             tx.run(query, rows=rows).consume()
+
+
+def _anchors_from_row(row: Any) -> tuple[EvidenceAnchor, ...]:
+    """四条平行数组 → 锚点元组；旧边没有这些属性（读成 null）时返回空。
+
+    数组长度不一致或区间非法时跳过那一条：一条坏数据让整次检索失败，比少给
+    一个锚点（退回整段引用）更糟。旧边与没有片段的边都是空数组，两者同样
+    退回整段引用。
+    """
+    ids = row["anchor_evidence_ids"]
+    starts = row["anchor_starts"]
+    ends = row["anchor_ends"]
+    ambiguous = row["anchor_ambiguous"]
+    anchors: list[EvidenceAnchor] = []
+    for evidence_id, start, end, is_ambiguous in zip(
+        ids, starts, ends, ambiguous, strict=False
+    ):
+        if not isinstance(evidence_id, str) or not evidence_id:
+            continue
+        try:
+            anchor = EvidenceAnchor(
+                evidence_id=evidence_id,
+                start=int(start),
+                end=int(end),
+                ambiguous=bool(is_ambiguous),
+            )
+        except (TypeError, ValueError):
+            continue
+        anchors.append(anchor)
+    return tuple(anchors)
 
 
 def _anchor_columns(

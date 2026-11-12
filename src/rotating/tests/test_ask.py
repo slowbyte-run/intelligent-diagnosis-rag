@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from idr_core.graph import (
     ConceptNode,
     ConceptRelation,
+    EvidenceAnchor,
     GraphBatch,
     Provenance,
 )
@@ -58,6 +59,7 @@ def relation(
     doc_id: str,
     evidence_ids: tuple[str, ...],
     confidence: float = 0.8,
+    anchors: tuple[EvidenceAnchor, ...] = (),
 ) -> ConceptRelation:
     return ConceptRelation(
         head_id=head.id,
@@ -68,6 +70,7 @@ def relation(
             evidence_ids=evidence_ids,
             confidence=confidence,
             source="extracted",
+            anchors=anchors,
         ),
     )
 
@@ -575,3 +578,166 @@ def test_ask_refuses_more_than_two_anchors_as_out_of_scope() -> None:
     assert answer.path is AnswerPath.REFUSAL
     assert answer.comparison is None
     assert answer.detail is not None and "两两" in answer.detail
+
+
+# 引用锚点：答案引用指向证据段内的支撑片段，而不是整段；缺锚点时退回整段。
+FRAGMENT_DOC = "doc-a"
+FRAGMENT_TEXT = "外圈剥落会在频谱上出现 BPFO 及其倍频，能量集中在高频段。"
+FRAGMENT_QUOTE = "外圈剥落会在频谱上出现 BPFO 及其倍频"
+
+
+def deps_with_anchored_one_hop_fact() -> AskDeps:
+    """一篇文献：征兆边带锚点，片段只是证据段里的一句话。"""
+    graph = FakeGraphStore()
+    segment = evidence(FRAGMENT_DOC, page=4, offset=120, text=FRAGMENT_TEXT)
+    start = FRAGMENT_TEXT.index(FRAGMENT_QUOTE)
+    anchor = EvidenceAnchor(
+        evidence_id=segment.id,
+        start=start,
+        end=start + len(FRAGMENT_QUOTE),
+    )
+    outer = concept(OUTER_RACE.removeprefix("concept:"), "轴承外圈疲劳剥落", "fault_mode")
+    bpfo = concept(BPFO.removeprefix("concept:"), "外圈故障频率及其倍频", "symptom")
+    write_document(
+        graph,
+        FRAGMENT_DOC,
+        concepts=(outer, bpfo),
+        segments=(segment,),
+        relations=(
+            relation(
+                outer,
+                "indicated_by",
+                bpfo,
+                doc_id=FRAGMENT_DOC,
+                evidence_ids=(segment.id,),
+                confidence=0.8,
+                anchors=(anchor,),
+            ),
+        ),
+    )
+    return AskDeps(
+        graph_store=graph,
+        document_names=FakeDocumentNames({FRAGMENT_DOC: "论文A.pdf"}),
+    )
+
+
+def test_ask_cites_the_anchor_span_instead_of_the_whole_evidence_segment() -> None:
+    """有锚点时引用展示锚点区间对应的原文，页码与证据段标识不变。"""
+    answer = ask("轴承外圈疲劳剥落有什么征兆", deps=deps_with_anchored_one_hop_fact())
+
+    assert answer.path is AnswerPath.GRAPH
+    (citation,) = answer.citations
+    assert citation.text == FRAGMENT_QUOTE
+    assert citation.anchor is not None
+    assert citation.anchor.evidence_id == citation.evidence_id
+    assert citation.anchor.end - citation.anchor.start == len(FRAGMENT_QUOTE)
+    assert citation.evidence_id == f"ev:{FRAGMENT_DOC}:4:120-{120 + len(FRAGMENT_TEXT)}"
+    assert (citation.doc_id, citation.document, citation.page) == (
+        FRAGMENT_DOC,
+        "论文A.pdf",
+        4,
+    )
+    # 结论仍指向整段证据：锚点只改变引用展示，不改变检索命中的判定单位。
+    assert answer.facts[0].evidence_ids == (citation.evidence_id,)
+
+
+def test_ask_falls_back_to_the_whole_segment_when_no_anchor_is_recorded() -> None:
+    """无锚点（旧数据或模型没给片段）时整段引用，行为与锚点上线前一致。"""
+    graph = FakeGraphStore()
+    segment = evidence(FRAGMENT_DOC, page=4, offset=0, text=FRAGMENT_TEXT)
+    outer = concept(OUTER_RACE.removeprefix("concept:"), "轴承外圈疲劳剥落", "fault_mode")
+    bpfo = concept(BPFO.removeprefix("concept:"), "外圈故障频率及其倍频", "symptom")
+    write_document(
+        graph,
+        FRAGMENT_DOC,
+        concepts=(outer, bpfo),
+        segments=(segment,),
+        relations=(
+            relation(
+                outer,
+                "indicated_by",
+                bpfo,
+                doc_id=FRAGMENT_DOC,
+                evidence_ids=(segment.id,),
+                confidence=0.8,
+            ),
+        ),
+    )
+
+    answer = ask(
+        "轴承外圈疲劳剥落有什么征兆",
+        deps=AskDeps(
+            graph_store=graph,
+            document_names=FakeDocumentNames({FRAGMENT_DOC: "论文A.pdf"}),
+        ),
+    )
+
+    (citation,) = answer.citations
+    assert citation.anchor is None
+    assert citation.text == FRAGMENT_TEXT
+    assert citation.page == 4
+
+
+def test_ask_gives_each_assertion_its_own_fragment_from_a_shared_segment() -> None:
+    """同一证据段支撑两条断言时，两条引用各自指向各自的片段。"""
+    text = "外圈剥落会产生 BPFO 特征频率。内圈剥落会产生 BPFI 特征频率。"
+    outer_quote = "外圈剥落会产生 BPFO 特征频率。"
+    inner_quote = "内圈剥落会产生 BPFI 特征频率。"
+    graph = FakeGraphStore()
+    segment = evidence(FRAGMENT_DOC, page=2, offset=0, text=text)
+
+    def anchor_for(quote: str) -> EvidenceAnchor:
+        start = text.index(quote)
+        return EvidenceAnchor(
+            evidence_id=segment.id, start=start, end=start + len(quote)
+        )
+
+    outer = concept(OUTER_RACE.removeprefix("concept:"), "轴承外圈疲劳剥落", "fault_mode")
+    inner = concept(INNER_RACE.removeprefix("concept:"), "轴承内圈疲劳剥落", "fault_mode")
+    bpfo = concept(BPFO.removeprefix("concept:"), "外圈故障频率及其倍频", "symptom")
+    bpfi = concept(BPFI.removeprefix("concept:"), "内圈故障频率及其倍频", "symptom")
+    write_document(
+        graph,
+        FRAGMENT_DOC,
+        concepts=(outer, inner, bpfo, bpfi),
+        segments=(segment,),
+        relations=(
+            relation(
+                outer,
+                "indicated_by",
+                bpfo,
+                doc_id=FRAGMENT_DOC,
+                evidence_ids=(segment.id,),
+                confidence=0.8,
+                anchors=(anchor_for(outer_quote),),
+            ),
+            relation(
+                inner,
+                "indicated_by",
+                bpfi,
+                doc_id=FRAGMENT_DOC,
+                evidence_ids=(segment.id,),
+                confidence=0.8,
+                anchors=(anchor_for(inner_quote),),
+            ),
+        ),
+    )
+
+    answer = ask(
+        "轴承外圈剥落和轴承内圈剥落怎么区分？",
+        deps=AskDeps(
+            graph_store=graph,
+            document_names=FakeDocumentNames({FRAGMENT_DOC: "论文A.pdf"}),
+        ),
+    )
+
+    assert answer.path is AnswerPath.GRAPH
+    assert [citation.text for citation in answer.citations] == [outer_quote, inner_quote]
+    assert {citation.evidence_id for citation in answer.citations} == {segment.id}
+    assert {citation.page for citation in answer.citations} == {2}
+    outer_anchor, inner_anchor = (citation.anchor for citation in answer.citations)
+    assert isinstance(outer_anchor, EvidenceAnchor)
+    assert isinstance(inner_anchor, EvidenceAnchor)
+    assert outer_anchor != inner_anchor
+    assert text[outer_anchor.start : outer_anchor.end] == outer_quote
+    assert text[inner_anchor.start : inner_anchor.end] == inner_quote

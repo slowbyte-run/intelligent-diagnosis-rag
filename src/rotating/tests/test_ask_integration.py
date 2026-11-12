@@ -182,3 +182,33 @@ def test_ask_never_traverses_three_hops_on_the_live_graph(deps: AskDeps) -> None
     assert answer.facts
     assert all(len(fact.path) <= 2 for fact in answer.facts)
     assert all(fact.tail.type != "symptom" for fact in answer.facts)
+
+
+def test_live_graph_citations_point_at_the_cited_span_of_the_evidence(
+    deps: AskDeps,
+) -> None:
+    """引用永远是它所属证据段的一段：有锚点取区间，无锚点（旧数据）取整段。"""
+    answer = ask(QUESTION, deps=deps)
+
+    assert answer.path is AnswerPath.GRAPH, answer.detail
+    segments = {
+        segment.id: segment
+        for segment in deps.graph_store.evidence_by_ids(
+            [citation.evidence_id for citation in answer.citations]
+        )
+    }
+    assert len(segments) == len({citation.evidence_id for citation in answer.citations})
+
+    for citation in answer.citations:
+        segment = segments[citation.evidence_id]
+        assert (citation.doc_id, citation.page) == (segment.doc_id, segment.page)
+        if citation.anchor is None:
+            # 锚点上线前入库的数据：整段引用，与旧行为逐字一致。
+            assert citation.text == segment.text
+            continue
+        assert citation.anchor.evidence_id == citation.evidence_id
+        assert 0 <= citation.anchor.start < citation.anchor.end <= len(segment.text)
+        assert (
+            citation.text
+            == segment.text[citation.anchor.start : citation.anchor.end]
+        )

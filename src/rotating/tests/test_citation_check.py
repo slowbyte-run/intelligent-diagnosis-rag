@@ -103,3 +103,19 @@ def test_verifier_rejects_an_empty_quote(tmp_path: Path) -> None:
 def test_verifier_requires_an_existing_corpus_directory(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="语料目录"):
         SourcePdfVerifier(tmp_path / "missing")
+
+
+def test_verifier_still_accepts_a_citation_narrowed_to_an_anchor() -> None:
+    """锚点把引用收窄到证据段里的一个片段，回源口径不变：所标页逐字比对。
+
+    片段本来就是整段原文的子串，所以校验器不需要理解锚点；改成校验整段反而
+    会改变引用准确率的口径，让历史数字不可比。
+    """
+    path, text = smallest_text_pdf()
+    segment = text[:200]
+    fragment = segment[40:120]
+
+    result = SourcePdfVerifier(CORPUS_DIR).verify(citation_for(path, fragment))
+
+    assert result.ok is True
+    assert result.offset == text.find(fragment)

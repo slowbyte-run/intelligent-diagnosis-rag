@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from idr_core.graph import Concept
+from idr_core.graph import Concept, EvidenceAnchor
 from idr_rotating import (
     Answer,
     AnswerPath,
@@ -44,7 +44,7 @@ def refusal_answer(
 def test_refusal_reason_is_part_of_the_answer_contract() -> None:
     payload = answer_to_dict(refusal_answer())
 
-    assert payload["schema_version"] == 4
+    assert payload["schema_version"] == 5
     assert payload["path"] == "refusal"
     assert payload["refusal_reason"] == "no_concept"
     assert payload["facts"] == []
@@ -190,7 +190,7 @@ def comparison_answer() -> Answer:
 def test_comparison_is_part_of_the_answer_contract() -> None:
     payload = answer_to_dict(comparison_answer())
 
-    assert payload["schema_version"] == 4
+    assert payload["schema_version"] == 5
     comparison = payload["comparison"]
     assert comparison is not None
     assert comparison["left"]["concept"]["id"] == OUTER.id
@@ -245,4 +245,59 @@ def test_a_refusal_must_not_carry_a_comparison() -> None:
             detail="没有依据。",
             refusal_reason=RefusalReason.NO_EVIDENCE,
             comparison=comparison_answer().comparison,
+        )
+
+
+def test_citation_anchor_is_part_of_the_answer_contract() -> None:
+    """引用带锚点时 JSON 同时给出区间；证据段标识与页码保持旧形态。"""
+    evidence_id = "ev:doc-a:2:0-10"
+    anchor = EvidenceAnchor(evidence_id=evidence_id, start=2, end=6, ambiguous=False)
+    answer = Answer(
+        question="外圈剥落有什么征兆？",
+        path=AnswerPath.GRAPH,
+        matches=(),
+        focus=None,
+        facts=(),
+        citations=(
+            Citation(
+                evidence_id=evidence_id,
+                doc_id="doc-a",
+                document="论文A.pdf",
+                page=2,
+                text="圈剥落会",
+                anchor=anchor,
+            ),
+        ),
+    )
+
+    payload = answer_to_dict(answer)
+
+    assert payload["citations"] == [
+        {
+            "evidence_id": evidence_id,
+            "doc_id": "doc-a",
+            "document": "论文A.pdf",
+            "page": 2,
+            "text": "圈剥落会",
+            "score": None,
+            "anchor": {
+                "evidence_id": evidence_id,
+                "start": 2,
+                "end": 6,
+                "ambiguous": False,
+            },
+        }
+    ]
+
+
+def test_a_citation_anchor_must_belong_to_its_own_evidence_segment() -> None:
+    """锚点指向别的证据段是数据错误：值对象在构造时就拒绝。"""
+    with pytest.raises(ValueError, match="锚点"):
+        Citation(
+            evidence_id="ev:doc-a:2:0-10",
+            doc_id="doc-a",
+            document=None,
+            page=2,
+            text="圈剥落会",
+            anchor=EvidenceAnchor(evidence_id="ev:doc-a:2:20-30", start=0, end=4),
         )

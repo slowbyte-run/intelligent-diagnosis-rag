@@ -39,6 +39,7 @@ from dataclasses import dataclass
 from idr_core.documents import DocumentNames
 from idr_core.embedding import Embedder
 from idr_core.graph import (
+    EvidenceAnchor,
     EvidenceRecord,
     EvidenceTextSearch,
     GraphReader,
@@ -529,14 +530,27 @@ def _citations_for(
     segments: dict[str, EvidenceRecord],
     document_names: DocumentNames | None,
 ) -> tuple[Citation, ...]:
-    """按结论顺序展开引用，同一证据段只列一次。"""
-    citations: dict[str, Citation] = {}
+    """按结论顺序展开引用；同一 (证据段, 锚点) 只列一次。
+
+    锚点挂在路径的每一步上（一步就是一条断言）：同一证据段被两条断言引用时，
+    两条断言各自的片段都要出现，因此去重键是 (证据段, 锚点) 而不是证据段。
+    某段没有锚点、或锚点区间在图上对不上原文时退回整段，绝不因缺锚点少给。
+    """
+    citations: dict[tuple[str, EvidenceAnchor | None], Citation] = {}
     for fact in facts:
-        for evidence_id in fact.evidence_ids:
-            if evidence_id in citations:
-                continue
+        for evidence_id, anchor in fact.cited_spans():
             segment = segments[evidence_id]
-            citations[evidence_id] = Citation(
+            # 越界锚点等同于没有锚点：引用退回整段，键也统一归一化，
+            # 否则消费方按原锚点找不到这条引用。
+            usable = (
+                anchor
+                if anchor is not None and _anchor_fits(segment.text, anchor)
+                else None
+            )
+            key = (evidence_id, usable)
+            if key in citations:
+                continue
+            citations[key] = Citation(
                 evidence_id=segment.id,
                 doc_id=segment.doc_id,
                 document=(
@@ -545,9 +559,23 @@ def _citations_for(
                     else None
                 ),
                 page=segment.page,
-                text=segment.text,
+                text=(
+                    segment.text
+                    if usable is None
+                    else segment.text[usable.start : usable.end]
+                ),
+                anchor=usable,
             )
     return tuple(citations.values())
+
+
+def _anchor_fits(text: str, anchor: EvidenceAnchor) -> bool:
+    """锚点区间是否落在证据段原文之内。
+
+    锚点由入库时固化，切分规则冻结，正常情况下一定成立。读取侧仍不假设数据
+    完好：越界的锚点当作没有锚点、整段引用，而不是让整次提问失败。
+    """
+    return 0 <= anchor.start < anchor.end <= len(text)
 
 
 def _focus_candidates(

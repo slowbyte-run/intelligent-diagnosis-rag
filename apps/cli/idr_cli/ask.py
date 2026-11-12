@@ -20,6 +20,7 @@ from pathlib import Path
 
 from idr_core.config import Config
 from idr_core.documents import document_id
+from idr_core.graph import EvidenceAnchor
 from idr_core.graph.neo4j import Neo4jGraphStore
 from idr_core.llm.embedding import OpenAICompatibleEmbedder
 from idr_core.llm.rerank import OpenAICompatibleReranker
@@ -53,6 +54,10 @@ _REFUSAL_LABELS = {
     RefusalReason.NO_CONCEPT: "问题里的概念没有识别出来（no_concept）",
     RefusalReason.NO_EVIDENCE: "概念已识别，但没有找到可用的证据（no_evidence）",
 }
+
+# 引用按 (证据段, 锚点) 索引：同一段证据支撑多条断言时，每条断言各有自己的
+# 锚点与片段，不能按证据段标识合并。
+CitationIndex = dict[tuple[str, EvidenceAnchor | None], Citation]
 
 
 class CorpusDocumentNames:
@@ -192,7 +197,10 @@ def render_answer(answer: Answer) -> str:
             )
         return "\n".join(lines)
 
-    citations = {citation.evidence_id: citation for citation in answer.citations}
+    citations = {
+        (citation.evidence_id, citation.anchor): citation
+        for citation in answer.citations
+    }
     if answer.comparison is not None:
         _append_comparison(lines, answer.comparison, citations, ontology)
         if answer.detail:
@@ -216,7 +224,7 @@ def render_answer(answer: Answer) -> str:
 def _append_comparison(
     lines: list[str],
     comparison: Comparison,
-    citations: dict[str, Citation],
+    citations: CitationIndex,
     ontology: Ontology,
 ) -> None:
     """按「共同点 / 仅左侧 / 仅右侧 / 文献明确易混淆」四栏输出对比结论。"""
@@ -230,15 +238,17 @@ def _append_comparison(
                 f"{index}. {_fact_route(left_fact, ontology)}"
                 f"（置信度 {left_fact.confidence:.2f}）"
             )
-            seen: set[str] = set()
+            # 同一证据段支撑两侧各自的断言时，两条引用各自的片段都要打印。
+            seen: set[tuple[str, EvidenceAnchor | None]] = set()
             for fact in (*shared.left, *shared.right):
-                for evidence_id in fact.evidence_ids:
-                    if evidence_id in seen:
+                for evidence_id, anchor in fact.cited_spans():
+                    key = (evidence_id, anchor)
+                    if key in seen:
                         continue
-                    seen.add(evidence_id)
+                    seen.add(key)
                     lines.append(
                         _evidence_text(
-                            citations[evidence_id],
+                            _citation_for(citations, key),
                             f"依据（{fact.head.name} → {shared.tail.name}）：",
                         )
                     )
@@ -258,7 +268,7 @@ def _append_fact(
     lines: list[str],
     index: int,
     fact: Fact,
-    citations: dict[str, Citation],
+    citations: CitationIndex,
     ontology: Ontology,
 ) -> None:
     lines.append(
@@ -271,11 +281,28 @@ def _append_fact(
             route = f"{step.head.name} → {step.tail.name}"
             for evidence_id in step.evidence_ids:
                 lines.append(
-                    _evidence_text(citations[evidence_id], f"依据（{route}）：")
+                    _evidence_text(
+                        _citation_for(
+                            citations,
+                            (evidence_id, step.anchor_for(evidence_id)),
+                        ),
+                        f"依据（{route}）：",
+                    )
                 )
     else:
-        for evidence_id in fact.evidence_ids:
-            lines.append(_evidence_text(citations[evidence_id]))
+        for evidence_id, anchor in fact.cited_spans():
+            citation = _citation_for(citations, (evidence_id, anchor))
+            lines.append(_evidence_text(citation))
+
+
+def _citation_for(
+    citations: CitationIndex, key: tuple[str, EvidenceAnchor | None]
+) -> Citation:
+    """按 (证据段, 锚点) 取引用；锚点越界时答案已归一化为整段引用。"""
+    citation = citations.get(key)
+    if citation is not None:
+        return citation
+    return citations[(key[0], None)]
 
 
 def _fact_route(fact: Fact, ontology: Ontology) -> str:
