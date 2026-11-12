@@ -5,11 +5,13 @@
 能力估计会得出错误结论（见 ``docs/extraction-variance.md``）。
 
 这个模块只做一件事：跑 N 次同一提示词，报告计数与断言集合的重合度。它不改
-抽取行为，也不写图。
+抽取行为，也不写图。``MetricSpread`` 与 ``pairwise_overlap`` 是「重复运行 +
+分布」的共享表达，抽取评估的重复运行（``extraction_distribution``）复用它们。
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from idr_core.llm import LLMClient
@@ -33,6 +35,40 @@ class RunSnapshot:
     entities: int
     relations: int
     assertion_keys: frozenset[str]
+
+
+@dataclass(frozen=True, slots=True)
+class MetricSpread:
+    """一组指标取值的极差：最小值、最大值与两者之差。
+
+    指标值可能缺失（例如某次运行没有任何输出，精度没有分母）。只要有一个值
+    缺失，极差就不可比，这里返回 ``None``，而不是拿剩下的值算一个假极差。
+    """
+
+    values: tuple[float | None, ...]
+
+    @property
+    def defined(self) -> bool:
+        return bool(self.values) and all(value is not None for value in self.values)
+
+    @property
+    def minimum(self) -> float | None:
+        if not self.defined:
+            return None
+        return min(value for value in self.values if value is not None)
+
+    @property
+    def maximum(self) -> float | None:
+        if not self.defined:
+            return None
+        return max(value for value in self.values if value is not None)
+
+    @property
+    def spread(self) -> float | None:
+        """极差（最大值 − 最小值）；有缺失值时为 ``None``。"""
+        if self.minimum is None or self.maximum is None:
+            return None
+        return self.maximum - self.minimum
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,7 +132,7 @@ def measure_extraction_variance(
         runs=tuple(snapshots),
         entity_counts=tuple(snapshot.entities for snapshot in snapshots),
         relation_counts=tuple(snapshot.relations for snapshot in snapshots),
-        pairwise_overlap=_pairwise_overlap([s.assertion_keys for s in snapshots]),
+        pairwise_overlap=pairwise_overlap([s.assertion_keys for s in snapshots]),
     )
 
 
@@ -110,7 +146,8 @@ def _assertion_keys(extraction: ValidatedExtraction) -> frozenset[str]:
     return frozenset(keys)
 
 
-def _pairwise_overlap(sets: list[frozenset[str]]) -> tuple[float, ...]:
+def pairwise_overlap(sets: Sequence[frozenset[str]]) -> tuple[float, ...]:
+    """逐对比较集合的 Jaccard 系数；两两重合度的唯一实现，评估报告共用。"""
     overlap: list[float] = []
     for left in range(len(sets)):
         for right in range(left + 1, len(sets)):

@@ -27,6 +27,13 @@ def _positive_int(value: str) -> int:
     return number
 
 
+def _at_least_two(value: str) -> int:
+    number = int(value)
+    if number < 2:
+        raise argparse.ArgumentTypeError("至少为 2，否则没有分布可言")
+    return number
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="idr",
@@ -170,6 +177,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="只评按标注顺序的前 N 篇文献，用于控制真实调用成本",
     )
     extract_eval_command.add_argument(
+        "--runs",
+        type=_at_least_two,
+        default=3,
+        metavar="N",
+        help="重复评估次数，默认 3（最少 2；每次运行按文献数计费）",
+    )
+    extract_eval_command.add_argument(
         "--out",
         type=Path,
         default=None,
@@ -255,6 +269,7 @@ def main(
             llm=llm,
             annotations_path=arguments.annotations,
             limit=arguments.limit,
+            runs=arguments.runs,
             out=arguments.out,
             model=config.deepseek_model,
         )
