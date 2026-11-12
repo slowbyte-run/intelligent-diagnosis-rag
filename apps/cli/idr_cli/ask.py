@@ -29,6 +29,7 @@ from idr_rotating import (
     AnswerPath,
     AskDeps,
     Citation,
+    Comparison,
     ConceptMatch,
     Fact,
     LinkKind,
@@ -131,21 +132,38 @@ def render_answer(answer: Answer) -> str:
     ontology = load_ontology()
     lines = [f"问题：{answer.question}", f"检索路径：{_PATH_LABELS[answer.path]}"]
 
-    others = [
-        match
-        for match in answer.matches
-        if answer.focus is None or match.concept.id != answer.focus.concept.id
-    ]
-    if answer.focus is not None:
-        lines.append(f"命中概念：{_match_text(answer.focus, ontology)}")
-    elif others:
-        lines.append(
-            "命中概念：" + "；".join(_match_text(match, ontology) for match in others)
-        )
-    if answer.focus is not None and others:
-        lines.append(
-            "同时命中：" + "；".join(_match_text(match, ontology) for match in others)
-        )
+    if answer.comparison is not None:
+        left = answer.comparison.left
+        right = answer.comparison.right
+        anchors = {left.concept.id, right.concept.id}
+        lines.append(f"对比：{_match_text(left, ontology)}")
+        lines.append(f"      ↔ {_match_text(right, ontology)}")
+        others = [
+            match for match in answer.matches if match.concept.id not in anchors
+        ]
+        if others:
+            lines.append(
+                "同时命中："
+                + "；".join(_match_text(match, ontology) for match in others)
+            )
+    else:
+        others = [
+            match
+            for match in answer.matches
+            if answer.focus is None or match.concept.id != answer.focus.concept.id
+        ]
+        if answer.focus is not None:
+            lines.append(f"命中概念：{_match_text(answer.focus, ontology)}")
+        elif others:
+            lines.append(
+                "命中概念："
+                + "；".join(_match_text(match, ontology) for match in others)
+            )
+        if answer.focus is not None and others:
+            lines.append(
+                "同时命中："
+                + "；".join(_match_text(match, ontology) for match in others)
+            )
     if answer.refusal_reason is not None:
         lines.append(f"拒答原因：{_REFUSAL_LABELS[answer.refusal_reason]}")
 
@@ -168,35 +186,90 @@ def render_answer(answer: Answer) -> str:
             )
         return "\n".join(lines)
 
+    citations = {citation.evidence_id: citation for citation in answer.citations}
+    if answer.comparison is not None:
+        _append_comparison(lines, answer.comparison, citations, ontology)
+        if answer.detail:
+            lines.extend(["", f"注意：{answer.detail}"])
+        return "\n".join(lines)
+
     if not answer.facts:
         detail = f"：{answer.detail}" if answer.detail else "。"
         lines.extend(["", f"没有可回答的依据{detail}"])
         return "\n".join(lines)
 
-    citations = {citation.evidence_id: citation for citation in answer.citations}
     lines.extend(["", "结论："])
     for index, fact in enumerate(answer.facts, start=1):
-        lines.append(
-            f"{index}. {_fact_route(fact, ontology)}"
-            f"（置信度 {fact.confidence:.2f}）"
-        )
-        if len(fact.path) > 1:
-            # 多跳结论逐步标出依据：读者要能核对每一条边各自出自哪里。
-            for step in fact.path:
-                route = f"{step.head.name} → {step.tail.name}"
-                for evidence_id in step.evidence_ids:
-                    lines.append(
-                        _evidence_text(
-                            citations[evidence_id], f"依据（{route}）："
-                        )
-                    )
-        else:
-            for evidence_id in fact.evidence_ids:
-                lines.append(_evidence_text(citations[evidence_id]))
+        _append_fact(lines, index, fact, citations, ontology)
 
     if answer.truncated and answer.detail:
         lines.extend(["", f"注意：{answer.detail}"])
     return "\n".join(lines)
+
+
+def _append_comparison(
+    lines: list[str],
+    comparison: Comparison,
+    citations: dict[str, Citation],
+    ontology: Ontology,
+) -> None:
+    """按「共同点 / 仅左侧 / 仅右侧 / 文献明确易混淆」四栏输出对比结论。"""
+    left_name = comparison.left.concept.name
+    right_name = comparison.right.concept.name
+    if comparison.shared:
+        lines.extend(["", "共同点："])
+        for index, shared in enumerate(comparison.shared, start=1):
+            left_fact = shared.left[0]
+            lines.append(
+                f"{index}. {_fact_route(left_fact, ontology)}"
+                f"（置信度 {left_fact.confidence:.2f}）"
+            )
+            seen: set[str] = set()
+            for fact in (*shared.left, *shared.right):
+                for evidence_id in fact.evidence_ids:
+                    if evidence_id in seen:
+                        continue
+                    seen.add(evidence_id)
+                    lines.append(
+                        _evidence_text(
+                            citations[evidence_id],
+                            f"依据（{fact.head.name} → {shared.tail.name}）：",
+                        )
+                    )
+    for label, facts in (
+        (f"仅「{left_name}」有：", comparison.only_left),
+        (f"仅「{right_name}」有：", comparison.only_right),
+        ("文献明确列为易混淆：", comparison.discriminating),
+    ):
+        if not facts:
+            continue
+        lines.extend(["", label])
+        for index, fact in enumerate(facts, start=1):
+            _append_fact(lines, index, fact, citations, ontology)
+
+
+def _append_fact(
+    lines: list[str],
+    index: int,
+    fact: Fact,
+    citations: dict[str, Citation],
+    ontology: Ontology,
+) -> None:
+    lines.append(
+        f"{index}. {_fact_route(fact, ontology)}"
+        f"（置信度 {fact.confidence:.2f}）"
+    )
+    if len(fact.path) > 1:
+        # 多跳结论逐步标出依据：读者要能核对每一条边各自出自哪里。
+        for step in fact.path:
+            route = f"{step.head.name} → {step.tail.name}"
+            for evidence_id in step.evidence_ids:
+                lines.append(
+                    _evidence_text(citations[evidence_id], f"依据（{route}）：")
+                )
+    else:
+        for evidence_id in fact.evidence_ids:
+            lines.append(_evidence_text(citations[evidence_id]))
 
 
 def _fact_route(fact: Fact, ontology: Ontology) -> str:

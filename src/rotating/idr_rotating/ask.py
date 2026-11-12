@@ -16,15 +16,19 @@
    ``refusal_reason`` 区分 ``no_concept``（概念没识别出来）与 ``no_evidence``
    （识别了但没有依据），用户据此知道该换问法还是该补语料。
 
-拒答是一个决定，不是降级：阈值来自配置（``vector_min_rerank_score``，校准方法
-见 ``docs/retrieval-calibration.md``），低于阈值不答题；拒答答案的 ``facts`` 与
-``citations`` 恒为空，由 ``Answer`` 的值对象不变量守住。
+问句里出现多个同级概念时按**对比**回答，不做意图分类：两个类型相同、具体
+程度相差不超过 ``MAX_ANCHOR_SPECIFICITY_GAP`` 的独立提及就是两个锚点。对比
+答案的两侧各自遍历，事实按 ``(关系, 尾概念)`` 分成共同项、仅左侧、仅右侧；
+两侧之间的 ``confused_with`` 单独成一组，它是文献自己说「这两个容易混」，不
+混进「仅左侧」。三个及以上锚点暂不支持，显式拒答而不是悄悄只比两个。
 
-歧义问题不兜底：问句同时指向多个同样具体的概念时，向量召回分不清该答哪一个，
-兜底只会把歧义藏进一个像模像样的答案里。
+歧义问题不兜底：同一个别名指向多个规范实例（如「磨粒磨损」既可能是轴承的也
+可能是齿面的）仍是一处歧义，不是两个锚点；向量召回分不清该答哪一个，兜底
+只会把歧义藏进一个像模像样的答案里。
 
 答案必须带引用（AGENTS.md 第 6 条）：没有证据段的事实、或路径上有一步
-拿不到证据的结论，在组装阶段就被排除，不进入 ``facts``。
+拿不到证据的结论，在组装阶段就被排除，不进入答案。对比答案的结论在
+``comparison`` 分区里，``facts`` 为空；两个分区里的每条结论都带证据。
 """
 
 from __future__ import annotations
@@ -44,18 +48,27 @@ from idr_rotating.answer import (
     Answer,
     AnswerPath,
     Citation,
+    Comparison,
     Fact,
     RefusalReason,
+    SharedFact,
 )
 from idr_rotating.linking import ConceptMatch, link_question
 from idr_rotating.ontology import Ontology, load_ontology
 from idr_rotating.retrieval import RetrievalSettings, load_retrieval_settings
 from idr_rotating.traversal import (
     EDGE_WHITELIST,
+    Traversal,
     TraversalPath,
     traverse,
 )
 from idr_rotating.vector_recall import EvidenceRecall, recall_evidence
+
+# 两个锚点的具体程度相差不超过这么多字，就视为「同级」：问句对一侧用简写、
+# 对另一侧用全称是常见写法（「内圈剥落」与「滚动体疲劳剥落」），字面长度
+# 本身说明不了哪个概念更具体。差得更多时仍按单焦点处理，避免把泛称与
+# 专称强行配对。
+MAX_ANCHOR_SPECIFICITY_GAP = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,20 +122,36 @@ def ask(question: str, *, deps: AskDeps) -> Answer:
             ),
         )
 
-    focus, tied = _most_specific(candidates)
-    if focus is None:
-        names = "、".join(f"「{match.concept.name}」" for match in tied)
-        # 歧义不兜底：向量召回分不清两个同样具体的概念，只会把歧义藏起来。
-        return _refusal(
-            question,
-            matches=matches,
-            focus=None,
-            detail=f"问题同时命中了多个同等具体的概念（{names}），"
-            "不确定以哪个作为检索起点。",
-            reason=RefusalReason.NO_EVIDENCE,
+    anchors = _comparison_anchors(candidates)
+    if anchors is not None:
+        if len(anchors) > 2:
+            names = "、".join(f"「{match.concept.name}」" for match in anchors)
+            return _refusal(
+                question,
+                matches=matches,
+                focus=None,
+                detail=f"问题同时提到了 {len(anchors)} 个同级概念（{names}），"
+                "当前只支持两两对比，请一次比较两个。",
+                reason=RefusalReason.NO_EVIDENCE,
+            )
+        graph_answer = _answer_from_comparison(
+            question, deps, matches, anchors[0], anchors[1]
         )
+    else:
+        focus, tied = _most_specific(candidates)
+        if focus is None:
+            names = "、".join(f"「{match.concept.name}」" for match in tied)
+            # 歧义不兜底：向量召回分不清两个同样具体的概念，只会把歧义藏起来。
+            return _refusal(
+                question,
+                matches=matches,
+                focus=None,
+                detail=f"问题同时命中了多个同等具体的概念（{names}），"
+                "不确定以哪个作为检索起点。",
+                reason=RefusalReason.NO_EVIDENCE,
+            )
+        graph_answer = _answer_from_graph(question, deps, matches, focus)
 
-    graph_answer = _answer_from_graph(question, deps, matches, focus)
     if graph_answer.path is AnswerPath.GRAPH:
         return graph_answer
     return _fall_back_or_refuse(question, deps, graph_answer)
@@ -218,10 +247,8 @@ def _answer_from_graph(
     路径上任一步缺证据就丢弃该条结论；全部路径都不可用时退成显式空答案。
     结果集撞到上界时照常作答，但把截断写进 ``detail`` 并置 ``truncated``。
     """
-    focus_node = next(
-        iter(deps.graph_store.concepts_by_ids([focus.concept.id])), None
-    )
-    if focus_node is None:
+    anchored = _facts_from_anchor(deps.graph_store, focus)
+    if anchored is None:
         return _refusal(
             question,
             matches=matches,
@@ -230,21 +257,7 @@ def _answer_from_graph(
             reason=RefusalReason.NO_EVIDENCE,
         )
 
-    traversal = traverse(deps.graph_store, focus_node)
-    evidence_ids = list(
-        dict.fromkeys(
-            evidence_id
-            for path in traversal.paths
-            for step in path.steps
-            for evidence_id in step.evidence_ids
-        )
-    )
-    segments = {
-        segment.id: segment
-        for segment in deps.graph_store.evidence_by_ids(evidence_ids)
-    }
-    facts = _facts_with_evidence(traversal.paths, segments)
-    if not facts:
+    if not anchored.facts:
         # 图没有带证据的事实；向量兜底与最终拒答由 ask() 在同一出口判定。
         return _refusal(
             question,
@@ -259,15 +272,216 @@ def _answer_from_graph(
         path=AnswerPath.GRAPH,
         matches=matches,
         focus=focus,
-        facts=facts,
+        facts=anchored.facts,
+        citations=_citations_for(
+            anchored.facts, anchored.segments, deps.document_names
+        ),
+        detail=_truncated_detail([(focus.concept.name, anchored.traversal)]),
+        truncated=anchored.traversal.truncated,
+    )
+
+
+def _answer_from_comparison(
+    question: str,
+    deps: AskDeps,
+    matches: tuple[ConceptMatch, ...],
+    left: ConceptMatch,
+    right: ConceptMatch,
+) -> Answer:
+    """对比路径：两侧各自取事实，按 ``(关系, 尾概念)`` 分区后作答。
+
+    两侧的事实都必须是带证据的；一侧取不到事实时照常给出另一侧的分区，并在
+    ``detail`` 里写明缺的是哪一侧——只答一侧是事实，不说是隐瞒。两侧都没有
+    事实才退成显式空答案，交给向量兜底与最终拒答判定。
+    """
+    left_facts = _facts_from_anchor(deps.graph_store, left)
+    right_facts = _facts_from_anchor(deps.graph_store, right)
+    if left_facts is None or right_facts is None:
+        missing = [
+            anchor
+            for anchor, anchored in ((left, left_facts), (right, right_facts))
+            if anchored is None
+        ]
+        names = "、".join(f"「{match.concept.name}」" for match in missing)
+        return _refusal(
+            question,
+            matches=matches,
+            focus=None,
+            detail=f"概念{names}不在图谱中，无法对比。",
+            reason=RefusalReason.NO_EVIDENCE,
+        )
+
+    comparison = _comparison(left, right, left_facts.facts, right_facts.facts)
+    facts = _comparison_facts(comparison)
+    if not facts:
+        return _refusal(
+            question,
+            matches=matches,
+            focus=None,
+            detail=f"「{left.concept.name}」与「{right.concept.name}」"
+            "都没有带证据的一跳或两跳事实，无法对比。",
+            reason=RefusalReason.NO_EVIDENCE,
+        )
+
+    details = [
+        _truncated_detail(
+            [
+                (left.concept.name, left_facts.traversal),
+                (right.concept.name, right_facts.traversal),
+            ]
+        )
+    ]
+    if not left_facts.facts:
+        details.append(f"「{left.concept.name}」没有带证据的一跳或两跳事实，只列出右侧。")
+    if not right_facts.facts:
+        details.append(f"「{right.concept.name}」没有带证据的一跳或两跳事实，只列出左侧。")
+    segments = {**left_facts.segments, **right_facts.segments}
+    return Answer(
+        question=question,
+        path=AnswerPath.GRAPH,
+        matches=matches,
+        focus=None,
+        facts=(),
         citations=_citations_for(facts, segments, deps.document_names),
-        detail=(
+        detail="".join(detail for detail in details if detail) or None,
+        truncated=left_facts.traversal.truncated or right_facts.traversal.truncated,
+        comparison=comparison,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class _AnchorFacts:
+    """一个锚点在图上取到的事实、证据段与遍历结果。"""
+
+    facts: tuple[Fact, ...]
+    segments: dict[str, EvidenceRecord]
+    traversal: Traversal
+
+
+def _facts_from_anchor(graph: GraphReader, anchor: ConceptMatch) -> _AnchorFacts | None:
+    """从一个锚点取至多两跳的带证据事实；锚点不在图谱时返回 ``None``。"""
+    focus_node = next(iter(graph.concepts_by_ids([anchor.concept.id])), None)
+    if focus_node is None:
+        return None
+    traversal = traverse(graph, focus_node)
+    evidence_ids = list(
+        dict.fromkeys(
+            evidence_id
+            for path in traversal.paths
+            for step in path.steps
+            for evidence_id in step.evidence_ids
+        )
+    )
+    segments = {
+        segment.id: segment for segment in graph.evidence_by_ids(evidence_ids)
+    }
+    return _AnchorFacts(
+        facts=_facts_with_evidence(traversal.paths, segments),
+        segments=segments,
+        traversal=traversal,
+    )
+
+
+def _truncated_detail(
+    sides: list[tuple[str, Traversal]],
+) -> str | None:
+    """哪些一侧撞到了结果上界；截断必须让调用方看得见。"""
+    truncated = [(name, traversal) for name, traversal in sides if traversal.truncated]
+    if not truncated:
+        return None
+    if len(sides) == 1:
+        _, traversal = truncated[0]
+        return (
             f"结果超过 {traversal.limit} 条上限（命中 {traversal.found} 条），"
             "已按关系类型与概念名称排序截断。"
-            if traversal.truncated
-            else None
-        ),
-        truncated=traversal.truncated,
+        )
+    return "；".join(
+        f"「{name}」一侧结果超过 {traversal.limit} 条上限"
+        f"（命中 {traversal.found} 条），已截断"
+        for name, traversal in truncated
+    ) + "。"
+
+
+def _comparison(
+    left: ConceptMatch,
+    right: ConceptMatch,
+    left_facts: tuple[Fact, ...],
+    right_facts: tuple[Fact, ...],
+) -> Comparison:
+    """按 ``(关系, 尾概念)`` 把两侧事实分成共同项、各自独有项与易混淆声明。"""
+    left_keys = _facts_by_key(left_facts)
+    right_keys = _facts_by_key(right_facts)
+    shared = tuple(
+        SharedFact(
+            relation=key[0],
+            tail=facts[0].tail,
+            left=facts,
+            right=right_keys[key],
+        )
+        for key, facts in left_keys.items()
+        if key in right_keys
+    )
+    only_left = tuple(
+        fact
+        for fact in left_facts
+        if _fact_key(fact) not in right_keys
+        and not _confused_with(fact, right.concept.id)
+    )
+    only_right = tuple(
+        fact
+        for fact in right_facts
+        if _fact_key(fact) not in left_keys
+        and not _confused_with(fact, left.concept.id)
+    )
+    discriminating = tuple(
+        fact
+        for fact, other_id in (
+            *((fact, right.concept.id) for fact in left_facts),
+            *((fact, left.concept.id) for fact in right_facts),
+        )
+        if _confused_with(fact, other_id)
+    )
+    return Comparison(
+        left=left,
+        right=right,
+        shared=shared,
+        only_left=only_left,
+        only_right=only_right,
+        discriminating=discriminating,
+    )
+
+
+def _facts_by_key(
+    facts: tuple[Fact, ...],
+) -> dict[tuple[str, str], tuple[Fact, ...]]:
+    """按 ``(关系, 尾概念)`` 归拢一侧的事实，保持遍历顺序。
+
+    同一对 ``(关系, 尾概念)`` 可能经一跳与两跳各出现一次（例如「轴承 → 故障
+    模式 → 征兆」与「轴承 → 征兆」）：它们是不同的路径，不能压成一条。
+    """
+    grouped: dict[tuple[str, str], list[Fact]] = {}
+    for fact in facts:
+        grouped.setdefault(_fact_key(fact), []).append(fact)
+    return {key: tuple(items) for key, items in grouped.items()}
+
+
+def _fact_key(fact: Fact) -> tuple[str, str]:
+    return (fact.relation, fact.tail.id)
+
+
+def _confused_with(fact: Fact, other_id: str) -> bool:
+    """这条结论是不是文献在说「两个概念容易混淆」。"""
+    return fact.relation == "confused_with" and fact.tail.id == other_id
+
+
+def _comparison_facts(comparison: Comparison) -> tuple[Fact, ...]:
+    """对比答案里要进引用的全部结论：共同项（两侧）、各自独有项、易混淆声明。"""
+    return (
+        *(fact for shared in comparison.shared for fact in shared.left),
+        *(fact for shared in comparison.shared for fact in shared.right),
+        *comparison.only_left,
+        *comparison.only_right,
+        *comparison.discriminating,
     )
 
 
@@ -342,6 +556,30 @@ def _focus_candidates(
         for entity_type in ontology.relation_types[relation].domain
     )
     return tuple(match for match in matches if match.concept.type in head_types)
+
+
+def _comparison_anchors(
+    candidates: tuple[ConceptMatch, ...],
+) -> tuple[ConceptMatch, ...] | None:
+    """同级命中的多个概念：它们是问句里的多个锚点，不是需要猜的歧义。
+
+    锚点必须①与最具体的命中同类型；②具体程度在 ``MAX_ANCHOR_SPECIFICITY_GAP``
+    以内；③是问句里各自独立的提及。落在同一跨度上的多个概念（同一个别名指向
+    多个规范实例，如「磨粒磨损」）仍是一处歧义，不是两个锚点，交给调用方拒答。
+    """
+    best = max(candidates, key=lambda match: match.specificity)
+    anchors = tuple(
+        match
+        for match in candidates
+        if match.concept.type == best.concept.type
+        and match.kind is best.kind
+        and best.specificity[1] - len(match.alias) <= MAX_ANCHOR_SPECIFICITY_GAP
+    )
+    if len(anchors) < 2:
+        return None
+    if len({match.alias for match in anchors}) < len(anchors):
+        return None
+    return anchors
 
 
 def _most_specific(

@@ -4,8 +4,10 @@ from idr_rotating.answer import (
     Answer,
     AnswerPath,
     Citation,
+    Comparison,
     Fact,
     RefusalReason,
+    SharedFact,
 )
 from idr_rotating.ask import AskDeps, ask
 from idr_rotating.document import DocumentType
@@ -42,6 +44,7 @@ __all__ = [
     "AnswerPath",
     "AskDeps",
     "Citation",
+    "Comparison",
     "ConceptMatch",
     "DocumentOutcome",
     "DocumentReport",
@@ -62,6 +65,7 @@ __all__ = [
     "RetrievalSettings",
     "RetrievalSettingsError",
     "RunMetadata",
+    "SharedFact",
     "ask",
     "ingest",
     "load_retrieval_settings",
