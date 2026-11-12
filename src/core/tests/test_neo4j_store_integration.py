@@ -82,6 +82,7 @@ def make_batch(
     evidence_text: str,
     scoped_name: str,
     confidence: float = 0.8,
+    with_anchor: bool = True,
 ) -> GraphBatch:
     """一篇文献的写入批次：两个共享概念、一个文档作用域概念和一条关系。"""
     evidence = EvidenceSegment(
@@ -115,6 +116,7 @@ def make_batch(
     # 首个词作为支撑片段：锚点描述的是「证据段里的哪一句」，不是新证据。
     quote = evidence_text.split(" ")[0]
     anchor = EvidenceAnchor(evidence_id=evidence.id, start=0, end=len(quote))
+    relation_anchors = (anchor,) if with_anchor else ()
     return GraphBatch(
         doc_id=doc_id,
         concepts=(head, tail, scoped),
@@ -129,7 +131,7 @@ def make_batch(
                     evidence_ids=(evidence.id,),
                     confidence=confidence,
                     source="extracted",
-                    anchors=(anchor,),
+                    anchors=relation_anchors,
                 ),
             ),
         ),
@@ -426,3 +428,91 @@ def test_reingesting_one_document_replaces_only_its_contribution(
     assert first_before.evidence[0].id not in evidence_ids
     assert first_after.evidence[0].id in evidence_ids
     assert other.evidence[0].id in evidence_ids
+
+
+def test_relation_anchors_round_trip_through_the_graph(
+    driver: Driver, graph_keys: tuple[str, str, str]
+) -> None:
+    """关系边上的锚点能被读模型取回：引用层据此展示片段而不是整段。"""
+    doc_id, _, prefix = graph_keys
+    batch = make_batch(
+        doc_id,
+        prefix=prefix,
+        evidence_text="entity-a relates to entity-b.",
+        scoped_name="entity-c",
+    )
+    graph_store = store()
+    try:
+        graph_store.write_document(batch)
+        edges = graph_store.facts_from(batch.relations[0].head_id, ["linked_to"])
+    finally:
+        graph_store.close()
+
+    (edge,) = edges
+    assert edge.evidence_ids == (batch.evidence[0].id,)
+    assert edge.anchors == batch.relations[0].provenance.anchors
+    (anchor,) = edge.anchors
+    assert anchor.evidence_id == batch.evidence[0].id
+    assert anchor.start == 0
+    assert anchor.end == len(batch.evidence[0].text.split(" ")[0])
+
+
+def test_edges_with_empty_anchor_arrays_are_read_as_whole_segment_evidence(
+    driver: Driver, graph_keys: tuple[str, str, str]
+) -> None:
+    """边写了空锚点数组（锚点上线后没有片段的断言）时读出空元组，不报错。"""
+    doc_id, _, prefix = graph_keys
+    batch = make_batch(
+        doc_id,
+        prefix=prefix,
+        evidence_text="entity-a relates to entity-b.",
+        scoped_name="entity-c",
+        with_anchor=False,
+    )
+    graph_store = store()
+    try:
+        graph_store.write_document(batch)
+        edges = graph_store.facts_from(batch.relations[0].head_id, ["linked_to"])
+    finally:
+        graph_store.close()
+
+    (edge,) = edges
+    assert edge.evidence_ids == (batch.evidence[0].id,)
+    assert edge.anchors == ()
+
+
+def test_edges_written_before_anchors_are_read_as_whole_segment_evidence(
+    driver: Driver, graph_keys: tuple[str, str, str]
+) -> None:
+    """锚点上线前写入的边根本没有那四个属性（读成 null），读取侧必须容忍。"""
+    doc_id, _, prefix = graph_keys
+    head_id = f"{prefix}-legacy-head"
+    tail_id = f"{prefix}-legacy-tail"
+    evidence_id = f"ev:{doc_id}:1:0-4"
+    with driver.session() as session:
+        session.run(
+            """
+            MERGE (head:Concept {id: $head_id})
+            SET head.name = 'legacy-head', head.type = 'kind_a'
+            MERGE (tail:Concept {id: $tail_id})
+            SET tail.name = 'legacy-tail', tail.type = 'kind_b'
+            MERGE (head)-[edge:LINKED_TO {doc_id: $doc_id}]->(tail)
+            SET edge.evidence_ids = [$evidence_id],
+                edge.confidence = 0.7,
+                edge.source = 'extracted'
+            """,
+            head_id=head_id,
+            tail_id=tail_id,
+            doc_id=doc_id,
+            evidence_id=evidence_id,
+        ).consume()
+
+    graph_store = store()
+    try:
+        edges = graph_store.facts_from(head_id, ["linked_to"])
+    finally:
+        graph_store.close()
+
+    (edge,) = edges
+    assert edge.evidence_ids == (evidence_id,)
+    assert edge.anchors == ()

@@ -15,6 +15,8 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
+from idr_core.anchors import EvidenceAnchor
+
 
 @dataclass(frozen=True, slots=True)
 class Concept:
@@ -27,7 +29,13 @@ class Concept:
 
 @dataclass(frozen=True, slots=True)
 class FactEdge:
-    """一条未经聚合的事实边；同一 ``(head, relation, tail)`` 可有多条。"""
+    """一条未经聚合的事实边；同一 ``(head, relation, tail)`` 可有多条。
+
+    ``anchors`` 是这条断言在证据段内的逐字出处（``(evidence_id, start, end)``），
+    与 ``evidence_ids`` 平行但可以更少：锚点上线前写入的边没有锚点，读取侧
+    必须把「没有锚点」当成整段引用，而不是把边丢掉。锚点实现见
+    :mod:`idr_core.anchors`；图里以四条平行数组属性持久化。
+    """
 
     head_id: str
     relation: str
@@ -35,17 +43,23 @@ class FactEdge:
     evidence_ids: tuple[str, ...]
     confidence: float
     doc_id: str
+    anchors: tuple[EvidenceAnchor, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
 class AggregatedFact:
-    """聚合后的一条事实：同一概念对的全部并行边合成一条。"""
+    """聚合后的一条事实：同一概念对的全部并行边合成一条。
+
+    ``anchors`` 与 ``evidence_ids`` 平行（每个证据段至多一个锚点），按证据段
+    首次出现的顺序排列；没有锚点的证据段不在其中——引用层据此退回整段。
+    """
 
     head_id: str
     relation: str
     tail_id: str
     evidence_ids: tuple[str, ...]
     confidence: float
+    anchors: tuple[EvidenceAnchor, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,18 +116,29 @@ def aggregate_facts(edges: Iterable[FactEdge]) -> tuple[AggregatedFact, ...]:
     结果保持边首次出现的顺序：关系类型的先后由检索编排决定（例如先观测、
     后原因），聚合层不重排。证据并集同样按首次出现的顺序去重。
     """
-    merged: dict[tuple[str, str, str], tuple[list[str], float]] = {}
+    merged: dict[
+        tuple[str, str, str],
+        tuple[list[str], dict[str, EvidenceAnchor], float],
+    ] = {}
     for edge in edges:
         if not edge.evidence_ids:
             continue
         key = (edge.head_id, edge.relation, edge.tail_id)
         if key not in merged:
-            merged[key] = ([], edge.confidence)
-        evidence_ids, confidence = merged[key]
+            merged[key] = ([], {}, edge.confidence)
+        evidence_ids, anchors, confidence = merged[key]
         for evidence_id in edge.evidence_ids:
             if evidence_id not in evidence_ids:
                 evidence_ids.append(evidence_id)
-        merged[key] = (evidence_ids, max(confidence, edge.confidence))
+        for anchor in edge.anchors:
+            # 同一证据段只会由同一篇文献的一条边引用；万一聚合时重复出现，
+            # 保留先到的那个锚点，顺序因此与证据并集一致。
+            anchors.setdefault(anchor.evidence_id, anchor)
+        merged[key] = (
+            evidence_ids,
+            anchors,
+            max(confidence, edge.confidence),
+        )
 
     return tuple(
         AggregatedFact(
@@ -122,6 +147,15 @@ def aggregate_facts(edges: Iterable[FactEdge]) -> tuple[AggregatedFact, ...]:
             tail_id=tail_id,
             evidence_ids=tuple(evidence_ids),
             confidence=confidence,
+            anchors=tuple(
+                anchor
+                for evidence_id in evidence_ids
+                if (anchor := anchors.get(evidence_id)) is not None
+            ),
         )
-        for (head_id, relation, tail_id), (evidence_ids, confidence) in merged.items()
+        for (head_id, relation, tail_id), (
+            evidence_ids,
+            anchors,
+            confidence,
+        ) in merged.items()
     )

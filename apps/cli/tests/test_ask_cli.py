@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from idr_core.documents import DocumentNames, document_id
-from idr_core.graph import Concept, EvidenceRecord, FactEdge
+from idr_core.graph import Concept, EvidenceAnchor, EvidenceRecord, FactEdge
 from idr_core.llm.rerank import RerankResponse, RerankScore
 from idr_core.vector_store import VectorMatch
 from idr_rotating import AskDeps, RetrievalSettings
@@ -128,7 +128,7 @@ def test_ask_prints_machine_readable_json(
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 0
-    assert payload["schema_version"] == 4
+    assert payload["schema_version"] == 5
     assert payload["question"] == "轴承外圈疲劳剥落有什么征兆"
     assert payload["path"] == "graph"
     assert payload["detail"] is None
@@ -178,6 +178,7 @@ def test_ask_prints_machine_readable_json(
             "page": 4,
             "text": "外圈剥落会在频谱上出现 BPFO 及其倍频。",
             "score": None,
+            "anchor": None,
         }
     ]
     assert payload["model_calls"] == []
@@ -225,7 +226,7 @@ def test_ask_puts_the_refusal_reason_in_json(
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 0
-    assert payload["schema_version"] == 4
+    assert payload["schema_version"] == 5
     assert payload["path"] == "refusal"
     assert payload["refusal_reason"] == "no_concept"
     assert payload["facts"] == []
@@ -581,3 +582,85 @@ def test_ask_prints_comparison_partitions(
     assert "依据（轴承外圈疲劳剥落 → 频谱分析）：论文B.pdf 第 3 页" in output
     assert "依据（轴承内圈疲劳剥落 → 频谱分析）：论文B.pdf 第 3 页" in output
     assert "论文B.pdf 第 2 页" in output
+
+
+SHARED_EVIDENCE_ID = "ev:doc-a:2:0-30"
+
+
+def deps_with_two_fragments_from_one_segment() -> AskDeps:
+    """同一证据段支撑两条断言：两条引用各自带自己的锚点。"""
+    text = "外圈剥落会产生 BPFO 特征频率。内圈剥落会产生 BPFI 特征频率。"
+    outer_quote = "外圈剥落会产生 BPFO 特征频率。"
+    inner_quote = "内圈剥落会产生 BPFI 特征频率。"
+    inner_start = text.index(inner_quote)
+    segment = EvidenceRecord(
+        id=SHARED_EVIDENCE_ID,
+        doc_id=DOC_ID,
+        page=2,
+        text=text,
+    )
+    outer = Concept(id=OUTER_RACE, name="轴承外圈疲劳剥落", type="fault_mode")
+    inner = Concept(
+        id="concept:bearing_inner_race_fatigue_spalling",
+        name="轴承内圈疲劳剥落",
+        type="fault_mode",
+    )
+    bpfo = Concept(id=BPFO, name="外圈故障频率及其倍频", type="symptom")
+    bpfi = Concept(
+        id="concept:bpfi_harmonics", name="内圈故障频率及其倍频", type="symptom"
+    )
+    graph = FakeGraphReader(
+        facts=(
+            FactEdge(
+                head_id=outer.id,
+                relation="indicated_by",
+                tail_id=bpfo.id,
+                evidence_ids=(SHARED_EVIDENCE_ID,),
+                confidence=0.8,
+                doc_id=DOC_ID,
+                anchors=(
+                    EvidenceAnchor(
+                        evidence_id=SHARED_EVIDENCE_ID,
+                        start=0,
+                        end=len(outer_quote),
+                    ),
+                ),
+            ),
+            FactEdge(
+                head_id=inner.id,
+                relation="indicated_by",
+                tail_id=bpfi.id,
+                evidence_ids=(SHARED_EVIDENCE_ID,),
+                confidence=0.8,
+                doc_id=DOC_ID,
+                anchors=(
+                    EvidenceAnchor(
+                        evidence_id=SHARED_EVIDENCE_ID,
+                        start=inner_start,
+                        end=inner_start + len(inner_quote),
+                    ),
+                ),
+            ),
+        ),
+        concepts=(outer, inner, bpfo, bpfi),
+        evidence=(segment,),
+    )
+    return AskDeps(
+        graph_store=graph,
+        document_names=FakeDocumentNames({DOC_ID: "论文A.pdf"}),
+    )
+
+
+def test_ask_prints_each_assertions_own_fragment_from_a_shared_segment(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """同一段证据的两条断言不能互相顶掉：各自打印各自的片段。"""
+    exit_code = run_ask(
+        "轴承外圈剥落和轴承内圈剥落怎么区分？",
+        deps=deps_with_two_fragments_from_one_segment(),
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "依据：论文A.pdf 第 2 页：外圈剥落会产生 BPFO 特征频率。" in output
+    assert "依据：论文A.pdf 第 2 页：内圈剥落会产生 BPFI 特征频率。" in output

@@ -332,6 +332,7 @@ class FakeGraphStore:
                 evidence_ids=relation.provenance.evidence_ids,
                 confidence=relation.provenance.confidence,
                 doc_id=relation.provenance.doc_id,
+                anchors=relation.provenance.anchors,
             )
             for relation in self.relations
             if relation.head_id == concept_id

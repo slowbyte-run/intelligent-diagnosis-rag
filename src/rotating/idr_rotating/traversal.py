@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from idr_core.graph import (
     AggregatedFact,
     Concept,
+    EvidenceAnchor,
     GraphReader,
     aggregate_facts,
 )
@@ -57,13 +58,26 @@ RELATION_ORDER = (
 
 @dataclass(frozen=True, slots=True)
 class PathStep:
-    """路径上的一步：从一个概念沿一条有证据的边走到下一个概念。"""
+    """路径上的一步：从一个概念沿一条有证据的边走到下一个概念。
+
+    ``anchors`` 是这一步各证据段内的逐字出处，与 ``evidence_ids`` 平行但可以
+    更少；某段没有锚点时该段整段引用。一步就是一条断言，所以锚点挂在步上，
+    不挂在整条路径上——两跳结论的不同跳可以引用同一段证据的不同句子。
+    """
 
     head: Concept
     relation: str
     tail: Concept
     evidence_ids: tuple[str, ...]
     confidence: float
+    anchors: tuple[EvidenceAnchor, ...] = ()
+
+    def anchor_for(self, evidence_id: str) -> EvidenceAnchor | None:
+        """该证据段在这一步里的锚点；没有锚点时返回 ``None``（整段引用）。"""
+        for anchor in self.anchors:
+            if anchor.evidence_id == evidence_id:
+                return anchor
+        return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -165,6 +179,7 @@ def traverse(
                         tail=tail,
                         evidence_ids=fact.evidence_ids,
                         confidence=fact.confidence,
+                        anchors=fact.anchors,
                     ),
                 )
                 candidates.append(TraversalPath(steps=steps))
