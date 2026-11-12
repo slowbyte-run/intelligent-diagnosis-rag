@@ -80,11 +80,17 @@ def _index_source_dir(source_dir: Path) -> dict[str, str]:
 
 
 def build_ask_deps(config: Config, source_dir: Path | None = None) -> AskDeps:
-    """真实依赖：Neo4j 图、pgvector 向量表、嵌入与重排，加上文献名目录。"""
+    """真实依赖：Neo4j 图、pgvector 向量表、嵌入与重排，加上文献名目录。
+
+    词面召回与图读取共用一个 Neo4j 适配器：证据原文只有图这一个事实源，
+    词面检索只返回证据段标识，不复制正文。
+    """
+    graph_store = Neo4jGraphStore(
+        config.neo4j_uri, config.neo4j_user, config.neo4j_password
+    )
     return AskDeps(
-        graph_store=Neo4jGraphStore(
-            config.neo4j_uri, config.neo4j_user, config.neo4j_password
-        ),
+        graph_store=graph_store,
+        text_search=graph_store,
         document_names=CorpusDocumentNames(
             DEFAULT_SOURCE_DIR if source_dir is None else source_dir
         ),

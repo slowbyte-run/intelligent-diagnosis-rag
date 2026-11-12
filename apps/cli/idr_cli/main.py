@@ -11,6 +11,7 @@ from idr_cli.calibrate import run_calibrate
 from idr_cli.doctor import run_doctor
 from idr_cli.eval import run_eval
 from idr_cli.ingest import build_deps, run_ingest
+from idr_cli.recall import DEFAULT_VARIANTS, run_recall
 from idr_rotating import AskDeps, IngestDeps
 
 
@@ -108,6 +109,44 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="把推荐阈值与校准标记写回检索配置（保留注释）",
     )
+    recall_command = commands.add_parser(
+        "recall",
+        help="只量向量召回（嵌入 + pgvector，不重排），报告 recall@k 与逐题名次",
+    )
+    recall_command.add_argument(
+        "--golden",
+        type=Path,
+        default=None,
+        help="金标准集 JSON，默认使用领域包内的 golden_questions.json",
+    )
+    recall_command.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="召回报告输出文件，默认 data/output/reports/recall-<时间戳>.json",
+    )
+    recall_command.add_argument(
+        "--top-k",
+        type=_positive_int,
+        default=100,
+        metavar="N",
+        help="向量检索取多少条候选用于诊断，默认 100（要覆盖 recall@100）",
+    )
+    recall_command.add_argument(
+        "--variants",
+        default=DEFAULT_VARIANTS,
+        metavar="LIST",
+        help=(
+            "逗号分隔的查询变体：raw、enriched、configured、"
+            "instruct:<预设>、enriched+instruct:<预设>；"
+            f"默认 {DEFAULT_VARIANTS}"
+        ),
+    )
+    recall_command.add_argument(
+        "--lexical",
+        action="store_true",
+        help="把词面候选按 RRF 与向量候选融合后再统计（与线上 lexical_recall 同口径）",
+    )
     return parser
 
 
@@ -181,6 +220,22 @@ def main(
             out_path=arguments.out,
             settings_path=arguments.config,
             write_config=arguments.write,
+        )
+
+    if arguments.command == "recall":
+        try:
+            config = load_config()
+            recall_deps = ask_deps_factory(config, DEFAULT_SOURCE_DIR)
+        except ConfigError as error:
+            print(f"配置错误：{error}", file=sys.stderr)
+            return 1
+        return run_recall(
+            deps=recall_deps,
+            golden_path=arguments.golden,
+            out_path=arguments.out,
+            top_k=arguments.top_k,
+            variants=arguments.variants,
+            lexical=arguments.lexical,
         )
 
     raise AssertionError(f"未实现的命令：{arguments.command}")

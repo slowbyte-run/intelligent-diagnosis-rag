@@ -82,6 +82,20 @@ class GraphReader(Protocol):
         ...
 
 
+class EvidenceTextSearch(Protocol):
+    """证据段原文的词面检索端口；与图遍历分开，实现方可以是同一个存储。
+
+    只返回按相关度排好序的证据段标识，原文仍由调用方按标识从图里取——
+    词面检索不是第二个事实源。没有实现这个端口的图存储只能走纯向量召回。
+    """
+
+    def search_evidence(
+        self, terms: Sequence[str], *, limit: int
+    ) -> tuple[str, ...]:
+        """返回文本包含任一 ``terms`` 的证据段标识，命中词多者靠前。"""
+        ...
+
+
 def aggregate_facts(edges: Iterable[FactEdge]) -> tuple[AggregatedFact, ...]:
     """按 ``(源, 类型, 目标)`` 聚合并行边，丢掉没有证据的边。
 
