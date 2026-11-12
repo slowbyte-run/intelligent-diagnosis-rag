@@ -66,7 +66,7 @@ def run_recall(
         )
         return 1
     try:
-        questions = load_golden_set(golden_path)
+        questions = load_golden_set(golden_path).questions
         settings = deps.retrieval_settings or load_retrieval_settings()
         ontology = load_ontology()
         builders = _query_builders(

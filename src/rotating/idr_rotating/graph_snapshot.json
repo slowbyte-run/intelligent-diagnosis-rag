@@ -1,0 +1,3942 @@
+{
+  "format": "idr-graph-snapshot",
+  "schema_version": 1,
+  "checksum": "sha256:343227369845f2927e78a16e9a9460d37b4eace9e21869a4a7144bed3bd02e58",
+  "closure": {
+    "seed_concept_ids": [
+      "concept:axial_vibration_high",
+      "concept:bearing_abrasive_wear",
+      "concept:bearing_adhesive_wear",
+      "concept:bearing_cage_fracture",
+      "concept:bearing_inner_race_fatigue_spalling",
+      "concept:bearing_outer_race_fatigue_spalling",
+      "concept:bearing_rolling_element_fatigue_spalling",
+      "concept:bpfi_harmonics",
+      "concept:bpfo_harmonics",
+      "concept:bsf_harmonics",
+      "concept:centrifugal_fan",
+      "concept:centrifugal_pump",
+      "concept:compressor",
+      "concept:coupling",
+      "concept:envelope_demodulation",
+      "concept:fft_spectrum_analysis",
+      "concept:field_balancing",
+      "concept:foundation_looseness",
+      "concept:ftf_harmonics",
+      "concept:gear_pair",
+      "concept:gear_tooth_abrasive_wear",
+      "concept:gear_tooth_breakage",
+      "concept:gear_tooth_macropitting",
+      "concept:gearbox",
+      "concept:impeller",
+      "concept:oil_analysis",
+      "concept:one_x_vibration_high",
+      "concept:orbit_change",
+      "concept:rolling_bearing",
+      "concept:rotor",
+      "concept:rotor_misalignment",
+      "concept:rotor_rub",
+      "concept:rotor_unbalance",
+      "concept:shaft",
+      "concept:shaft_bow",
+      "concept:shaft_crack",
+      "concept:shaft_orbit_analysis",
+      "concept:speed_frequency_sidebands",
+      "concept:steam_turbine",
+      "concept:structural_resonance",
+      "concept:temperature_rise",
+      "concept:thermal_expansion",
+      "concept:time_waveform_analysis",
+      "concept:two_x_vibration_high",
+      "concept:vibration_level_rise"
+    ],
+    "relation_types": [
+      "confused_with",
+      "detected_by",
+      "has_cause",
+      "has_component",
+      "has_fault_mode",
+      "indicated_by"
+    ],
+    "structural_relations": [
+      "has_component",
+      "has_fault_mode"
+    ],
+    "max_hops": 2
+  },
+  "concepts": [
+    {
+      "id": "86d03750e457ff1f:concept:fault_mode:localsurfacedamageonageartooth",
+      "name": "local surface damage on a gear tooth",
+      "type": "fault_mode"
+    },
+    {
+      "id": "906bd81774ba8b1a:concept:fault_mode:内圈故障",
+      "name": "内圈故障",
+      "type": "fault_mode"
+    },
+    {
+      "id": "906bd81774ba8b1a:concept:fault_mode:内外圈复合故障",
+      "name": "内外圈复合故障",
+      "type": "fault_mode"
+    },
+    {
+      "id": "906bd81774ba8b1a:concept:fault_mode:外圈故障",
+      "name": "外圈故障",
+      "type": "fault_mode"
+    },
+    {
+      "id": "concept:axial_vibration_high",
+      "name": "轴向振动偏大",
+      "type": "symptom"
+    },
+    {
+      "id": "concept:bearing_abrasive_wear",
+      "name": "轴承磨粒磨损",
+      "type": "fault_mode"
+    },
+    {
+      "id": "concept:bearing_adhesive_wear",
+      "name": "轴承粘着磨损",
+      "type": "fault_mode"
+    },
+    {
+      "id": "concept:bearing_cage_fracture",
+      "name": "保持架断裂",
+      "type": "fault_mode"
+    },
+    {
+      "id": "concept:bearing_electrical_erosion",
+      "name": "轴承电蚀",
+      "type": "fault_mode"
+    },
+    {
+      "id": "concept:bearing_inner_race_fatigue_spalling",
+      "name": "轴承内圈疲劳剥落",
+      "type": "fault_mode"
+    },
+    {
+      "id": "concept:bearing_outer_race_fatigue_spalling",
+      "name": "轴承外圈疲劳剥落",
+      "type": "fault_mode"
+    },
+    {
+      "id": "concept:bearing_rolling_element_fatigue_spalling",
+      "name": "滚动体疲劳剥落",
+      "type": "fault_mode"
+    },
+    {
+      "id": "concept:bpfi_harmonics",
+      "name": "内圈故障频率及其倍频",
+      "type": "symptom"
+    },
+    {
+      "id": "concept:bpfo_harmonics",
+      "name": "外圈故障频率及其倍频",
+      "type": "symptom"
+    },
+    {
+      "id": "concept:bsf_harmonics",
+      "name": "滚动体故障频率及其倍频",
+      "type": "symptom"
+    },
+    {
+      "id": "concept:centrifugal_fan",
+      "name": "离心风机",
+      "type": "equipment_class"
+    },
+    {
+      "id": "concept:centrifugal_pump",
+      "name": "离心泵",
+      "type": "equipment_class"
+    },
+    {
+      "id": "concept:compressor",
+      "name": "压缩机",
+      "type": "equipment_class"
+    },
+    {
+      "id": "concept:coupling",
+      "name": "联轴器",
+      "type": "component"
+    },
+    {
+      "id": "concept:envelope_demodulation",
+      "name": "包络解调",
+      "type": "detection_method"
+    },
+    {
+      "id": "concept:fft_spectrum_analysis",
+      "name": "频谱分析",
+      "type": "detection_method"
+    },
+    {
+      "id": "concept:field_balancing",
+      "name": "现场动平衡",
+      "type": "detection_method"
+    },
+    {
+      "id": "concept:foundation_looseness",
+      "name": "基础松动",
+      "type": "fault_mode"
+    },
+    {
+      "id": "concept:ftf_harmonics",
+      "name": "保持架故障频率",
+      "type": "symptom"
+    },
+    {
+      "id": "concept:gear_pair",
+      "name": "齿轮副",
+      "type": "component"
+    },
+    {
+      "id": "concept:gear_tooth_abrasive_wear",
+      "name": "齿面磨粒磨损",
+      "type": "fault_mode"
+    },
+    {
+      "id": "concept:gear_tooth_breakage",
+      "name": "断齿",
+      "type": "fault_mode"
+    },
+    {
+      "id": "concept:gear_tooth_macropitting",
+      "name": "齿面点蚀",
+      "type": "fault_mode"
+    },
+    {
+      "id": "concept:gear_tooth_root_fatigue_crack",
+      "name": "齿根疲劳裂纹",
+      "type": "fault_mode"
+    },
+    {
+      "id": "concept:gear_tooth_scuffing",
+      "name": "齿面胶合",
+      "type": "fault_mode"
+    },
+    {
+      "id": "concept:gearbox",
+      "name": "齿轮箱",
+      "type": "equipment_class"
+    },
+    {
+      "id": "concept:high_frequency_impact",
+      "name": "高频冲击信号",
+      "type": "symptom"
+    },
+    {
+      "id": "concept:impeller",
+      "name": "叶轮",
+      "type": "component"
+    },
+    {
+      "id": "concept:insufficient_foundation_stiffness",
+      "name": "基础刚度不足",
+      "type": "fault_cause"
+    },
+    {
+      "id": "concept:modal_testing",
+      "name": "模态测试",
+      "type": "detection_method"
+    },
+    {
+      "id": "concept:oil_analysis",
+      "name": "油液分析",
+      "type": "detection_method"
+    },
+    {
+      "id": "concept:one_x_vibration_high",
+      "name": "1× 转频振动突出",
+      "type": "symptom"
+    },
+    {
+      "id": "concept:orbit_change",
+      "name": "轴心轨迹异常",
+      "type": "symptom"
+    },
+    {
+      "id": "concept:rolling_bearing",
+      "name": "滚动轴承",
+      "type": "component"
+    },
+    {
+      "id": "concept:rotor",
+      "name": "转子",
+      "type": "component"
+    },
+    {
+      "id": "concept:rotor_misalignment",
+      "name": "转子不对中",
+      "type": "fault_mode"
+    },
+    {
+      "id": "concept:rotor_rub",
+      "name": "转子碰摩",
+      "type": "fault_mode"
+    },
+    {
+      "id": "concept:rotor_unbalance",
+      "name": "转子不平衡",
+      "type": "fault_mode"
+    },
+    {
+      "id": "concept:shaft",
+      "name": "轴",
+      "type": "component"
+    },
+    {
+      "id": "concept:shaft_bow",
+      "name": "轴弯曲",
+      "type": "fault_mode"
+    },
+    {
+      "id": "concept:shaft_crack",
+      "name": "轴裂纹",
+      "type": "fault_mode"
+    },
+    {
+      "id": "concept:shaft_current",
+      "name": "轴电流",
+      "type": "fault_cause"
+    },
+    {
+      "id": "concept:shaft_orbit_analysis",
+      "name": "轴心轨迹分析",
+      "type": "detection_method"
+    },
+    {
+      "id": "concept:sidebands_around_resonance",
+      "name": "共振峰附近边带",
+      "type": "symptom"
+    },
+    {
+      "id": "concept:speed_frequency_sidebands",
+      "name": "转频边带",
+      "type": "symptom"
+    },
+    {
+      "id": "concept:steam_turbine",
+      "name": "汽轮机",
+      "type": "equipment_class"
+    },
+    {
+      "id": "concept:structural_resonance",
+      "name": "结构共振",
+      "type": "fault_mode"
+    },
+    {
+      "id": "concept:temperature_rise",
+      "name": "温升异常",
+      "type": "symptom"
+    },
+    {
+      "id": "concept:thermal_expansion",
+      "name": "热膨胀",
+      "type": "fault_cause"
+    },
+    {
+      "id": "concept:time_waveform_analysis",
+      "name": "时域波形分析",
+      "type": "detection_method"
+    },
+    {
+      "id": "concept:two_x_vibration_high",
+      "name": "2× 转频振动突出",
+      "type": "symptom"
+    },
+    {
+      "id": "concept:vibration_level_rise",
+      "name": "振动烈度升高",
+      "type": "symptom"
+    },
+    {
+      "id": "ddaef5ea68310f1b:concept:fault_mode:保持架故障",
+      "name": "保持架故障",
+      "type": "fault_mode"
+    },
+    {
+      "id": "ddaef5ea68310f1b:concept:fault_mode:内圈故障",
+      "name": "内圈故障",
+      "type": "fault_mode"
+    },
+    {
+      "id": "ddaef5ea68310f1b:concept:fault_mode:外圈故障",
+      "name": "外圈故障",
+      "type": "fault_mode"
+    },
+    {
+      "id": "ddaef5ea68310f1b:concept:fault_mode:滚动体故障",
+      "name": "滚动体故障",
+      "type": "fault_mode"
+    }
+  ],
+  "edges": [
+    {
+      "head_id": "86d03750e457ff1f:concept:fault_mode:localsurfacedamageonageartooth",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "86d03750e457ff1f",
+      "evidence_ids": [
+        "ev:86d03750e457ff1f:12:1645-3230"
+      ],
+      "confidence": 0.52,
+      "anchors": []
+    },
+    {
+      "head_id": "906bd81774ba8b1a:concept:fault_mode:内圈故障",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "906bd81774ba8b1a",
+      "evidence_ids": [
+        "ev:906bd81774ba8b1a:33:5786-5847",
+        "ev:906bd81774ba8b1a:34:190-1606"
+      ],
+      "confidence": 0.7,
+      "anchors": []
+    },
+    {
+      "head_id": "906bd81774ba8b1a:concept:fault_mode:内外圈复合故障",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "906bd81774ba8b1a",
+      "evidence_ids": [
+        "ev:906bd81774ba8b1a:33:5786-5847",
+        "ev:906bd81774ba8b1a:34:190-1606"
+      ],
+      "confidence": 0.6,
+      "anchors": []
+    },
+    {
+      "head_id": "906bd81774ba8b1a:concept:fault_mode:外圈故障",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "906bd81774ba8b1a",
+      "evidence_ids": [
+        "ev:906bd81774ba8b1a:33:5786-5847",
+        "ev:906bd81774ba8b1a:34:190-1606"
+      ],
+      "confidence": 0.7,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:bearing_cage_fracture",
+      "relation": "indicated_by",
+      "tail_id": "concept:ftf_harmonics",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:20:2411-2445"
+      ],
+      "confidence": 0.75,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:bearing_electrical_erosion",
+      "relation": "has_cause",
+      "tail_id": "concept:shaft_current",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:17:278-4503"
+      ],
+      "confidence": 0.8,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:bearing_inner_race_fatigue_spalling",
+      "relation": "detected_by",
+      "tail_id": "concept:envelope_demodulation",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:5-291"
+      ],
+      "confidence": 0.85,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:bearing_inner_race_fatigue_spalling",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:5-291"
+      ],
+      "confidence": 0.85,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:bearing_inner_race_fatigue_spalling",
+      "relation": "indicated_by",
+      "tail_id": "concept:bpfi_harmonics",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:20:2313-2345"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:bearing_outer_race_fatigue_spalling",
+      "relation": "detected_by",
+      "tail_id": "concept:envelope_demodulation",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:5-291"
+      ],
+      "confidence": 0.85,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:bearing_outer_race_fatigue_spalling",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:5-291"
+      ],
+      "confidence": 0.85,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:bearing_outer_race_fatigue_spalling",
+      "relation": "indicated_by",
+      "tail_id": "concept:bpfo_harmonics",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:20:2270-2302"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:bearing_rolling_element_fatigue_spalling",
+      "relation": "detected_by",
+      "tail_id": "concept:envelope_demodulation",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:5-291"
+      ],
+      "confidence": 0.85,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:bearing_rolling_element_fatigue_spalling",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:5-291"
+      ],
+      "confidence": 0.85,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:bearing_rolling_element_fatigue_spalling",
+      "relation": "detected_by",
+      "tail_id": "concept:time_waveform_analysis",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:28:1033-1037",
+        "ev:4a8dc5af5de2cfe4:28:1038-1353"
+      ],
+      "confidence": 0.45,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:bearing_rolling_element_fatigue_spalling",
+      "relation": "indicated_by",
+      "tail_id": "concept:bsf_harmonics",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:20:2346-2398"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:bearing_rolling_element_fatigue_spalling",
+      "relation": "indicated_by",
+      "tail_id": "concept:high_frequency_impact",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:28:1038-1353",
+        "ev:4a8dc5af5de2cfe4:28:211-340"
+      ],
+      "confidence": 0.45,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:centrifugal_fan",
+      "relation": "has_component",
+      "tail_id": "concept:rotor",
+      "doc_id": "001544229fcbe87d",
+      "evidence_ids": [
+        "ev:001544229fcbe87d:3:14-184",
+        "ev:001544229fcbe87d:3:1431-1671"
+      ],
+      "confidence": 0.65,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:centrifugal_fan",
+      "relation": "has_component",
+      "tail_id": "concept:rotor",
+      "doc_id": "66f9a7c0b49899ca",
+      "evidence_ids": [
+        "ev:66f9a7c0b49899ca:3:1432-1911"
+      ],
+      "confidence": 0.7,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:centrifugal_pump",
+      "relation": "has_component",
+      "tail_id": "concept:impeller",
+      "doc_id": "72362dcee50f1d63",
+      "evidence_ids": [
+        "ev:72362dcee50f1d63:4:2063-2593",
+        "ev:72362dcee50f1d63:5:232-298",
+        "ev:72362dcee50f1d63:5:299-671",
+        "ev:72362dcee50f1d63:6:529-989"
+      ],
+      "confidence": 0.75,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:centrifugal_pump",
+      "relation": "has_component",
+      "tail_id": "concept:rolling_bearing",
+      "doc_id": "72362dcee50f1d63",
+      "evidence_ids": [
+        "ev:72362dcee50f1d63:15:218-1192",
+        "ev:72362dcee50f1d63:5:1061-1124",
+        "ev:72362dcee50f1d63:6:529-989"
+      ],
+      "confidence": 0.7,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:centrifugal_pump",
+      "relation": "has_component",
+      "tail_id": "concept:shaft",
+      "doc_id": "72362dcee50f1d63",
+      "evidence_ids": [
+        "ev:72362dcee50f1d63:5:672-743",
+        "ev:72362dcee50f1d63:6:529-989"
+      ],
+      "confidence": 0.7,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:compressor",
+      "relation": "has_component",
+      "tail_id": "concept:coupling",
+      "doc_id": "742178038a41d5ea",
+      "evidence_ids": [
+        "ev:742178038a41d5ea:2:3733-4813"
+      ],
+      "confidence": 0.7,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:compressor",
+      "relation": "has_component",
+      "tail_id": "concept:impeller",
+      "doc_id": "742178038a41d5ea",
+      "evidence_ids": [
+        "ev:742178038a41d5ea:2:2580-3732",
+        "ev:742178038a41d5ea:2:3733-4813"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:compressor",
+      "relation": "has_component",
+      "tail_id": "concept:shaft",
+      "doc_id": "742178038a41d5ea",
+      "evidence_ids": [
+        "ev:742178038a41d5ea:2:2580-3732"
+      ],
+      "confidence": 0.7,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:coupling",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:rotor_misalignment",
+      "doc_id": "001544229fcbe87d",
+      "evidence_ids": [
+        "ev:001544229fcbe87d:3:874-1029"
+      ],
+      "confidence": 0.85,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:foundation_looseness",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "66f9a7c0b49899ca",
+      "evidence_ids": [
+        "ev:66f9a7c0b49899ca:3:538-958",
+        "ev:66f9a7c0b49899ca:3:959-1420"
+      ],
+      "confidence": 0.68,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:foundation_looseness",
+      "relation": "has_cause",
+      "tail_id": "concept:insufficient_foundation_stiffness",
+      "doc_id": "66f9a7c0b49899ca",
+      "evidence_ids": [
+        "ev:66f9a7c0b49899ca:2:1218-1427",
+        "ev:66f9a7c0b49899ca:4:43-245"
+      ],
+      "confidence": 0.88,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:foundation_looseness",
+      "relation": "indicated_by",
+      "tail_id": "concept:axial_vibration_high",
+      "doc_id": "66f9a7c0b49899ca",
+      "evidence_ids": [
+        "ev:66f9a7c0b49899ca:1:0-21",
+        "ev:66f9a7c0b49899ca:3:959-1420"
+      ],
+      "confidence": 0.94,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:foundation_looseness",
+      "relation": "indicated_by",
+      "tail_id": "concept:one_x_vibration_high",
+      "doc_id": "001544229fcbe87d",
+      "evidence_ids": [
+        "ev:001544229fcbe87d:4:341-479"
+      ],
+      "confidence": 0.75,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:foundation_looseness",
+      "relation": "indicated_by",
+      "tail_id": "concept:one_x_vibration_high",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:21:216-317"
+      ],
+      "confidence": 0.7,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:foundation_looseness",
+      "relation": "indicated_by",
+      "tail_id": "concept:one_x_vibration_high",
+      "doc_id": "66f9a7c0b49899ca",
+      "evidence_ids": [
+        "ev:66f9a7c0b49899ca:2:789-1012",
+        "ev:66f9a7c0b49899ca:3:1432-1911"
+      ],
+      "confidence": 0.72,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:foundation_looseness",
+      "relation": "indicated_by",
+      "tail_id": "concept:orbit_change",
+      "doc_id": "001544229fcbe87d",
+      "evidence_ids": [
+        "ev:001544229fcbe87d:4:341-479"
+      ],
+      "confidence": 0.65,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:foundation_looseness",
+      "relation": "indicated_by",
+      "tail_id": "concept:vibration_level_rise",
+      "doc_id": "66f9a7c0b49899ca",
+      "evidence_ids": [
+        "ev:66f9a7c0b49899ca:3:538-958",
+        "ev:66f9a7c0b49899ca:3:959-1420"
+      ],
+      "confidence": 0.75,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gear_pair",
+      "relation": "has_fault_mode",
+      "tail_id": "86d03750e457ff1f:concept:fault_mode:localsurfacedamageonageartooth",
+      "doc_id": "86d03750e457ff1f",
+      "evidence_ids": [
+        "ev:86d03750e457ff1f:12:1645-3230"
+      ],
+      "confidence": 0.6,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gear_pair",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:gear_tooth_abrasive_wear",
+      "doc_id": "1be1ecd65c1482c8",
+      "evidence_ids": [
+        "ev:1be1ecd65c1482c8:6:493-1493"
+      ],
+      "confidence": 0.5,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gear_pair",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:gear_tooth_abrasive_wear",
+      "doc_id": "c169b3184c37a610",
+      "evidence_ids": [
+        "ev:c169b3184c37a610:1:1375-1618",
+        "ev:c169b3184c37a610:3:1374-1434",
+        "ev:c169b3184c37a610:5:99-175",
+        "ev:c169b3184c37a610:6:1364-1567"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gear_pair",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:gear_tooth_abrasive_wear",
+      "doc_id": "ce1b34c82ccf0ae1",
+      "evidence_ids": [
+        "ev:ce1b34c82ccf0ae1:14:2134-4076"
+      ],
+      "confidence": 0.65,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gear_pair",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:gear_tooth_breakage",
+      "doc_id": "1be1ecd65c1482c8",
+      "evidence_ids": [
+        "ev:1be1ecd65c1482c8:3:2297-3020",
+        "ev:1be1ecd65c1482c8:5:2-293",
+        "ev:1be1ecd65c1482c8:8:1493-1543",
+        "ev:1be1ecd65c1482c8:8:1599-1612"
+      ],
+      "confidence": 0.7,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gear_pair",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:gear_tooth_breakage",
+      "doc_id": "4f88106f26629c63",
+      "evidence_ids": [
+        "ev:4f88106f26629c63:1:445-3923",
+        "ev:4f88106f26629c63:4:1442-1479",
+        "ev:4f88106f26629c63:4:1549-2086",
+        "ev:4f88106f26629c63:4:25-73",
+        "ev:4f88106f26629c63:4:82-128",
+        "ev:4f88106f26629c63:5:398-433",
+        "ev:4f88106f26629c63:6:0-365"
+      ],
+      "confidence": 0.86,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gear_pair",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:gear_tooth_breakage",
+      "doc_id": "c169b3184c37a610",
+      "evidence_ids": [
+        "ev:c169b3184c37a610:1:1375-1618",
+        "ev:c169b3184c37a610:3:1374-1434",
+        "ev:c169b3184c37a610:5:99-175",
+        "ev:c169b3184c37a610:6:1364-1567"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gear_pair",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:gear_tooth_macropitting",
+      "doc_id": "c169b3184c37a610",
+      "evidence_ids": [
+        "ev:c169b3184c37a610:1:1375-1618",
+        "ev:c169b3184c37a610:3:1374-1434",
+        "ev:c169b3184c37a610:5:99-175",
+        "ev:c169b3184c37a610:6:1364-1567"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gear_pair",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:gear_tooth_root_fatigue_crack",
+      "doc_id": "1be1ecd65c1482c8",
+      "evidence_ids": [
+        "ev:1be1ecd65c1482c8:9:2000-2115"
+      ],
+      "confidence": 0.65,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gear_pair",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:gear_tooth_scuffing",
+      "doc_id": "86d03750e457ff1f",
+      "evidence_ids": [
+        "ev:86d03750e457ff1f:6:1203-2331"
+      ],
+      "confidence": 0.68,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gear_tooth_breakage",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "1be1ecd65c1482c8",
+      "evidence_ids": [
+        "ev:1be1ecd65c1482c8:4:68-81",
+        "ev:1be1ecd65c1482c8:5:294-1283",
+        "ev:1be1ecd65c1482c8:7:1720-1761",
+        "ev:1be1ecd65c1482c8:8:1613-1640"
+      ],
+      "confidence": 0.8,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gear_tooth_breakage",
+      "relation": "detected_by",
+      "tail_id": "concept:time_waveform_analysis",
+      "doc_id": "1be1ecd65c1482c8",
+      "evidence_ids": [
+        "ev:1be1ecd65c1482c8:4:82-128",
+        "ev:1be1ecd65c1482c8:5:294-1283",
+        "ev:1be1ecd65c1482c8:8:1558-1598",
+        "ev:1be1ecd65c1482c8:8:1613-1640"
+      ],
+      "confidence": 0.7,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gear_tooth_breakage",
+      "relation": "indicated_by",
+      "tail_id": "concept:sidebands_around_resonance",
+      "doc_id": "1be1ecd65c1482c8",
+      "evidence_ids": [
+        "ev:1be1ecd65c1482c8:5:294-1283"
+      ],
+      "confidence": 0.45,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gear_tooth_breakage",
+      "relation": "indicated_by",
+      "tail_id": "concept:vibration_level_rise",
+      "doc_id": "1be1ecd65c1482c8",
+      "evidence_ids": [
+        "ev:1be1ecd65c1482c8:5:294-1283"
+      ],
+      "confidence": 0.5,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gear_tooth_macropitting",
+      "relation": "confused_with",
+      "tail_id": "concept:gear_tooth_abrasive_wear",
+      "doc_id": "c169b3184c37a610",
+      "evidence_ids": [
+        "ev:c169b3184c37a610:5:176-331"
+      ],
+      "confidence": 0.4,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gear_tooth_scuffing",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "86d03750e457ff1f",
+      "evidence_ids": [
+        "ev:86d03750e457ff1f:7:45-1241",
+        "ev:86d03750e457ff1f:8:1859-2275"
+      ],
+      "confidence": 0.62,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gearbox",
+      "relation": "has_component",
+      "tail_id": "concept:gear_pair",
+      "doc_id": "1be1ecd65c1482c8",
+      "evidence_ids": [
+        "ev:1be1ecd65c1482c8:10:3-92",
+        "ev:1be1ecd65c1482c8:2:1144-2326",
+        "ev:1be1ecd65c1482c8:3:2297-3020",
+        "ev:1be1ecd65c1482c8:6:493-1493",
+        "ev:1be1ecd65c1482c8:8:2-1455",
+        "ev:1be1ecd65c1482c8:9:1179-1226",
+        "ev:1be1ecd65c1482c8:9:1542-1631"
+      ],
+      "confidence": 0.85,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gearbox",
+      "relation": "has_component",
+      "tail_id": "concept:gear_pair",
+      "doc_id": "4f88106f26629c63",
+      "evidence_ids": [
+        "ev:4f88106f26629c63:1:445-3923",
+        "ev:4f88106f26629c63:4:1549-2086",
+        "ev:4f88106f26629c63:4:2537-2599",
+        "ev:4f88106f26629c63:5:135-262",
+        "ev:4f88106f26629c63:5:398-433",
+        "ev:4f88106f26629c63:6:935-1543"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gearbox",
+      "relation": "has_component",
+      "tail_id": "concept:gear_pair",
+      "doc_id": "86d03750e457ff1f",
+      "evidence_ids": [
+        "ev:86d03750e457ff1f:12:1645-3230",
+        "ev:86d03750e457ff1f:2:45-3914",
+        "ev:86d03750e457ff1f:6:1203-2331",
+        "ev:86d03750e457ff1f:6:45-1202"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gearbox",
+      "relation": "has_component",
+      "tail_id": "concept:gear_pair",
+      "doc_id": "c169b3184c37a610",
+      "evidence_ids": [
+        "ev:c169b3184c37a610:1:1375-1618",
+        "ev:c169b3184c37a610:3:1209-1291",
+        "ev:c169b3184c37a610:5:0-98",
+        "ev:c169b3184c37a610:5:99-175"
+      ],
+      "confidence": 0.85,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gearbox",
+      "relation": "has_component",
+      "tail_id": "concept:gear_pair",
+      "doc_id": "ce1b34c82ccf0ae1",
+      "evidence_ids": [
+        "ev:ce1b34c82ccf0ae1:11:235-649",
+        "ev:ce1b34c82ccf0ae1:11:3387-4522",
+        "ev:ce1b34c82ccf0ae1:14:2134-4076",
+        "ev:ce1b34c82ccf0ae1:15:1193-2684",
+        "ev:ce1b34c82ccf0ae1:16:1089-3905",
+        "ev:ce1b34c82ccf0ae1:4:3615-4664",
+        "ev:ce1b34c82ccf0ae1:5:323-1610",
+        "ev:ce1b34c82ccf0ae1:7:0-602"
+      ],
+      "confidence": 0.8,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gearbox",
+      "relation": "has_component",
+      "tail_id": "concept:gear_pair",
+      "doc_id": "f4ffe7bf8b08e97c",
+      "evidence_ids": [
+        "ev:f4ffe7bf8b08e97c:1:258-1765",
+        "ev:f4ffe7bf8b08e97c:2:0-631",
+        "ev:f4ffe7bf8b08e97c:5:1095-1683",
+        "ev:f4ffe7bf8b08e97c:7:941-1530"
+      ],
+      "confidence": 0.84,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gearbox",
+      "relation": "has_component",
+      "tail_id": "concept:rolling_bearing",
+      "doc_id": "86d03750e457ff1f",
+      "evidence_ids": [
+        "ev:86d03750e457ff1f:2:45-3914",
+        "ev:86d03750e457ff1f:6:1203-2331",
+        "ev:86d03750e457ff1f:6:45-1202"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gearbox",
+      "relation": "has_component",
+      "tail_id": "concept:rolling_bearing",
+      "doc_id": "f4ffe7bf8b08e97c",
+      "evidence_ids": [
+        "ev:f4ffe7bf8b08e97c:1:258-1765",
+        "ev:f4ffe7bf8b08e97c:2:0-631",
+        "ev:f4ffe7bf8b08e97c:5:1095-1683",
+        "ev:f4ffe7bf8b08e97c:8:1186-1217",
+        "ev:f4ffe7bf8b08e97c:8:1218-1251"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:gearbox",
+      "relation": "has_component",
+      "tail_id": "concept:shaft",
+      "doc_id": "f4ffe7bf8b08e97c",
+      "evidence_ids": [
+        "ev:f4ffe7bf8b08e97c:2:0-631",
+        "ev:f4ffe7bf8b08e97c:5:1095-1683",
+        "ev:f4ffe7bf8b08e97c:8:1134-1150",
+        "ev:f4ffe7bf8b08e97c:8:1169-1185"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:impeller",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:rotor_unbalance",
+      "doc_id": "72362dcee50f1d63",
+      "evidence_ids": [
+        "ev:72362dcee50f1d63:5:232-298",
+        "ev:72362dcee50f1d63:5:299-671",
+        "ev:72362dcee50f1d63:6:280-302"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "906bd81774ba8b1a:concept:fault_mode:内圈故障",
+      "doc_id": "906bd81774ba8b1a",
+      "evidence_ids": [
+        "ev:906bd81774ba8b1a:33:2199-5205"
+      ],
+      "confidence": 0.8,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "906bd81774ba8b1a:concept:fault_mode:内外圈复合故障",
+      "doc_id": "906bd81774ba8b1a",
+      "evidence_ids": [
+        "ev:906bd81774ba8b1a:33:2199-5205"
+      ],
+      "confidence": 0.65,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "906bd81774ba8b1a:concept:fault_mode:外圈故障",
+      "doc_id": "906bd81774ba8b1a",
+      "evidence_ids": [
+        "ev:906bd81774ba8b1a:33:2199-5205"
+      ],
+      "confidence": 0.8,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:bearing_cage_fracture",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:20:2411-2445"
+      ],
+      "confidence": 0.7,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:bearing_electrical_erosion",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:17:278-4503"
+      ],
+      "confidence": 0.65,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:bearing_inner_race_fatigue_spalling",
+      "doc_id": "03261576178dbe8a",
+      "evidence_ids": [
+        "ev:03261576178dbe8a:4:336-462",
+        "ev:03261576178dbe8a:5:859-1077"
+      ],
+      "confidence": 0.95,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:bearing_inner_race_fatigue_spalling",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:20:2091-2269",
+        "ev:4a8dc5af5de2cfe4:20:2313-2345",
+        "ev:4a8dc5af5de2cfe4:28:2001-2169",
+        "ev:4a8dc5af5de2cfe4:28:2170-2198",
+        "ev:4a8dc5af5de2cfe4:6:184-1416"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:bearing_inner_race_fatigue_spalling",
+      "doc_id": "72362dcee50f1d63",
+      "evidence_ids": [
+        "ev:72362dcee50f1d63:4:271-995"
+      ],
+      "confidence": 0.55,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:bearing_inner_race_fatigue_spalling",
+      "doc_id": "a69b5214a36a9857",
+      "evidence_ids": [
+        "ev:a69b5214a36a9857:6:1058-1203"
+      ],
+      "confidence": 0.65,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:bearing_inner_race_fatigue_spalling",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:5-291"
+      ],
+      "confidence": 0.75,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:bearing_inner_race_fatigue_spalling",
+      "doc_id": "e5e7eb44bb7767fa",
+      "evidence_ids": [
+        "ev:e5e7eb44bb7767fa:7:818-931"
+      ],
+      "confidence": 0.62,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:bearing_outer_race_fatigue_spalling",
+      "doc_id": "03261576178dbe8a",
+      "evidence_ids": [
+        "ev:03261576178dbe8a:4:336-462",
+        "ev:03261576178dbe8a:5:859-1077"
+      ],
+      "confidence": 0.95,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:bearing_outer_race_fatigue_spalling",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:20:2091-2269",
+        "ev:4a8dc5af5de2cfe4:20:2270-2302",
+        "ev:4a8dc5af5de2cfe4:28:2001-2169",
+        "ev:4a8dc5af5de2cfe4:6:184-1416"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:bearing_outer_race_fatigue_spalling",
+      "doc_id": "72362dcee50f1d63",
+      "evidence_ids": [
+        "ev:72362dcee50f1d63:4:271-995"
+      ],
+      "confidence": 0.55,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:bearing_outer_race_fatigue_spalling",
+      "doc_id": "a69b5214a36a9857",
+      "evidence_ids": [
+        "ev:a69b5214a36a9857:6:1058-1203"
+      ],
+      "confidence": 0.65,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:bearing_outer_race_fatigue_spalling",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:5-291"
+      ],
+      "confidence": 0.75,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:bearing_outer_race_fatigue_spalling",
+      "doc_id": "e5e7eb44bb7767fa",
+      "evidence_ids": [
+        "ev:e5e7eb44bb7767fa:7:818-931"
+      ],
+      "confidence": 0.62,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:bearing_rolling_element_fatigue_spalling",
+      "doc_id": "03261576178dbe8a",
+      "evidence_ids": [
+        "ev:03261576178dbe8a:4:336-462",
+        "ev:03261576178dbe8a:4:541-671",
+        "ev:03261576178dbe8a:5:859-1077"
+      ],
+      "confidence": 0.95,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:bearing_rolling_element_fatigue_spalling",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:20:2091-2269",
+        "ev:4a8dc5af5de2cfe4:20:2346-2398",
+        "ev:4a8dc5af5de2cfe4:28:2001-2169",
+        "ev:4a8dc5af5de2cfe4:6:184-1416"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:bearing_rolling_element_fatigue_spalling",
+      "doc_id": "72362dcee50f1d63",
+      "evidence_ids": [
+        "ev:72362dcee50f1d63:4:271-995"
+      ],
+      "confidence": 0.55,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:bearing_rolling_element_fatigue_spalling",
+      "doc_id": "a69b5214a36a9857",
+      "evidence_ids": [
+        "ev:a69b5214a36a9857:6:1058-1203"
+      ],
+      "confidence": 0.65,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:bearing_rolling_element_fatigue_spalling",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:5-291"
+      ],
+      "confidence": 0.75,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:bearing_rolling_element_fatigue_spalling",
+      "doc_id": "e5e7eb44bb7767fa",
+      "evidence_ids": [
+        "ev:e5e7eb44bb7767fa:7:818-931"
+      ],
+      "confidence": 0.62,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "ddaef5ea68310f1b:concept:fault_mode:保持架故障",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:1:1294-1524",
+        "ev:ddaef5ea68310f1b:3:899-1010"
+      ],
+      "confidence": 0.85,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "ddaef5ea68310f1b:concept:fault_mode:内圈故障",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:1:1294-1524",
+        "ev:ddaef5ea68310f1b:3:899-1010"
+      ],
+      "confidence": 0.85,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "ddaef5ea68310f1b:concept:fault_mode:外圈故障",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:1:1294-1524",
+        "ev:ddaef5ea68310f1b:3:899-1010"
+      ],
+      "confidence": 0.85,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rolling_bearing",
+      "relation": "has_fault_mode",
+      "tail_id": "ddaef5ea68310f1b:concept:fault_mode:滚动体故障",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:1:1294-1524",
+        "ev:ddaef5ea68310f1b:3:899-1010"
+      ],
+      "confidence": 0.85,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:rotor_misalignment",
+      "doc_id": "289961f5bd82f302",
+      "evidence_ids": [
+        "ev:289961f5bd82f302:1:1720-1770",
+        "ev:289961f5bd82f302:1:98-146"
+      ],
+      "confidence": 0.8,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:rotor_misalignment",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:17:278-4503"
+      ],
+      "confidence": 0.85,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:rotor_misalignment",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:1025-1347"
+      ],
+      "confidence": 0.95,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:rotor_rub",
+      "doc_id": "001544229fcbe87d",
+      "evidence_ids": [
+        "ev:001544229fcbe87d:4:341-479"
+      ],
+      "confidence": 0.75,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:rotor_rub",
+      "doc_id": "742178038a41d5ea",
+      "evidence_ids": [
+        "ev:742178038a41d5ea:17:1081-1646",
+        "ev:742178038a41d5ea:19:0-440",
+        "ev:742178038a41d5ea:1:2183-3008",
+        "ev:742178038a41d5ea:1:355-1461"
+      ],
+      "confidence": 0.8,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:rotor_unbalance",
+      "doc_id": "001544229fcbe87d",
+      "evidence_ids": [
+        "ev:001544229fcbe87d:3:1431-1671",
+        "ev:001544229fcbe87d:4:341-479"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:rotor_unbalance",
+      "doc_id": "289961f5bd82f302",
+      "evidence_ids": [
+        "ev:289961f5bd82f302:1:1720-1770",
+        "ev:289961f5bd82f302:1:98-146"
+      ],
+      "confidence": 0.8,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:rotor_unbalance",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:17:278-4503",
+        "ev:4a8dc5af5de2cfe4:38:1072-1199",
+        "ev:4a8dc5af5de2cfe4:6:184-1416"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:rotor_unbalance",
+      "doc_id": "742178038a41d5ea",
+      "evidence_ids": [
+        "ev:742178038a41d5ea:11:765-1703",
+        "ev:742178038a41d5ea:1:1510-2182",
+        "ev:742178038a41d5ea:1:355-1461",
+        "ev:742178038a41d5ea:20:499-839",
+        "ev:742178038a41d5ea:20:840-1359",
+        "ev:742178038a41d5ea:21:313-618",
+        "ev:742178038a41d5ea:3:1068-1511",
+        "ev:742178038a41d5ea:3:2909-3531",
+        "ev:742178038a41d5ea:3:3532-4140",
+        "ev:742178038a41d5ea:4:1332-1632",
+        "ev:742178038a41d5ea:8:764-1146"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:rotor_unbalance",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:570-1024"
+      ],
+      "confidence": 0.95,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:shaft_bow",
+      "doc_id": "742178038a41d5ea",
+      "evidence_ids": [
+        "ev:742178038a41d5ea:19:1091-1343",
+        "ev:742178038a41d5ea:1:2183-3008",
+        "ev:742178038a41d5ea:2:0-713"
+      ],
+      "confidence": 0.8,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:structural_resonance",
+      "doc_id": "001544229fcbe87d",
+      "evidence_ids": [
+        "ev:001544229fcbe87d:1:357-1511"
+      ],
+      "confidence": 0.65,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:structural_resonance",
+      "doc_id": "289961f5bd82f302",
+      "evidence_ids": [
+        "ev:289961f5bd82f302:7:182-330",
+        "ev:289961f5bd82f302:8:183-327"
+      ],
+      "confidence": 0.5,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:structural_resonance",
+      "doc_id": "742178038a41d5ea",
+      "evidence_ids": [
+        "ev:742178038a41d5ea:20:1722-2304"
+      ],
+      "confidence": 0.4,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_misalignment",
+      "relation": "detected_by",
+      "tail_id": "concept:envelope_demodulation",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:1025-1347"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_misalignment",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "289961f5bd82f302",
+      "evidence_ids": [
+        "ev:289961f5bd82f302:1:1720-1770",
+        "ev:289961f5bd82f302:1:428-1302"
+      ],
+      "confidence": 0.55,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_misalignment",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "72362dcee50f1d63",
+      "evidence_ids": [
+        "ev:72362dcee50f1d63:15:218-1192",
+        "ev:72362dcee50f1d63:1:595-1454",
+        "ev:72362dcee50f1d63:2:36-809"
+      ],
+      "confidence": 0.6,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_misalignment",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:1025-1347"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_misalignment",
+      "relation": "detected_by",
+      "tail_id": "concept:shaft_orbit_analysis",
+      "doc_id": "001544229fcbe87d",
+      "evidence_ids": [
+        "ev:001544229fcbe87d:3:874-1029"
+      ],
+      "confidence": 0.7,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_misalignment",
+      "relation": "indicated_by",
+      "tail_id": "concept:axial_vibration_high",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:20:1933-2077",
+        "ev:4a8dc5af5de2cfe4:20:2078-2090"
+      ],
+      "confidence": 0.85,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_misalignment",
+      "relation": "indicated_by",
+      "tail_id": "concept:axial_vibration_high",
+      "doc_id": "66f9a7c0b49899ca",
+      "evidence_ids": [
+        "ev:66f9a7c0b49899ca:1:1327-1653"
+      ],
+      "confidence": 0.78,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_misalignment",
+      "relation": "indicated_by",
+      "tail_id": "concept:orbit_change",
+      "doc_id": "001544229fcbe87d",
+      "evidence_ids": [
+        "ev:001544229fcbe87d:3:874-1029"
+      ],
+      "confidence": 0.75,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_misalignment",
+      "relation": "indicated_by",
+      "tail_id": "concept:two_x_vibration_high",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:20:1933-2077"
+      ],
+      "confidence": 0.85,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_misalignment",
+      "relation": "indicated_by",
+      "tail_id": "concept:two_x_vibration_high",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:1025-1347"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_rub",
+      "relation": "indicated_by",
+      "tail_id": "concept:one_x_vibration_high",
+      "doc_id": "001544229fcbe87d",
+      "evidence_ids": [
+        "ev:001544229fcbe87d:4:341-479"
+      ],
+      "confidence": 0.75,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_rub",
+      "relation": "indicated_by",
+      "tail_id": "concept:one_x_vibration_high",
+      "doc_id": "742178038a41d5ea",
+      "evidence_ids": [
+        "ev:742178038a41d5ea:17:1647-2288"
+      ],
+      "confidence": 0.65,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_rub",
+      "relation": "indicated_by",
+      "tail_id": "concept:orbit_change",
+      "doc_id": "001544229fcbe87d",
+      "evidence_ids": [
+        "ev:001544229fcbe87d:4:341-479"
+      ],
+      "confidence": 0.75,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_rub",
+      "relation": "indicated_by",
+      "tail_id": "concept:temperature_rise",
+      "doc_id": "742178038a41d5ea",
+      "evidence_ids": [
+        "ev:742178038a41d5ea:19:0-440"
+      ],
+      "confidence": 0.7,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_unbalance",
+      "relation": "confused_with",
+      "tail_id": "concept:structural_resonance",
+      "doc_id": "001544229fcbe87d",
+      "evidence_ids": [
+        "ev:001544229fcbe87d:3:1431-1671"
+      ],
+      "confidence": 0.75,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_unbalance",
+      "relation": "detected_by",
+      "tail_id": "concept:envelope_demodulation",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:570-1024"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_unbalance",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "001544229fcbe87d",
+      "evidence_ids": [
+        "ev:001544229fcbe87d:3:1431-1671"
+      ],
+      "confidence": 0.75,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_unbalance",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "289961f5bd82f302",
+      "evidence_ids": [
+        "ev:289961f5bd82f302:1:1720-1770",
+        "ev:289961f5bd82f302:1:428-1302"
+      ],
+      "confidence": 0.55,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_unbalance",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "72362dcee50f1d63",
+      "evidence_ids": [
+        "ev:72362dcee50f1d63:15:218-1192",
+        "ev:72362dcee50f1d63:1:595-1454",
+        "ev:72362dcee50f1d63:2:36-809"
+      ],
+      "confidence": 0.6,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_unbalance",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:570-1024"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_unbalance",
+      "relation": "detected_by",
+      "tail_id": "concept:time_waveform_analysis",
+      "doc_id": "1be1ecd65c1482c8",
+      "evidence_ids": [
+        "ev:1be1ecd65c1482c8:6:493-1493"
+      ],
+      "confidence": 0.4,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_unbalance",
+      "relation": "has_cause",
+      "tail_id": "concept:thermal_expansion",
+      "doc_id": "742178038a41d5ea",
+      "evidence_ids": [
+        "ev:742178038a41d5ea:11:765-1703",
+        "ev:742178038a41d5ea:1:2183-3008",
+        "ev:742178038a41d5ea:1:355-1461",
+        "ev:742178038a41d5ea:20:499-839",
+        "ev:742178038a41d5ea:20:840-1359",
+        "ev:742178038a41d5ea:21:619-975",
+        "ev:742178038a41d5ea:2:3733-4813",
+        "ev:742178038a41d5ea:3:2909-3531",
+        "ev:742178038a41d5ea:3:3532-4140",
+        "ev:742178038a41d5ea:3:607-1067",
+        "ev:742178038a41d5ea:7:234-714",
+        "ev:742178038a41d5ea:8:164-654",
+        "ev:742178038a41d5ea:8:764-1146"
+      ],
+      "confidence": 0.85,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_unbalance",
+      "relation": "indicated_by",
+      "tail_id": "concept:axial_vibration_high",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:20:1827-1909"
+      ],
+      "confidence": 0.8,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_unbalance",
+      "relation": "indicated_by",
+      "tail_id": "concept:axial_vibration_high",
+      "doc_id": "66f9a7c0b49899ca",
+      "evidence_ids": [
+        "ev:66f9a7c0b49899ca:1:1327-1653"
+      ],
+      "confidence": 0.75,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_unbalance",
+      "relation": "indicated_by",
+      "tail_id": "concept:one_x_vibration_high",
+      "doc_id": "001544229fcbe87d",
+      "evidence_ids": [
+        "ev:001544229fcbe87d:3:1431-1671",
+        "ev:001544229fcbe87d:4:341-479"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_unbalance",
+      "relation": "indicated_by",
+      "tail_id": "concept:one_x_vibration_high",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:20:1556-1605",
+        "ev:4a8dc5af5de2cfe4:20:1755-1804"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_unbalance",
+      "relation": "indicated_by",
+      "tail_id": "concept:one_x_vibration_high",
+      "doc_id": "742178038a41d5ea",
+      "evidence_ids": [
+        "ev:742178038a41d5ea:17:1081-1646",
+        "ev:742178038a41d5ea:1:1510-2182",
+        "ev:742178038a41d5ea:1:355-1461",
+        "ev:742178038a41d5ea:20:499-839",
+        "ev:742178038a41d5ea:21:313-618",
+        "ev:742178038a41d5ea:3:1641-1737",
+        "ev:742178038a41d5ea:3:2909-3531",
+        "ev:742178038a41d5ea:3:3532-4140",
+        "ev:742178038a41d5ea:3:607-1067",
+        "ev:742178038a41d5ea:6:1002-1824",
+        "ev:742178038a41d5ea:8:164-654"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_unbalance",
+      "relation": "indicated_by",
+      "tail_id": "concept:one_x_vibration_high",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:570-1024"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_unbalance",
+      "relation": "indicated_by",
+      "tail_id": "concept:orbit_change",
+      "doc_id": "742178038a41d5ea",
+      "evidence_ids": [
+        "ev:742178038a41d5ea:2:3733-4813",
+        "ev:742178038a41d5ea:3:0-206",
+        "ev:742178038a41d5ea:3:1641-1737"
+      ],
+      "confidence": 0.6,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_unbalance",
+      "relation": "indicated_by",
+      "tail_id": "concept:temperature_rise",
+      "doc_id": "742178038a41d5ea",
+      "evidence_ids": [
+        "ev:742178038a41d5ea:1:355-1461",
+        "ev:742178038a41d5ea:2:1106-2579"
+      ],
+      "confidence": 0.7,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_unbalance",
+      "relation": "indicated_by",
+      "tail_id": "concept:two_x_vibration_high",
+      "doc_id": "742178038a41d5ea",
+      "evidence_ids": [
+        "ev:742178038a41d5ea:5:2290-2904"
+      ],
+      "confidence": 0.4,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:rotor_unbalance",
+      "relation": "indicated_by",
+      "tail_id": "concept:vibration_level_rise",
+      "doc_id": "742178038a41d5ea",
+      "evidence_ids": [
+        "ev:742178038a41d5ea:3:1068-1511",
+        "ev:742178038a41d5ea:3:2909-3531",
+        "ev:742178038a41d5ea:3:607-1067"
+      ],
+      "confidence": 0.75,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:shaft",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:rotor_misalignment",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:6:184-1416"
+      ],
+      "confidence": 0.85,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:shaft",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:rotor_misalignment",
+      "doc_id": "72362dcee50f1d63",
+      "evidence_ids": [
+        "ev:72362dcee50f1d63:5:672-743",
+        "ev:72362dcee50f1d63:5:744-1060",
+        "ev:72362dcee50f1d63:6:317-340"
+      ],
+      "confidence": 0.9,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:shaft",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:shaft_bow",
+      "doc_id": "001544229fcbe87d",
+      "evidence_ids": [
+        "ev:001544229fcbe87d:4:341-479"
+      ],
+      "confidence": 0.7,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:shaft",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:shaft_bow",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:6:184-1416"
+      ],
+      "confidence": 0.85,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:shaft",
+      "relation": "has_fault_mode",
+      "tail_id": "concept:shaft_crack",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:6:184-1416"
+      ],
+      "confidence": 0.85,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:shaft_bow",
+      "relation": "has_cause",
+      "tail_id": "concept:thermal_expansion",
+      "doc_id": "742178038a41d5ea",
+      "evidence_ids": [
+        "ev:742178038a41d5ea:1:2183-3008"
+      ],
+      "confidence": 0.7,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:shaft_bow",
+      "relation": "indicated_by",
+      "tail_id": "concept:axial_vibration_high",
+      "doc_id": "001544229fcbe87d",
+      "evidence_ids": [
+        "ev:001544229fcbe87d:4:341-479"
+      ],
+      "confidence": 0.7,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:shaft_bow",
+      "relation": "indicated_by",
+      "tail_id": "concept:axial_vibration_high",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:21:119-187"
+      ],
+      "confidence": 0.8,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:shaft_bow",
+      "relation": "indicated_by",
+      "tail_id": "concept:axial_vibration_high",
+      "doc_id": "66f9a7c0b49899ca",
+      "evidence_ids": [
+        "ev:66f9a7c0b49899ca:1:1327-1653"
+      ],
+      "confidence": 0.78,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:shaft_bow",
+      "relation": "indicated_by",
+      "tail_id": "concept:one_x_vibration_high",
+      "doc_id": "001544229fcbe87d",
+      "evidence_ids": [
+        "ev:001544229fcbe87d:4:341-479"
+      ],
+      "confidence": 0.7,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:shaft_bow",
+      "relation": "indicated_by",
+      "tail_id": "concept:one_x_vibration_high",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:21:119-187"
+      ],
+      "confidence": 0.8,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:shaft_bow",
+      "relation": "indicated_by",
+      "tail_id": "concept:one_x_vibration_high",
+      "doc_id": "742178038a41d5ea",
+      "evidence_ids": [
+        "ev:742178038a41d5ea:19:1091-1343",
+        "ev:742178038a41d5ea:20:499-839"
+      ],
+      "confidence": 0.6,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:structural_resonance",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "001544229fcbe87d",
+      "evidence_ids": [
+        "ev:001544229fcbe87d:1:357-1511"
+      ],
+      "confidence": 0.6,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:structural_resonance",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "289961f5bd82f302",
+      "evidence_ids": [
+        "ev:289961f5bd82f302:1:1720-1770",
+        "ev:289961f5bd82f302:1:428-1302"
+      ],
+      "confidence": 0.5,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:structural_resonance",
+      "relation": "detected_by",
+      "tail_id": "concept:modal_testing",
+      "doc_id": "66f9a7c0b49899ca",
+      "evidence_ids": [
+        "ev:66f9a7c0b49899ca:1:1327-1653"
+      ],
+      "confidence": 0.8,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:structural_resonance",
+      "relation": "detected_by",
+      "tail_id": "concept:shaft_orbit_analysis",
+      "doc_id": "289961f5bd82f302",
+      "evidence_ids": [
+        "ev:289961f5bd82f302:7:182-330",
+        "ev:289961f5bd82f302:8:183-327"
+      ],
+      "confidence": 0.55,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:structural_resonance",
+      "relation": "indicated_by",
+      "tail_id": "concept:axial_vibration_high",
+      "doc_id": "66f9a7c0b49899ca",
+      "evidence_ids": [
+        "ev:66f9a7c0b49899ca:1:1327-1653"
+      ],
+      "confidence": 0.78,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:structural_resonance",
+      "relation": "indicated_by",
+      "tail_id": "concept:one_x_vibration_high",
+      "doc_id": "001544229fcbe87d",
+      "evidence_ids": [
+        "ev:001544229fcbe87d:3:1431-1671"
+      ],
+      "confidence": 0.7,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:structural_resonance",
+      "relation": "indicated_by",
+      "tail_id": "concept:one_x_vibration_high",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:21:485-558"
+      ],
+      "confidence": 0.7,
+      "anchors": []
+    },
+    {
+      "head_id": "concept:structural_resonance",
+      "relation": "indicated_by",
+      "tail_id": "concept:orbit_change",
+      "doc_id": "289961f5bd82f302",
+      "evidence_ids": [
+        "ev:289961f5bd82f302:8:183-327"
+      ],
+      "confidence": 0.4,
+      "anchors": []
+    },
+    {
+      "head_id": "ddaef5ea68310f1b:concept:fault_mode:保持架故障",
+      "relation": "detected_by",
+      "tail_id": "concept:envelope_demodulation",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:1:401-554",
+        "ev:ddaef5ea68310f1b:1:555-786"
+      ],
+      "confidence": 0.65,
+      "anchors": []
+    },
+    {
+      "head_id": "ddaef5ea68310f1b:concept:fault_mode:保持架故障",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:1:555-786"
+      ],
+      "confidence": 0.75,
+      "anchors": []
+    },
+    {
+      "head_id": "ddaef5ea68310f1b:concept:fault_mode:保持架故障",
+      "relation": "indicated_by",
+      "tail_id": "concept:ftf_harmonics",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:1:1294-1524",
+        "ev:ddaef5ea68310f1b:3:899-1010"
+      ],
+      "confidence": 0.8,
+      "anchors": []
+    },
+    {
+      "head_id": "ddaef5ea68310f1b:concept:fault_mode:内圈故障",
+      "relation": "detected_by",
+      "tail_id": "concept:envelope_demodulation",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:1:401-554",
+        "ev:ddaef5ea68310f1b:1:555-786"
+      ],
+      "confidence": 0.65,
+      "anchors": []
+    },
+    {
+      "head_id": "ddaef5ea68310f1b:concept:fault_mode:内圈故障",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:1:555-786"
+      ],
+      "confidence": 0.75,
+      "anchors": []
+    },
+    {
+      "head_id": "ddaef5ea68310f1b:concept:fault_mode:内圈故障",
+      "relation": "indicated_by",
+      "tail_id": "concept:bpfi_harmonics",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:1:1294-1524",
+        "ev:ddaef5ea68310f1b:3:899-1010"
+      ],
+      "confidence": 0.8,
+      "anchors": []
+    },
+    {
+      "head_id": "ddaef5ea68310f1b:concept:fault_mode:外圈故障",
+      "relation": "detected_by",
+      "tail_id": "concept:envelope_demodulation",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:1:401-554",
+        "ev:ddaef5ea68310f1b:1:555-786"
+      ],
+      "confidence": 0.65,
+      "anchors": []
+    },
+    {
+      "head_id": "ddaef5ea68310f1b:concept:fault_mode:外圈故障",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:1:555-786"
+      ],
+      "confidence": 0.75,
+      "anchors": []
+    },
+    {
+      "head_id": "ddaef5ea68310f1b:concept:fault_mode:外圈故障",
+      "relation": "indicated_by",
+      "tail_id": "concept:bpfo_harmonics",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:1:1294-1524",
+        "ev:ddaef5ea68310f1b:3:899-1010"
+      ],
+      "confidence": 0.8,
+      "anchors": []
+    },
+    {
+      "head_id": "ddaef5ea68310f1b:concept:fault_mode:滚动体故障",
+      "relation": "detected_by",
+      "tail_id": "concept:envelope_demodulation",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:1:401-554",
+        "ev:ddaef5ea68310f1b:1:555-786"
+      ],
+      "confidence": 0.65,
+      "anchors": []
+    },
+    {
+      "head_id": "ddaef5ea68310f1b:concept:fault_mode:滚动体故障",
+      "relation": "detected_by",
+      "tail_id": "concept:fft_spectrum_analysis",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:1:555-786"
+      ],
+      "confidence": 0.75,
+      "anchors": []
+    },
+    {
+      "head_id": "ddaef5ea68310f1b:concept:fault_mode:滚动体故障",
+      "relation": "indicated_by",
+      "tail_id": "concept:bsf_harmonics",
+      "doc_id": "ddaef5ea68310f1b",
+      "evidence_ids": [
+        "ev:ddaef5ea68310f1b:1:1294-1524",
+        "ev:ddaef5ea68310f1b:3:899-1010"
+      ],
+      "confidence": 0.8,
+      "anchors": []
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev:001544229fcbe87d:1:357-1511",
+      "doc_id": "001544229fcbe87d",
+      "page": 1,
+      "charspan": [
+        357,
+        1511
+      ],
+      "text": "2. (1)在转子截面布置两个互相垂直的位移传感器，采集转子振动信号：在垂直平面内，X传感器布置在\n水平方向上，Y传感器布置在竖直方向上，由X到Y的方向与转子转速方向一致，采用等转速信号采集并\n用键相信号进行同步整周期采样；\n3. (2)对采集的信号进行抗混滤波、低通滤波，去掉不必要的干扰噪声信号；\n4. (3)采用复FFT变换，进行主振矢a、副振矢b计算；\n5. (4)计算出矢椭圆的矢面积S(k)和矢振比ε：矢面积是含有进动方向的轴心轨迹矢椭圆的面积，以矢面\n积值的大小表达单一频率下的测点振动强度大小，矢面积值的正负表达转子的正反进动：即|S(k)|的大小\n表示该频率下的振动强度状态；S(k)＞0时，转子为正进动，S(k)＜0时，转子为反进动；ε用于表述X轴\n振动绝对值和Y轴振动绝对值融合前的大小关系，比较转子两个方向所受的激振力大小：|ε|＝1表示X轴\n和Y轴振动绝对值相等，|ε|＝∝表示X轴振动绝对值和Y轴振动绝对值相差无穷大；\n6. (5)画出矢面积和矢振比相对于倍频或其它变量的关系图；\n7. (6)在稳态故障诊断中，对矢面积S(k)、矢振比ε及关系图进行分析：先看相同的故障特征频率下的振\n动强度，即矢面积值，分析可能的故障类型，再根据相应的故障特征频率下矢振比的大小及及轴心轨迹\n、轴向振动和振幅变化率进行判别，共同结合确定故障的具体类型；在处理瞬态过程信息时，结合伯德\n图的表示方法，画出矢面积瞬时关系图，分析图谱中矢面积值最大处所对应的频率和转速值即为转子系\n统的共振频率及临界转速值。\n8. 2.根据权利要求1所述的旋转机械的故障诊断方法，其特征在于：主振矢、副振矢、矢振比及矢面积的\n计算方法如下：\n9. a = 1 2 [ | Z ( k ) | + | Z ( N - k ) | ] b = 1 2 [ | Z ( k ) | - | Z ( N - k ) | ] - - - ( 1 )\n10. &epsiv; = a b = | Z ( k ) | + | Z ( N - k ) | | Z ( k ) | - | Z ( N - k ) | S ( k ) = &pi;ab = &pi; &CenterDot; 1 2 [ | Z ( k )\n| + | Z ( N - k ) | ] &CenterDot; 1 2 [ | Z ( k ) | - | Z ( N - k ) | ] = 1 4 ( k = 0,1,2 , . . . , N / 2 - 1 ) &pi; [ | Z ( k ) | 2 - | Z (\nN - k ) | 2 ] - - - ( 2 )\n11. 式中，a、b分别表示主振矢、副振矢，ε表示矢振比，S(k)表示矢面积。"
+    },
+    {
+      "id": "ev:001544229fcbe87d:3:14-184",
+      "doc_id": "001544229fcbe87d",
+      "page": 3,
+      "charspan": [
+        14,
+        184
+      ],
+      "text": "[0039] 旋转机械随着某些工艺参数和运行参数的变化过程的响应是一组完整的过程信号，它对于分析设\n备的稳定性，进行故障诊断以及参数识别等具有重要价值。通过一组过程信号的分析，可以分析转子的\n振动特性，查询幅值和相位变化的原因，获得机组实际运行的临界转速等关键参数，确定转子的不平衡\n响应，研究结构和元件的共振等，是故障诊断的重要依据之一。"
+    },
+    {
+      "id": "ev:001544229fcbe87d:3:1431-1671",
+      "doc_id": "001544229fcbe87d",
+      "page": 3,
+      "charspan": [
+        1431,
+        1671
+      ],
+      "text": "[0059] 某公司一台双吸离心式引风机，自1993年投入运行以来，风机平台振动强烈，严重影响系统的正\n常生产。虽经多次测试和维修，但收效甚微。用全矢谱技术分析，如图3(a～c)所示，发现1倍频处振动\n强度大。根据故障特征频率1倍频下振动强度大，判断此故障可能是基础共振或不平衡所致，无法具体\n判别是何种故障。用本文方法对现场数据进行分析，如图4(a)所示,发现1倍频下面积值大，Y垂直径向振\n动大于X水平轴和Z轴两个方向上的振动，这些特征都与基础共振或不平衡引起的故障现象相似。"
+    },
+    {
+      "id": "ev:001544229fcbe87d:3:874-1029",
+      "doc_id": "001544229fcbe87d",
+      "page": 3,
+      "charspan": [
+        874,
+        1029
+      ],
+      "text": "[0052] 矢振比可以弥补新方法产生误判的缺陷。如在短轴远远小于长轴时，新方法绘制的矢面积值在图\n谱中出现零值，会产生误判现象，但是结合矢振比，则可成功判别：因为此时矢振比绝对值在图谱中出\n现无穷大，该频率下转子轴心振动形状近似为一直线，即相位差为\n整数倍，此种情况下对应一种特定的故障模式，如联轴器不对中。"
+    },
+    {
+      "id": "ev:001544229fcbe87d:4:341-479",
+      "doc_id": "001544229fcbe87d",
+      "page": 4,
+      "charspan": [
+        341,
+        479
+      ],
+      "text": "[0064] 特征频率 |矢振比| 轴向振动 轴心轨迹 振幅随转速变化 不平衡 1X 接近1 较小 接近圆 变化不大\n基础松动 1X 较大 椭圆较扁 可能减小 转子弯曲 1X 接近1 较大 接近圆 升速中振幅会降到最小值 动静摩擦\n1X，伴高次谐波 较大 有“尖角” 变化不大"
+    },
+    {
+      "id": "ev:03261576178dbe8a:4:336-462",
+      "doc_id": "03261576178dbe8a",
+      "page": 4,
+      "charspan": [
+        336,
+        462
+      ],
+      "text": "[0069] 步骤1，利用振动传感器分别采集滚动轴承在内圈剥落、外圈剥落和滚动体剥落三种典型故障下\n的4组数据，共采集12组数据，每组数据采集8196个点，采样频率为20KHz。图1为实验采集的滚动轴承\n在内圈剥落、外圈剥落和滚动体剥落时的第一组信号。"
+    },
+    {
+      "id": "ev:03261576178dbe8a:4:541-671",
+      "doc_id": "03261576178dbe8a",
+      "page": 4,
+      "charspan": [
+        541,
+        671
+      ],
+      "text": "[0071] 步骤3，以滚动轴承滚动体剥落信号为例，利用变分模态分解方法对滚动轴承在三种典型故障下\n的各段振动信号进行分解，得到包含不同频段信息的IMF分量。图2为滚动体剥落时第一段信号的时域与\n频域图，图3为滚动体剥落时第一段信号变分模态分解的时域与频域图。"
+    },
+    {
+      "id": "ev:03261576178dbe8a:5:859-1077",
+      "doc_id": "03261576178dbe8a",
+      "page": 5,
+      "charspan": [
+        859,
+        1077
+      ],
+      "text": "[0124] 图5中(a)、(b)和(c)分别为滚动轴承在滚动体剥落、内圈剥落和外圈剥落三种故障下的诊断结果，\n图中的纵坐标样本类别0、1、2分别代表滚动体剥落、内圈剥落和外圈剥落故障。从图中可以看出，在\n滚动轴承滚动体剥落故障情况下，16组测试样本均诊断正确，故障诊断的正确率达到了100％，在滚动\n轴承内圈剥落和外圈剥落两种故障情况下，各有一组数据发生了误判，故障诊断的正确率达到了93.75％\n，平均诊断正确率达到了95.83％。"
+    },
+    {
+      "id": "ev:1be1ecd65c1482c8:10:3-92",
+      "doc_id": "1be1ecd65c1482c8",
+      "page": 10,
+      "charspan": [
+        3,
+        92
+      ],
+      "text": "10. Mukherjee, S., Kaushal, R., Kumar, V., Sarangi, S.: A Novel Approach of Gearbox Fault"
+    },
+    {
+      "id": "ev:1be1ecd65c1482c8:2:1144-2326",
+      "doc_id": "1be1ecd65c1482c8",
+      "page": 2,
+      "charspan": [
+        1144,
+        2326
+      ],
+      "text": "Therefore, for real time fault diagnosis, there is a need to develop a technique that is\nindependent of prior knowledge of the system, nonparametric, non-filtering, easy to\nimplement, and computationally efficient. In this paper, a nonparametric data pre-pro-\ncessing (CEEO) is integrated with the classifier MCSVM for fault diagnosis of gearbox.\nThe proposed technique has capability to work well under non-stationary elements.\nCEEO helps to preserve the important frequencies such as pinion frequency, gear fre-\nquency, gear mesh frequency and its harmonics, sidebands of modulating frequencies\netc. inside the vibration signal even in the presence of strong noise and multiple vibra-\ntion interferences. It not only helps to build better quality of feature generation in dif-\nferent domain such as time domain, frequency domain, time-frequency domain etc. but\nalso plays a major role in improving the classification accuracy of the classifier. To\nshow the effectiveness of the proposed technique the results are compared with and\nwithout CEEO data pre-processing. Also, importance of CEEO is shown by comparing\nthe results by adding spectral features to the time domain features."
+    },
+    {
+      "id": "ev:1be1ecd65c1482c8:3:2297-3020",
+      "doc_id": "1be1ecd65c1482c8",
+      "page": 3,
+      "charspan": [
+        2297,
+        3020
+      ],
+      "text": "3 Experimental Setup and Data Collection\nAll the experimental work were conducted on the machine fault simulator (MFS) as\nshown in Figure 2. Overall experimental setup comprises four major subsystems: MFS,\nOros NV gate data acquisition system, various sensors, and a computer, as shown in\nFigure 2. In this work, the main experimental investigations were performed on a sin-\ngle-stage bevel gearbox which has 18 teeth in driver gear and 27 teeth in the driven\ngear. Figure 3 shows the faulty condition of gear tooth which were used in the experi-\nmental analysis. Samples were recorded at different operating condition such as by var-\nying the frequency of motor (15 Hz, 25 Hz, 35 Hz), load on gearbox (0 lb., 2 lb., 4 lb.)"
+    },
+    {
+      "id": "ev:1be1ecd65c1482c8:4:68-81",
+      "doc_id": "1be1ecd65c1482c8",
+      "page": 4,
+      "charspan": [
+        68,
+        81
+      ],
+      "text": "FFT of signal"
+    },
+    {
+      "id": "ev:1be1ecd65c1482c8:4:82-128",
+      "doc_id": "1be1ecd65c1482c8",
+      "page": 4,
+      "charspan": [
+        82,
+        128
+      ],
+      "text": "Time domain features Frequency domain features"
+    },
+    {
+      "id": "ev:1be1ecd65c1482c8:5:2-293",
+      "doc_id": "1be1ecd65c1482c8",
+      "page": 5,
+      "charspan": [
+        2,
+        293
+      ],
+      "text": "for three health condition of gear tooth (Healthy, Chipped, Missing). Total of 27 sam-\nples were collected in which each 9 samples were from each fault condition cases. The\nsampling frequency of the acquired vibration signal was set at 2048 samples/sec and\neach sample was record for 30 sec."
+    },
+    {
+      "id": "ev:1be1ecd65c1482c8:5:294-1283",
+      "doc_id": "1be1ecd65c1482c8",
+      "page": 5,
+      "charspan": [
+        294,
+        1283
+      ],
+      "text": "4 Results and Discussion\n4.1 Data Pre-Processing\nAll collected samples are pre-processed by CEEO. Figure 4 shows the time and fre-\nquency plot of raw signal at 25 Hz motor frequency and 0 lb. load. Figure 5 shows the\nsame for processed (CEEO) signal. Figure 4(a) and 5(a) clearly show linear trend be-\ntween the amplitude of vibration response and severity of fault on the system. The miss-\ning tooth has higher response amplitude than the chipped and healthy condition. Figure\n4(b) and 5(b) show the FFT plot of vibration signal shown in Figure 4(a) and 5(a),\nrespectively. From the FFT plots, it can be seen that the suppress frequencies such as\npinion, gear and its harmonics are more accurate and visible in the FFT plot of CEEO\ni.e., Figure 5(b). Also, the sidebands of faulty frequencies (modulating frequency of\npinion) are clearly visible around the gear mesh frequency (GMF) and its harmonics.\nFigure 5(b) clearly shows the growing nature of these frequencies as severity of fault"
+    },
+    {
+      "id": "ev:1be1ecd65c1482c8:6:493-1493",
+      "doc_id": "1be1ecd65c1482c8",
+      "page": 6,
+      "charspan": [
+        493,
+        1493
+      ],
+      "text": "4.2 Feature Extraction\nIn this work, total 19 features (12-time domain and 7 frequency domain) are extracted\nfrom the raw signal and CEEO signal, presented in Table 1 and Table 2 respectively.\nFormulation of these features are given in ref. [1,18]. These features have their own\nimportance to predict the different types of behaviors from the signal, which play an\nimportant role in fault classification. For example, time domain features like peak value\ndetects the severity of faults, RMS detects the system’s unbalanced parts, standard de-\nviation detects the randomness of non-stationary system, crest factor measures the spik-\niness or existence of sharp peak in the signal, skewness i.e., third order moment of the\nsignal indicates the position or orientation of defects, kurtosis i.e., fourth order moment\nof the signal identifies the worn and damage tooth of gears. Also, frequency domain\nfeatures have some special ability to detect the gearbox faults, same as the time domain\nfeatures [18]."
+    },
+    {
+      "id": "ev:1be1ecd65c1482c8:7:1720-1761",
+      "doc_id": "1be1ecd65c1482c8",
+      "page": 7,
+      "charspan": [
+        1720,
+        1761
+      ],
+      "text": "(cid:3046) (cid:3041)(cid:2880)(cid:2869)"
+    },
+    {
+      "id": "ev:1be1ecd65c1482c8:8:1493-1543",
+      "doc_id": "1be1ecd65c1482c8",
+      "page": 8,
+      "charspan": [
+        1493,
+        1543
+      ],
+      "text": "Response Types of features Healthy Chipped Missing"
+    },
+    {
+      "id": "ev:1be1ecd65c1482c8:8:1558-1598",
+      "doc_id": "1be1ecd65c1482c8",
+      "page": 8,
+      "charspan": [
+        1558,
+        1598
+      ],
+      "text": "(a) Raw signal Time domain Chipped 2 7 0"
+    },
+    {
+      "id": "ev:1be1ecd65c1482c8:8:1599-1612",
+      "doc_id": "1be1ecd65c1482c8",
+      "page": 8,
+      "charspan": [
+        1599,
+        1612
+      ],
+      "text": "Missing 1 0 8"
+    },
+    {
+      "id": "ev:1be1ecd65c1482c8:8:1613-1640",
+      "doc_id": "1be1ecd65c1482c8",
+      "page": 8,
+      "charspan": [
+        1613,
+        1640
+      ],
+      "text": "Time domain + Healthy 7 2 0"
+    },
+    {
+      "id": "ev:1be1ecd65c1482c8:8:2-1455",
+      "doc_id": "1be1ecd65c1482c8",
+      "page": 8,
+      "charspan": [
+        2,
+        1455
+      ],
+      "text": "4.3 Fault Classification\nIn this work, one-vs-one MCSVM is used to diagnose the gearbox faults. The classifier\nis trained and tested with 5-fold cross validation by taking gaussian kernel function with\noptimized kernel scale. Four cases are studied by taking different combination of fea-\ntures set for raw signal and CEEO signal. Table 3 shows the confusion matrix obtained\nfrom one-vs-one MCSVM classifier for raw signal and CEEO signal with different\ntypes of features set. The diagonal elements show the correctly classified instances and\nthe rest show the misclassified instances. From Table 3, it is clearly observed that the\nCEEO with combined features (time domain + frequency domain) set have minimum\n(1) misclassified instances as compared to the other cases. Table 4 shows the overall\nclassification accuracy obtained by the classifier with different features set. For raw\nsignal, the overall accuracy is 85.19 % and 88.89 % with time domain features and\ncombined features set. While for CEEO signal, the overall accuracy is 88.89 % and\n96.90 % with time domain features and combined features set, respectively. This com-\nparison shows that the inclusion frequency domain features with time domain features\nhelps to improve the classification accuracy of the classifier and it happened because\nof the properties claim by the CEEO. The comparison results clearly illustrates the ef-\nfectiveness of the CEEO data pre-processing over raw signal."
+    },
+    {
+      "id": "ev:1be1ecd65c1482c8:9:1179-1226",
+      "doc_id": "1be1ecd65c1482c8",
+      "page": 9,
+      "charspan": [
+        1179,
+        1226
+      ],
+      "text": "tors. Procedia Engineering 144, 253-263 (2016)."
+    },
+    {
+      "id": "ev:1be1ecd65c1482c8:9:1542-1631",
+      "doc_id": "1be1ecd65c1482c8",
+      "page": 9,
+      "charspan": [
+        1542,
+        1631
+      ],
+      "text": "4. Kumar, V., Kumar, A., Kumar, S., Sarangi, S.: TVMS calculation and dynamic analysis of"
+    },
+    {
+      "id": "ev:1be1ecd65c1482c8:9:2000-2115",
+      "doc_id": "1be1ecd65c1482c8",
+      "page": 9,
+      "charspan": [
+        2000,
+        2115
+      ],
+      "text": "chanical model of single-stage spur gear with tooth root cracks. Engineering Failure Analy-\nsis 129, 105662 (2021)."
+    },
+    {
+      "id": "ev:289961f5bd82f302:1:1720-1770",
+      "doc_id": "289961f5bd82f302",
+      "page": 1,
+      "charspan": [
+        1720,
+        1770
+      ],
+      "text": "to pinpoint mechanical defects such as (unbalance,"
+    },
+    {
+      "id": "ev:289961f5bd82f302:1:428-1302",
+      "doc_id": "289961f5bd82f302",
+      "page": 1,
+      "charspan": [
+        428,
+        1302
+      ],
+      "text": "Abstract-Vibration measurements have been used to reliably Vibration analysis software is an essential tool for\ndiagnose performance problems in machinery and related professionals who are analyzing the vibratory behaviour of\nmechanical products. A vibration data collector can be used structures and machines. There are two types of vibration\neffectively to measure and analyze the machinery vibration analysis investigations that are commonly done today [4, 18].\ncontent in gearboxes, engines, turbines, fans, compressors, The first involves analyzing the mechanical vibration of new\npumps and bearings. Ideally, a machine will have little or no products that are being designed or tested. The second\nvibration, indicating that the rotating components are involves analyzing the vibration that exists in rotating\nappropriately balanced, aligned, and well maintained. Quick"
+    },
+    {
+      "id": "ev:289961f5bd82f302:1:98-146",
+      "doc_id": "289961f5bd82f302",
+      "page": 1,
+      "charspan": [
+        98,
+        146
+      ],
+      "text": "Defect Diagnosis in Rotors Systems by Vibrations"
+    },
+    {
+      "id": "ev:289961f5bd82f302:7:182-330",
+      "doc_id": "289961f5bd82f302",
+      "page": 7,
+      "charspan": [
+        182,
+        330
+      ],
+      "text": "Figure 4. Experimental orbits analysis fundamentals behaviour of the rotor at the different measured planes in first critical speed for channel one;"
+    },
+    {
+      "id": "ev:289961f5bd82f302:8:183-327",
+      "doc_id": "289961f5bd82f302",
+      "page": 8,
+      "charspan": [
+        183,
+        327
+      ],
+      "text": "Figure 5. Experimental orbits analysis fundamentals behaviour o f the rotor at the different measured planes in first critical speed for channel"
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:17:278-4503",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 17,
+      "charspan": [
+        278,
+        4503
+      ],
+      "text": "test setup to collect data using sensors. There are various online platforms available for online datasets.\nThe most widely used dataset is provided by Case Western Reserve University [50,58]. Ball-bearing test\ndata for both normal and defective bearings are available on this page. Experiments were carried out\nwith a 2 hp Reliance Electric motor, with acceleration data collected close and far from the motor\nbearings. The precise test settings of the motor and the bearing defect status for each experiment have\nbeen meticulously documented on these web pages. Electro-discharge machining was used to seed\ndefects in motor bearings (EDM). Faults with diameters ranging from 0.007 to 0.040 inches were\nintroduced at the inner raceway, rolling element (i.e., ball), and outer raceway individually. The test\nmotor's faulty bearings were replaced, and vibration data was taken for motor loads ranging from 0 to\n3 horsepower. The “FEMTO Dataset [66]” is another popular dataset for estimating a bearing's\nremaining usable life (RUL), which allows researchers to evaluate novel methods for bearing RUL\nprediction [55]. The FEMTO-ST2 institute designed and built PRONOSTIA, a platform for testing and\nverifying bearing fault detection, diagnostic, and prognostic techniques. One more dataset is the IMS\nbearing dataset [56], generated by the NSFI/UCR Center for Intelligent Maintenance Systems (IMS)\nwith support from Rexnord Corp. Unlike other datasets, which intentionally induce bearing defects by\nscratching or drilling the bearing surface or generating bearing faults by applying a shaft current for\naccelerated life testing, the IMS dataset provides a comprehensive natural bearing defect history record.\nThe bearing is driven for 30 days in a row at a constant speed of 2,000 rpm for 30 days [56]. Another\nessential online dataset collection is available at NASA Prognostic Centre of Excellence [51,65]. The\nPrognostics Data Repository collects data sets donated by universities, government organizations, and\nbusinesses. The data repository is dedicated to prognostic data sets, that is, data sets that may be\nutilized to create prognostic algorithms. Typically, these are time-series data from a nominal state to a\nfailing state. The bearing dataset available on NASA PCoE is provided by the Center for Intelligent\nMaintenance Systems (IMS) [56], University of Cincinnati. NASA PCoE also has one more bearing\ndataset that is “FEMTO Dataset [66]” discussed earlier. Another dataset available online is by the\nSociety for Machinery Failure Prevention Technology (MFPT) [59], wherein they provide the Condition\nBased Maintenance Fault Database whose objective is to give multiple data sets of known good and\nfaulty bearing and gear conditions. This dataset is being made publicly available, along with sample\nprocessing code, hoping that researchers and CBM practitioners would enhance the approaches and,\nas a result, develop CBM systems more quickly. One more platform that provides online datasets is\nMendeley data [52,61] which contains vibration signals collected from bearings of different health\nconditions under time-varying rotational speed conditions. There are 60 datasets in total in this. Next\nis IEEE DataPort [64], a valuable and easily accessible data platform that enables users to store, search,\naccess, and manage standard datasets. Another bearing dataset [63] from Paderborn University\ncomprises synchronous measurements of motor current and vibration signals, allowing multi-physics\nmodels to be verified and sensor fusion of various signals to improve bearing fault detection\naccuracy. Both stator current and vibration signals are measured with a high resolution, and a high\nsampling rate and experiments are performed on 26 damaged bearings and 6 undamaged (healthy)\nones. Also, one more online dataset is composed of 1951 multivariate time-series acquired by sensors\non SpectraQuest's Machinery Fault Simulator (MFS) Alignment-Balance-Vibration (ABVT) [60]. It\ncomprises six different simulated states: normal function, imbalance fault, horizontal and vertical\nmisalignment faults and, inner and outer bearing faults. Table 6 [57] is a summary of all the available\nonline datasets discussed above."
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:19:3961-4466",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 19,
+      "charspan": [
+        3961,
+        4466
+      ],
+      "text": "• Oil and Lubricant Sensor: Particle pollution in lubrication systems is monitored using oil particle\nsensors [73]. A rise in particle count may indicate that bearings, gearboxes are wearing out. The key\nbenefits of using these sensors are the ability to access lubrication conditions in harsh conditions and\non machinery that is not easily accessible. Another advantage is establishing a better predictive and\nproactive maintenance program to detect the beginning stages of lubricating oil deterioration."
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:20:1556-1605",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 20,
+      "charspan": [
+        1556,
+        1605
+      ],
+      "text": "Force Unbalance fr 900 (between horizontal Radial"
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:20:1755-1804",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 20,
+      "charspan": [
+        1755,
+        1804
+      ],
+      "text": "Dynamic Unbalance fr In between 00 to 1800 Radial"
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:20:1827-1909",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 20,
+      "charspan": [
+        1827,
+        1909
+      ],
+      "text": "Overhung Rotor fr 900 (between horizontal Radial and\nUnbalance and vertical) Axial"
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:20:1933-2077",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 20,
+      "charspan": [
+        1933,
+        2077
+      ],
+      "text": "Angular fr, 2fr, 3fr 1800 out of phase across Axial\nMisalignment the coupling\nParallel Misalignment fr, 2fr, 3fr 1800 out of phase across Radial"
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:20:2078-2090",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 20,
+      "charspan": [
+        2078,
+        2090
+      ],
+      "text": "the coupling"
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:20:2091-2269",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 20,
+      "charspan": [
+        2091,
+        2269
+      ],
+      "text": "Misaligned bearing fr, 2fr, 3fr 1800 out of phase on Axial\ncocked on the shaft bearing housing\nRolling Element Rolling element Fault frequency is given by: --- Axial\nbearing 𝑁 𝑅𝑑"
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:20:2270-2302",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 20,
+      "charspan": [
+        2270,
+        2302
+      ],
+      "text": "Outer race defect = 𝑓𝑟{1− 𝑐𝑜𝑠 𝛼}"
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:20:2313-2345",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 20,
+      "charspan": [
+        2313,
+        2345
+      ],
+      "text": "Inner race defect = 𝑓𝑟{1+ 𝑐𝑜𝑠 𝛼}"
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:20:2346-2398",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 20,
+      "charspan": [
+        2346,
+        2398
+      ],
+      "text": "2 𝑃𝑑\nRolling Element defect = 𝑃𝑑 𝑓𝑟 {1−( 𝑃𝑑 𝑐𝑜𝑠 𝛼)2}"
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:20:2411-2445",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 20,
+      "charspan": [
+        2411,
+        2445
+      ],
+      "text": "Cage Defect Frequency = {1± 𝑐𝑜𝑠 𝛼}"
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:20:2446-2660",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 20,
+      "charspan": [
+        2446,
+        2660
+      ],
+      "text": "2 𝑃𝑑\n(+ sign if the outer race is rotating, - sign if the inner\nrace is rotating\nN= No. of rolling elements, Fr= shaft rotational\nspeed, Hz, Rd= Rolling element diameter, Pd= Pitch\ncircle diameter, α= Contact angle"
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:21:119-187",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 21,
+      "charspan": [
+        119,
+        187
+      ],
+      "text": "Bent Shaft fr (if bent near shaft) 1800 axial phase difference Axial"
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:21:216-317",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 21,
+      "charspan": [
+        216,
+        317
+      ],
+      "text": "Mechanical looseness fr (structural looseness at machine feet) 900 or 1800 (between Radial (Vertical)"
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:21:485-558",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 21,
+      "charspan": [
+        485,
+        558
+      ],
+      "text": "Resonance When fr=natural frequency of components Before and after Radial"
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:21:606-762",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 21,
+      "charspan": [
+        606,
+        762
+      ],
+      "text": "Soft foot fr (also can be at 2fr, 3fr, 2 times line frequency..) --- Radial (vertical)\nGear faults Tooth meshing frequency = Nfr And sidebands at --- Radial"
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:28:1033-1037",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 28,
+      "charspan": [
+        1033,
+        1037
+      ],
+      "text": "𝐶𝐹 𝑥"
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:28:1038-1353",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 28,
+      "charspan": [
+        1038,
+        1353
+      ],
+      "text": "peak amplitude to its RMS 𝑅𝑀𝑆 Calculates how much impact\namplitude. Faults often first occurs during the rolling\nmanifest themselves in changes element and raceway contact. CF\nin the peakiness of signal before can provide early warning for\nthey manifest in energy faults when they first develop.\nrepresented by RMS."
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:28:2001-2169",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 28,
+      "charspan": [
+        2001,
+        2169
+      ],
+      "text": "mean square root of the absolute defective ball, outer race, and\nvalue of the input vibration inner race, respectively. CF has\nsignal the highest separation ability for"
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:28:211-340",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 28,
+      "charspan": [
+        211,
+        340
+      ],
+      "text": "the vibration signal. Indicator of 𝑝 2 𝑚𝑎𝑥 𝑚𝑖𝑛 signal. Peak amplitude is\noccurrence of impacts. valuable for shock events, but it"
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:28:2170-2198",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 28,
+      "charspan": [
+        2170,
+        2198
+      ],
+      "text": "defective inner race faults."
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:38:1072-1199",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 38,
+      "charspan": [
+        1072,
+        1199
+      ],
+      "text": "Learning classification, a regression that operates by unbalance in [172] it automates missing value computational power, [172]"
+    },
+    {
+      "id": "ev:4a8dc5af5de2cfe4:6:184-1416",
+      "doc_id": "4a8dc5af5de2cfe4",
+      "page": 6,
+      "charspan": [
+        184,
+        1416
+      ],
+      "text": "mishandling or wear and tear due to prolonged use leading to different faults in them. The different\ncomponents of rotating machines possess different types of faults. These faults are broadly classified at\nthree levels: Component-level faults, System-level faults, and Interrelated faults. Component level\nfaults include the faults related to bearing, shaft, pulley, etc. For example, Bearing is a component that\nis considered the heart of rotating machines that can have faults like inner race faults, outer race faults,\nrolling element faults, etc. Similarly, the shaft also is a component that can possess fault like\nmisalignment, rotors in the rotating machines can have unbalance type of fault, and so on. Fig. 5\nsummarizes different types of component-level faults that can arise the rotating machinery. System-\nlevel faults include the faults of the overall system to be monitored. Interrelated faults include the\nadditive faults (addition of different faults due to multiple components, e.g., Unbalance and\nMisalignment) and multiplicative faults (multiplication of different fault types in a single component,\ne.g., shaft bent and shaft crack). Additive faults can be better diagnosed as compared to multiplicative\nfaults."
+    },
+    {
+      "id": "ev:4f88106f26629c63:1:445-3923",
+      "doc_id": "4f88106f26629c63",
+      "page": 1,
+      "charspan": [
+        445,
+        3923
+      ],
+      "text": "Abstract method of signal processing categorized to time domain,\nTime-frequency methods for vibration-based gearbox frequency domain or time-frequency domain analysis.\nfaults detection have been considered the most efficient Although features extracted from time domain analysis\nmethod. Among these methods, continuous wavelet (i.e. statistical features) can detect fault (same as [1-3]),\ntransform (CWT) as one of the best time-frequency but generally these methods need extensive data mining\nmethod has been used for both stationary and transitory procedure for feature selection so different types of data\nsignals. Some deficiencies of CWT are problem of mining algorithm and decision trees are applied with\noverlapping and distortion of signals. In this condition, a these features. On the other hand, there exist some\nlarge amount of redundant information exists so that it problems for frequency methods (e.g. Fast Fourier\nmay cause false alarm or misinterpretation of the Transform). Indeed, frequency methods eliminate the\noperator. In this paper a modified method called Exact effect of time in the signal, so these methods only\nWavelet Analysis is used to minimize the effects of indicate the frequencies and its intensity, but they do not\noverlapping and distortion in case of gearbox faults. To reveal how many frequencies exist and with what\nimplement exact wavelet analysis, Particle Swarm intensity these frequencies repeat. These methods are\nOptimization (PSO) algorithm has been used for this mainly applied to detect for harmonics in signals.\npurpose. This method have been implemented for the For the sake of overcome these disadvantages, the time-\nacceleration signals from 2D acceleration sensor frequency methods (Gabor transform, Hilbert-Haung\nacquired by Advantech™ PCI-1710 card from a transform, Wavelet transform, etc) take lots of\ngearbox test setup in Amirkabir University of attractions for researchers who would like to study\nTechnology. Gearbox has been considered in both signal in frequency content but they wouldn’t like to\nhealthy and chipped tooth gears conditions. Kernelized eliminate time information. Generally, time-frequency\nSupport Vector Machine (SVM) with radial basis methods provide energy distribution of signals; hence,\nfunctions has used the extracted features from exact these methods seem to be what researchers are looking\nwavelet analysis for classification. The efficiency of this for.\nclassifier is then evaluated with the other signals Among these, continuous wavelet transform (CWT) is\nacquired from the setup test. The results show that in mainly considered as an effective tool for vibration-\ncomparison of CWT, PSO Exact Wavelet Transform based signal processing for fault detection. CWT\nhas better ability in feature extraction in price of more provides a multi-resolution in time-frequency analysis\ncomputational effort. In addition, PSO exact wavelet for characterizing the transitory features of non-\nhas better speed comparing to Genetic Algorithm (GA) stationary signals [4]. Two problems, “distortion” and\nexact wavelet in condition of equal population because “overlapping”, suffer CWT which are completely\nof factoring mutation and crossover in PSO algorithm. discussed by Tse et al. [4].\nSVM classifier with the extracted features in gearbox Tse et al. [4], to solve the problem of distortion and\nshows very good results and its ability has been proved. overlapping, firstly used the term of “exact wavelet"
+    },
+    {
+      "id": "ev:4f88106f26629c63:4:1442-1479",
+      "doc_id": "4f88106f26629c63",
+      "page": 4,
+      "charspan": [
+        1442,
+        1479
+      ],
+      "text": "a) Chipped tooth gear b) Normal gear."
+    },
+    {
+      "id": "ev:4f88106f26629c63:4:1549-2086",
+      "doc_id": "4f88106f26629c63",
+      "page": 4,
+      "charspan": [
+        1549,
+        2086
+      ],
+      "text": "Experimental Results\nTo evaluate the efficiency of exact wavelet, the\nalgorithm was implemented on an experimental\nvibration signal of gearbox. This process was done for\ntwo conditions, normal and chipped tooth gear (as\nshown in Fig. 3). In the chipped tooth case, 50% of a\ntooth profile from top to pitch circle (addendum) was\neliminated with linear slop from top to pitch circle.\nThe signals were acquired from a gearbox setup test\ndesigned in Amirkabir University of Technology\n(Tehran Polytechnic) for this proposes, as shown in Fig."
+    },
+    {
+      "id": "ev:4f88106f26629c63:4:25-73",
+      "doc_id": "4f88106f26629c63",
+      "page": 4,
+      "charspan": [
+        25,
+        73
+      ],
+      "text": "sets, one of them corresponds to normal gear and"
+    },
+    {
+      "id": "ev:4f88106f26629c63:4:2537-2599",
+      "doc_id": "4f88106f26629c63",
+      "page": 4,
+      "charspan": [
+        2537,
+        2599
+      ],
+      "text": "1 Figure 4: The accelaration signal acquried from gear box for"
+    },
+    {
+      "id": "ev:4f88106f26629c63:4:82-128",
+      "doc_id": "4f88106f26629c63",
+      "page": 4,
+      "charspan": [
+        82,
+        128
+      ],
+      "text": "another one belongs to chipped tooth gear. The"
+    },
+    {
+      "id": "ev:4f88106f26629c63:5:135-262",
+      "doc_id": "4f88106f26629c63",
+      "page": 5,
+      "charspan": [
+        135,
+        262
+      ],
+      "text": "Figure 5: The gearbox experimental setup test (Acoustics Research Lab., Mechanical Engineering Department, Amirkabir University"
+    },
+    {
+      "id": "ev:4f88106f26629c63:5:398-433",
+      "doc_id": "4f88106f26629c63",
+      "page": 5,
+      "charspan": [
+        398,
+        433
+      ],
+      "text": "Normal condition\nChipped tooth gear"
+    },
+    {
+      "id": "ev:4f88106f26629c63:6:0-365",
+      "doc_id": "4f88106f26629c63",
+      "page": 6,
+      "charspan": [
+        0,
+        365
+      ],
+      "text": "success of 100% by considering suitable sigma as\nshown in table 1. However, it has been shown that the\nfeature sets are linear separable, so linear SVM in case\nof classification of normal and chipped tooth gear will\nsuffice. The main problem that suffers exact wavelet\neven with this modified form is computational time that\ncannot be used in real time application."
+    },
+    {
+      "id": "ev:4f88106f26629c63:6:935-1543",
+      "doc_id": "4f88106f26629c63",
+      "page": 6,
+      "charspan": [
+        935,
+        1543
+      ],
+      "text": "Ramachandran, K. I., 2007. “A comparative study on\nclassification of features by SVM and PSVM extracted\nusing Morlet wavelet for fault diagnosis of spur bevel\ngear box”. Expert Systems with Applications,(35),pp.\n1351–1366 .\n[4] Tse, P. W., Wen-xian, Y., and Tam, H. Y., 2004.\n“Machine fault diagnosis through an effective exact\nwavelet analysis”. Journal of Sound and Vibration,\n(277), pp. 1005–1024.\n[5] Borde, B. L., 1995. “New wavelet class for fine\nstructure identification”. SPIE , 2491, pp.1073-1085.\n[6] Kennedy, J., and Eberhart, R., 1995. “Particle\nSwarm Optimization”. IEEE International Conference"
+    },
+    {
+      "id": "ev:66f9a7c0b49899ca:1:0-21",
+      "doc_id": "66f9a7c0b49899ca",
+      "page": 1,
+      "charspan": [
+        0,
+        21
+      ],
+      "text": "用于基础松动造成轴承座轴向振动大的诊断方法"
+    },
+    {
+      "id": "ev:66f9a7c0b49899ca:1:1327-1653",
+      "doc_id": "66f9a7c0b49899ca",
+      "page": 1,
+      "charspan": [
+        1327,
+        1653
+      ],
+      "text": "[0004] 现有设备故障诊断技术中，轴承座轴向振动大故障判断起来比较复杂，造成轴承座轴向振动大的\n故障原因有几个，其一是由于轴弯曲后造成轴颈承力中心沿轴向周期性的变化引起轴承座轴向偏转造成\n，其检测方法是检查轴颈跳动；其二是轴承座支撑刚度分布不对称造成，检测方法是测量同一轴向位置\n的地脚螺丝、基础台板、水泥基础振值，看其差别振动是否大于5um来判断；其三是不对中造成，检测\n方法是检查联轴器的平直度及同心度；其四是轴承座轴向共振造成，检测方法是在停机状态下敲击轴承\n座轴向方向测试其固有频率是否与占主导频率一致；其五是激振力投影点与轴承底座几何中心不重合造\n成，检测方法是用测量的方法来检查；其六是悬臂风机的风机转子不平衡造成。由于造成轴承座轴向振"
+    },
+    {
+      "id": "ev:66f9a7c0b49899ca:2:1218-1427",
+      "doc_id": "66f9a7c0b49899ca",
+      "page": 2,
+      "charspan": [
+        1218,
+        1427
+      ],
+      "text": "[0016] 本发明的有益效果是：可以在现场测试过程中对轴承座轴向振动大的故障原因进行快速查找，一\n旦发现基础螺丝存在松动现象，就可以准确判断轴承座轴向振动大的故障原因是基础螺丝松动造成轴承\n座支撑刚度不对称从而引起轴承座偏转所导致的，不用再进行其他繁琐的检测，在现场不停机的情况下\n便可以安排紧固基础螺丝从而将振动降到可接受的状态。整个诊断过程操作十分简单、方便，不影响正\n常生产，还可以消除故障隐患避免设备的损伤。"
+    },
+    {
+      "id": "ev:66f9a7c0b49899ca:2:789-1012",
+      "doc_id": "66f9a7c0b49899ca",
+      "page": 2,
+      "charspan": [
+        789,
+        1012
+      ],
+      "text": "[0014] 更具体地，步骤Ⅱ中的标准值为4.5mm/s到7.1mm/s之间，当步骤Ⅰ中测得的振动值＜4.5mm/s时，\n设备运行正常，可以不做振动分析；当振动值在4.5-7.1mm/s之间时，设备处于警告状态；当测试的振动\n值≥7.1mm/s时，就必须进行振动分析，找出振动大的原因并进行调整使其振动值正常；当垂直方向和\n水平方向的振动值＜4.5mm/s，轴向振动值≥7.1mm/s，且转频占主导时，进行步骤Ⅲ，对基础螺丝及基\n础底板进行测试。"
+    },
+    {
+      "id": "ev:66f9a7c0b49899ca:3:1432-1911",
+      "doc_id": "66f9a7c0b49899ca",
+      "page": 3,
+      "charspan": [
+        1432,
+        1911
+      ],
+      "text": "[0032] 如图2所示，是一台悬臂风机的结构简图，该风机的转子由两个轴承座支撑，与电机靠近的轴承\n座为负载端轴承座，远离电机的一个为非负载端轴承座。当需要对负载端轴承座进行检测的时候，依次\n将测振传感器置于轴承座的顶部1，水平位置2以及轴向侧面3，每个位置测量三组数据，然后得出平均\n值。紧接着将三个位置的振动值与标准值进行对比，如果发现顶部1和水平位置2的振动值小于4.5mm/s\n，轴向侧面3的振动值大于或等于7.1mm/s时，且转频占主导，则可以判断轴向振动过大，然后便对基础\n底板5和基础螺丝4进行检测。先将测振传感器移到基础螺丝4垂直方向上测出振动值，再将测振传感器\n移到基础底板5垂直方向上测出振动值，这里分两种情况，一种是基础螺丝4的振值较大，大于或接近轴\n承座顶部1的振动值，说明基础螺丝4存在松动；另一种情况是基础螺丝4的振动值不大，可能还小于1m\nm/s，这时就要对其它基础螺丝的振值进行测试，如果基础底板5的振值大于基础螺丝4的振值一倍或以\n上且这颗基础螺丝4的振值比其它基础螺丝的振值大一倍或以上时，就可以证明这颗基础螺丝4存在松动"
+    },
+    {
+      "id": "ev:66f9a7c0b49899ca:3:538-958",
+      "doc_id": "66f9a7c0b49899ca",
+      "page": 3,
+      "charspan": [
+        538,
+        958
+      ],
+      "text": "[0029] 第二步将测量得到的振动值与标准值进行比较，根据振动标准ISO10816-3，额定功率≥300KW的\n大型机器，轴高≥315mm的电机，当振动烈度值≥7.1mm/s时，设备处于危险状态；当振动烈度值在4.5-\n7.1mm/s之间时，设备处于警告状态，当振动烈度值≤4.5mm/s时，设备处于可接受状态。在测试过程中\n，首先对步骤Ⅰ中测试的振动值进行初步判断，当测试的振动值小于4.5mm/s时，设备运行正常，可以\n不做振动分析，当测试的振动值≥7.1mm/s时，就必须进行振动分析，找出振动大的原因，可以检测轴\n承座支撑是否稳定，设备安装是否稳定等，一般情况下水平方向和垂直方向不会出现振动超标的情况，\n在找到问题所在后进行调整，使这两个方向振动值达标。如果测试的振动值在垂直方向和水平方向小于\n4.5mm/s，轴向振动值≥7.1mm/s时，且转频占主导，就要对造成轴向振动值超标的原因进行分析，不然\n过大的轴向振动将损伤设备。"
+    },
+    {
+      "id": "ev:66f9a7c0b49899ca:3:959-1420",
+      "doc_id": "66f9a7c0b49899ca",
+      "page": 3,
+      "charspan": [
+        959,
+        1420
+      ],
+      "text": "[0030] 当步骤Ⅱ中发现轴向振动超标后，应立即对基础螺丝及基础底板进行振动测试。测试的方法与测\n量轴承座振值的方法一样，测量出所有的基础底板和基础螺丝的振动值，然后进行分析比较。这里分两\n种情况，一种是基础螺丝的振值较大，大于或接近轴承座顶部垂直方向的振值，说明基础螺丝存在松动\n；另一种情况是基础螺丝的振值不大，基础螺丝振值的大小与轴承座的振值大小呈正相关，可能还小于\n1mm/s，这最容易引起误判，误以为振值太小，没有故障，而这时恰恰就要对基础底板及其它基础螺丝\n的振值进行测试，如果基础底板的振值大于某颗基础螺丝的振值一倍或以上且这颗基础螺丝的振值比其\n它基础螺丝的振值大一倍或以上，就可以证明这颗基础螺丝存在松动现象，如果比较后发现差值较小，\n则说明基础基本牢靠，可以开始其他的复杂检测，比如转轴是否弯曲，两轴承是否对中，是否发生了共\n振等检测步骤。如果检测后发现是基础松动，此时便可在不停机的情况下对松动的基础螺丝进行紧固，\n然后再次对其进行检测，检测紧固后的振动是否达标，如果不达标再次紧固，直至满足要求。"
+    },
+    {
+      "id": "ev:66f9a7c0b49899ca:4:43-245",
+      "doc_id": "66f9a7c0b49899ca",
+      "page": 4,
+      "charspan": [
+        43,
+        245
+      ],
+      "text": "[0033] 本发明可以在现场测试过程中对轴承座轴向振动大的故障原因进行快速查找，一旦发现基础螺丝\n存在松动现象，就可以准确判断轴承座轴向振动大的故障原因是基础螺丝松动造成轴承座支撑刚度不对\n称从而引起轴承座偏转所导致的，不用再进行其他繁琐的检测，在现场不停机的情况下便可以安排紧固\n基础螺丝从而将振动降到可接受的状态。整个诊断过程操作十分简单、方便，不影响正常生产，还可以\n消除故障隐患避免设备的损伤。"
+    },
+    {
+      "id": "ev:72362dcee50f1d63:15:218-1192",
+      "doc_id": "72362dcee50f1d63",
+      "page": 15,
+      "charspan": [
+        218,
+        1192
+      ],
+      "text": "6 Conclusion\nIn this paper, we present a new dataset for vibration analysis (machine condi-\ntion classification) recorded from electric pumps in a laboratory environment.\nThedatasetisbalancedinfourclassesofmachineconditionsandcontains1000\nsamples for each condition. The evaluated conditions are normal, unbalance,\nmisalignment, and bearing fault. We provided three classifiers as a baseline:\nSVM, KNN, and GNB. The inputs for the classifiers are nine statistical func-\ntions derived from the spectrum of vibration signals which show the distinct\npattern for each machine condition. The results show that SVM has the best\nperformanceinthisdatasetwhichachieveoverallaccuracyof99.75%in5-fold\ncross-validation. The high accuracy obtained by the SVM shows the potential\nuseoftheproposeddatasetformachinelearningresearch.Futureresearchcan\nbe explored to obtain perfect accuracy and improve the classifiers’ robustness\nand generalization, perhaps beyond the lab-scale environment."
+    },
+    {
+      "id": "ev:72362dcee50f1d63:1:595-1454",
+      "doc_id": "72362dcee50f1d63",
+      "page": 1,
+      "charspan": [
+        595,
+        1454
+      ],
+      "text": "Abstract\nThemonitoringofmachineconditionsinaplantiscrucialforproduction\ninmanufacturing.Asuddenfailureofamachinecanstopproductionand\ncausealossofrevenue.Thevibrationsignalofamachineisagoodindi-\ncator of its condition. This paper presents a dataset of vibration signals\nfrom a lab-scale machine. The dataset contains four different types of\nmachineconditions:normal,unbalance,misalignment,andbearingfault.\nThreemachinelearningmethods(SVM,KNN,andGNB)evaluatedthe\ndataset,andaperfectresultwasobtainedbyoneofthemethodsona1-\nfoldtest.Theperformanceofthealgorithmsisevaluatedusingweighted\naccuracy (WA) since the data is balanced. The results show that the\nbest-performing algorithm is the SVM with a WA of 99.75% on the 5-\nfold cross-validations. The dataset is provided in the form of CSV files\nin an open and free repository at https://zenodo.org/record/7006575."
+    },
+    {
+      "id": "ev:72362dcee50f1d63:2:36-809",
+      "doc_id": "72362dcee50f1d63",
+      "page": 2,
+      "charspan": [
+        36,
+        809
+      ],
+      "text": "2 Lab-scale Vibration Analysis Dataset\n1 Introduction\nVibration analysis is the process of evaluating the vibration characteristics of\na machine or structure, typically with the goal of identifying any problems or\nabnormalitiesthatmaybepresent.Vibrationsareoftenindicativeofthehealth\nand performance of a machine or structure and can provide valuable infor-\nmation about the condition of certain components, such as bearings, gears,\nand motors. By analyzing the characteristics of vibrations, such as frequency,\namplitude, and waveform, it is possible to identify potential problems or fail-\nuresthatmayoccurinthefuture.Theanalysisofvibrationisoftenperformed\nin the frequency domain since the pattern of abnormalities in this domain is\nmore obvious than in the time domain."
+    },
+    {
+      "id": "ev:72362dcee50f1d63:4:2063-2593",
+      "doc_id": "72362dcee50f1d63",
+      "page": 4,
+      "charspan": [
+        2063,
+        2593
+      ],
+      "text": "3 Dataset: VBL-VA001\n3.1 Recorded conditions\nThe need for a Lab-scale vibration analysis dataset is triggered by the dif-\nficulties of obtaining the actual data from a real plant. Treating a machine\nto fail will cost a lot of money and time. Using lab-scale data will minimize\nthe impact of interfering with machine operation while keeping the same fault\npattern as the real plant data. In this light, we simulated four common con-\nditions of machine operation by electric motors (water pumps) to collect their\nvibration patterns."
+    },
+    {
+      "id": "ev:72362dcee50f1d63:4:271-995",
+      "doc_id": "72362dcee50f1d63",
+      "page": 4,
+      "charspan": [
+        271,
+        995
+      ],
+      "text": "a dataset designed for examining normal and faulty conditions of the ball\nbearing. The experiments to obtain the dataset were conducted using a two\nhorsepower (hp) Reliance Electric motor, and acceleration data was measured\nat locations near to and remote from the motor bearings [17]. The faults on\nthemotorbearingwerecreatedusingelectro-dischargemachining(EDM).The\nCWRU dataset contains bearing faults ranging from 0.007 inches in diameter\nto0.040inchesindiameterandwasintroducedseparatelyattheinnerraceway,\nrollingelement(i.e.,ball),andouterraceway.Thevibrationdatawasrecorded\nfor motor loads, in which faulted bearings were installed, of 0 to 3 horsepower\n(motorspeedsof1797to1720RPM).Thisdatasetwereusedin[11,14,15,18]."
+    },
+    {
+      "id": "ev:72362dcee50f1d63:5:1061-1124",
+      "doc_id": "72362dcee50f1d63",
+      "page": 5,
+      "charspan": [
+        1061,
+        1124
+      ],
+      "text": "Thebearingfaultconditionwassetbyhittingtheouterringofthebearing"
+    },
+    {
+      "id": "ev:72362dcee50f1d63:5:232-298",
+      "doc_id": "72362dcee50f1d63",
+      "page": 5,
+      "charspan": [
+        232,
+        298
+      ],
+      "text": "Unbalanceconditionisgivenintwodifferentmassadditionstotheimpeller."
+    },
+    {
+      "id": "ev:72362dcee50f1d63:5:299-671",
+      "doc_id": "72362dcee50f1d63",
+      "page": 5,
+      "charspan": [
+        299,
+        671
+      ],
+      "text": "Theimpellerhasadiameterof6cm.Hence,adding4gramsofmassfrom1.5of\ncenter mass (eccentricity) will cause an unbalance of 6 gram.cm (4×1.5=4).\nConsequently, adding 18 grams of mass from 1.5 of center mass will cause an\nunbalance of 27 gram.cm (18×1.5 = 27). These configurations are retained\nfrom the previous work [20, 21]. Figs. 2 (a) and (b) show these unbalance\nconditions."
+    },
+    {
+      "id": "ev:72362dcee50f1d63:5:672-743",
+      "doc_id": "72362dcee50f1d63",
+      "page": 5,
+      "charspan": [
+        672,
+        743
+      ],
+      "text": "The misalignment condition is given by coupling the shaft with an addi-"
+    },
+    {
+      "id": "ev:72362dcee50f1d63:5:744-1060",
+      "doc_id": "72362dcee50f1d63",
+      "page": 5,
+      "charspan": [
+        744,
+        1060
+      ],
+      "text": "tional metal cylinder. The metal cylinder is 1 cm in diameter and 7 cm in\nlength. The misalignment is 3 mm offset from the center. This misalignment\ncondition was set between the original shaft and an additional metal cylinder\nwith a metal cylinder offset from the shaft. Fig. 2 (c) shows the misalignment\ncondition."
+    },
+    {
+      "id": "ev:72362dcee50f1d63:6:280-302",
+      "doc_id": "72362dcee50f1d63",
+      "page": 6,
+      "charspan": [
+        280,
+        302
+      ],
+      "text": "Unbalance 6gram.cm 500"
+    },
+    {
+      "id": "ev:72362dcee50f1d63:6:317-340",
+      "doc_id": "72362dcee50f1d63",
+      "page": 6,
+      "charspan": [
+        317,
+        340
+      ],
+      "text": "Misalignment 3.0mm 1000"
+    },
+    {
+      "id": "ev:72362dcee50f1d63:6:529-989",
+      "doc_id": "72362dcee50f1d63",
+      "page": 6,
+      "charspan": [
+        529,
+        989
+      ],
+      "text": "3.2 Sensor placement\nThe sensor is located in the machine (electrical machine/water pump) in the\nposition as shown in Fig. 3. The vibration sensor is ”LOG-0002- 100G-DC-\n8GB-PC Shock and Vibration Sensor”. To attach it to the machine, we used\ndouble-sided tape to mount the sensor into the machine and connected it\nto the PC with a USB cable. The recording process was done using enDAQ\nLAB Software. By this arrangement, we collected three axes of acceleration"
+    },
+    {
+      "id": "ev:742178038a41d5ea:11:765-1703",
+      "doc_id": "742178038a41d5ea",
+      "page": 11,
+      "charspan": [
+        765,
+        1703
+      ],
+      "text": "Run-up/Coast-down tests\nRun-up and coast down tests were subsequently performed for additionally verifying that the\nmeasured variations were due to a thermally induced unbalance. These tests were conducted with an\nunbalance of 143g.mm@171°. The rotation speed was progressively increased from 0 to 7 krpm in 50\nseconds, kept constant for 180 seconds and then progressively decreased. The synchronous\ndisplacements and phases versus rotor speed are depicted in Figure 12. Both the synchronous\namplitudes and their phases show a clear hysteresis in the zone comprised between 5.8 krpm and 7\nkrpm.1 This is a typical signature of a thermally induced dynamic effect. It shows that the time scale of\nthe thermal unbalance is much larger than the time scale of the dynamic effects characterized in the\npresent case by the rotation speed. Journal and bearing maximum temperature differences depicted\nin Figure 13 show the same hysteresis effect."
+    },
+    {
+      "id": "ev:742178038a41d5ea:13:1241-1606",
+      "doc_id": "742178038a41d5ea",
+      "page": 13,
+      "charspan": [
+        1241,
+        1606
+      ],
+      "text": "Balancing the rotor close to the envisaged operating speed of 7 krpm encountered difficulties. The\nrotor was therefore balanced at 4 krpm by using the four balancing planes represented by the disks\nand following the procedure given in [19]. After balancing, the synchronous amplitudes at 4 krpm were\n5 µm and 3 µm in the DE and NDE measurement planes, respectively."
+    },
+    {
+      "id": "ev:742178038a41d5ea:17:1081-1646",
+      "doc_id": "742178038a41d5ea",
+      "page": 17,
+      "charspan": [
+        1081,
+        1646
+      ],
+      "text": "Unstable thermal response of the long rotor with contacts (test 3)\nA third test was performed by accelerating again the rotor at 6.6 krpm in 80 s. The synchronous\namplitude increased again but the velocity was kept constant more than 23 sec and a light contact\noccurred between t=103…104 s. The rotor was then coasted-down at t=104 s. The effect of the journal\nbearing contact is visible on Figure 23 to Figure 25. Figure 23 depicts the amplitude and the phase of\nthe synchronous vibration vector versus time while Figure 24 depicts the polar plot of these vectors."
+    },
+    {
+      "id": "ev:742178038a41d5ea:17:1647-2288",
+      "doc_id": "742178038a41d5ea",
+      "page": 17,
+      "charspan": [
+        1647,
+        2288
+      ],
+      "text": "As depicted in Figure 23a the amplitudes in the DE and NDE planes increase slowly between 80 s and\n103 s. Between 103 s and 104 s, when contact occurs, the amplitudes measured in the DE plane\ndecrease slightly while the amplitudes in the NDE plane increase considerably. The amplitudes of the\ntwo heavy disks, D2X and D4X show even larger increase. Amplitude variations measured during\ncontact are accompanied by important phase variations depicted in Figure 23b. The fact that the\njournal bearing contact enhances the rotation of all the vibration vectors (excepting the DE plane) in\nthe direction of rotation speed is visible in Figure 24."
+    },
+    {
+      "id": "ev:742178038a41d5ea:19:0-440",
+      "doc_id": "742178038a41d5ea",
+      "page": 19,
+      "charspan": [
+        0,
+        440
+      ],
+      "text": "Figure 25 shows the average and the maximum temperature difference. The light contact leads to an\nincrease of the average temperature of the bearing and of the journal but to a decrease of the\ntemperature difference of the bearing. This indicates that the bearing temperatures become more\nhomogeneous following the light contact. The rotor temperature difference shows a notable increase\nthat indicates the development of a strong hot spot."
+    },
+    {
+      "id": "ev:742178038a41d5ea:19:1091-1343",
+      "doc_id": "742178038a41d5ea",
+      "page": 19,
+      "charspan": [
+        1091,
+        1343
+      ],
+      "text": "The phase lags in the DE and NDE planes are different for all three tests: the hot spot precedes the\nhigh spot in the DE plane while it lags the high spot in the NDE plane. This result suggests that the rotor\nis bent in the area of the journal bearing."
+    },
+    {
+      "id": "ev:742178038a41d5ea:1:1510-2182",
+      "doc_id": "742178038a41d5ea",
+      "page": 1,
+      "charspan": [
+        1510,
+        2182
+      ],
+      "text": "Introduction\nThe thermal unbalance effect in rotor dynamics is not yet well predicted because the existing\nnumerical tools have not been validated by data detected in the field due to limited access to industrial\ntesting. The effect occurs due to the coupling of the heat generated in dynamic seals or lubricated\nbearings with rotordynamics. One of its characteristics is that it needs a long time to develop toward\ndangerous, high amplitude synchronous vibrations. Indeed, synchronous vibrations have the time scale\nof the rotation speed while their amplitude and phase are driven by the thermal unbalance governed\nby the much lower time scale of the rotor heat transfer."
+    },
+    {
+      "id": "ev:742178038a41d5ea:1:2183-3008",
+      "doc_id": "742178038a41d5ea",
+      "page": 1,
+      "charspan": [
+        2183,
+        3008
+      ],
+      "text": "The source of heat generation is different in dynamic annular seals or lubricated journal bearings. In\nseals, the synchronously whirling rotor may slightly rub against the labyrinth teeth or against the\nbristles of the brush seals. Heat is then generated in the contact point. Because the rotor whirls\nsynchronously, heat generation is located at the same “hot spot” of the rotor. The non-uniform\ntemperature variation around the circumference of the rotor produces a thermal bow that may\nincrease the original mechanical unbalance. Therefore, the amplitudes of the synchronous vibration\nwill slowly increase with continuously varying phase and the vibration vector will describe a more or\nless pronounced spiral. This is usually called the Newkirk effect and detailed analyses can be found in\nrotordynamic textbooks [1]-[4]."
+    },
+    {
+      "id": "ev:742178038a41d5ea:1:355-1461",
+      "doc_id": "742178038a41d5ea",
+      "page": 1,
+      "charspan": [
+        355,
+        1461
+      ],
+      "text": "Abstract\nThe present work presents the experimental analyses of a rigid (short) and of a flexible (long) rotor\nsubject to thermal unbalance effects. The rotors are supported by a ball bearing and by a cylindrical\njournal bearing. The differential heating generated in the journal bearing is responsible for the thermal\nunbalance. The results obtained with the short rotor at 7 krpm showed an increase of the synchronous\namplitudes but slight phase changes before stabilization. The pronounced hysteresis of the\nsynchronous amplitudes obtained during coast-down proved that the amplitude increase is due to the\nthermal unbalance. The results obtained for the long rotor at 6.6 krpm showed the same stabilized\nresponse when start-up was performed in 180 s. However, an instability leading to journal bearing\ncontact was triggered when the start-up time was decreased to 80 s. The presented experimental\nresults are the synchronous amplitudes and phases, the mean temperatures and the maximum\ntemperature differences of the journal and of the bearing and the phase lags between the high spot\nand the hot spot."
+    },
+    {
+      "id": "ev:742178038a41d5ea:20:1722-2304",
+      "doc_id": "742178038a41d5ea",
+      "page": 20,
+      "charspan": [
+        1722,
+        2304
+      ],
+      "text": "The results obtained for the long, flexible rotor show that the synchronous thermal instability is\ntriggered not only by the maximum temperature difference of the journal and by the proximity\nbetween the rotation speed and the first flexible rotor-bearing critical speed but also by the start-up\nscenario. Similar results were obtained for seizure effects in cylindrical and tilting pad journal bearings\nand are reported in [20], [21], [22] and [23]. Different start-up scenarios from zero to operating speed\nlead to different results and even catastrophic journal bearing seizures."
+    },
+    {
+      "id": "ev:742178038a41d5ea:20:499-839",
+      "doc_id": "742178038a41d5ea",
+      "page": 20,
+      "charspan": [
+        499,
+        839
+      ],
+      "text": "All tests showed an important temperature difference on the journal that can bend the rotor. The\nresulting thermal unbalance had a clear impact on the amplitude of synchronous vibrations. However,\nthe short rotor operated with a stable orbit and showed no instability even for very large vibration\namplitudes, close to the radial clearance."
+    },
+    {
+      "id": "ev:742178038a41d5ea:20:840-1359",
+      "doc_id": "742178038a41d5ea",
+      "page": 20,
+      "charspan": [
+        840,
+        1359
+      ],
+      "text": "The long rotor showed a similar result when the start-up was 180 s long. When reducing the time\nlength of the start-up to 80 s, the rotor repeatedly showed an unstable response. The synchronous\nvibration vectors that were initially turning opposite to the rotation speed started to turn progressively\nin the direction of the rotation speed. This shows that the main part of the thermal unbalance that\ncreated the instability is due to the overhung disk. The situation could be different for another rotor\nconfiguration."
+    },
+    {
+      "id": "ev:742178038a41d5ea:21:313-618",
+      "doc_id": "742178038a41d5ea",
+      "page": 21,
+      "charspan": [
+        313,
+        618
+      ],
+      "text": "The first experimental campaign consisted of long tests at 4 krpm. The added unbalance was\n60.6gmm@ 180° on the overhung disks. Figure 27 depicts the measured synchronous amplitudes and\nphases. The synchronous amplitudes are lower than 5 µm and slowly increasing. However, the phases\nare clearly constant."
+    },
+    {
+      "id": "ev:742178038a41d5ea:21:619-975",
+      "doc_id": "742178038a41d5ea",
+      "page": 21,
+      "charspan": [
+        619,
+        975
+      ],
+      "text": "Figure 28 depicts the average and the maximum (peak-to-peak) temperature differences recorded in\nthe mid-planes of the bearing and of the rotor. The average temperatures are clearly increasing but\nthe peak-to-peak temperature differences tend to constant values. They are not stabilized but it is\nunlikely that they will trigger a thermal unbalance effect."
+    },
+    {
+      "id": "ev:742178038a41d5ea:2:0-713",
+      "doc_id": "742178038a41d5ea",
+      "page": 2,
+      "charspan": [
+        0,
+        713
+      ],
+      "text": "In 1987, Schmied [5] mentioned that a very similar phenomenon might appear in lubricated journal\nbearings. This time there is no light contact between the rotor and the bearing. The rotor point where\nthe lubricant film thickness is minimum is called the “high spot”. Heat is generated by the lubricant\nshear stresses and the heat flux is not uniform around the rotor circumference. The hot spot is located\nbefore the high spot and produces the same effect as a light contact. As for the Newkirk effect, the\nrotor thermal bow modifies the unbalance and the synchronous vibration vector will describe a spiral.\nHowever, because it occurs due to heat generated in lubricated bearings, it is called the Morton effect."
+    },
+    {
+      "id": "ev:742178038a41d5ea:2:1106-2579",
+      "doc_id": "742178038a41d5ea",
+      "page": 2,
+      "charspan": [
+        1106,
+        2579
+      ],
+      "text": "In 1996, de Jongh and Morton [8] studied a centrifugal compressor guided by two tilting pad bearings\nand subject to a hysteretic behavior and spiral vibrations. The compressor was built to operate at 12\nkrpm far from the critical speed located at 14.5 krpm (2nd bending mode). However, during run-up\nsynchronous vibrations began to increase between 10 krpm and 11.5 krpm. At 11.5 krpm the\namplitudes continued to grow rapidly up to 50% of the bearing clearance while the phase was\ncontinuously changing. The shaft speed was reduced to 10 krpm and after few minutes, vibrations\nreturned to their initial values. After rebalancing, refitting and without oil seals, the compressor\nshowed the same instability. Further runs with light overhung weights showed that the speed at which\nthe instability occurred became 10% higher than the operating speed. In order to understand the\nsource of the instability, de Jongh and Morton developed a test rotor with the same dynamic\ncharacteristics as the compressor and with four temperature sensors mounted in the journal. The test\nrotor showed the same behavior and the temperature sensors proved that the journal bearing was the\nsource of synchronous instability. At 10.5 krpm, the rotor temperature difference was 3°C, the phase\nlag between the hot spot and the high spot was 20° and the vibration amplitudes increased but\nremained stable. At 11.5 krpm, the differential temperature was 10°C and the spiral vibrations became\nunstable."
+    },
+    {
+      "id": "ev:742178038a41d5ea:2:2580-3732",
+      "doc_id": "742178038a41d5ea",
+      "page": 2,
+      "charspan": [
+        2580,
+        3732
+      ],
+      "text": "In 1998, de Jongh and van der Hoeven [9] published other results of synchronous instabilities. A\ncentrifugal compressor showed hysteresis loops during run-up and coast-down and cyclic vibrations at\nconstant speed, i.e. periodically increasing and decreasing synchronous amplitudes accompanied by a\ncontinuously phase change. The compressor was dismounted and a disk replaced the impeller to test\nthe influence of the overhung weight, with and without seals. Vibrations remained low and stable for\nall configurations. However, a faster run-up conducted a few days later showed instabilities. Other\ntests conducted the same day showed stable, low amplitude vibrations. Next morning, the same test\nwas conducted and showed again instabilities while all the other tests of the day were stable. The\nauthors concluded that the instability occurred due to the cold morning temperature of the system.\nDue to the quick start-up, the journal bearing heats, but the clearance is constrained by the cold\ntemperature of the housing. To cure the problem, a heat barrier introducing an air layer between the\nshaft and the sleeve was developed and successfully tested."
+    },
+    {
+      "id": "ev:742178038a41d5ea:2:3733-4813",
+      "doc_id": "742178038a41d5ea",
+      "page": 2,
+      "charspan": [
+        3733,
+        4813
+      ],
+      "text": "In 1999, Berot and Dourlens [10] presented the results of a centrifugal compressor with a large\noverhung impeller guided by two tilting pad bearings and a thrust bearing. The authors tested five\ncompressors with the same architecture but with different overhung impellers. All compressors\nshowed instabilities close to the operating speed. Some compressors showed variations of the\nsynchronous amplitudes following slow cycles of the order of minutes with a continuous phase shift.\nOther tests showed rapidly increasing synchronous vibrations necessitating the shut-down of the\ncompressor. The whirl orbits were almost centered and circular. The authors concluded that the\ndifferential heating of the journal caused the spiral vibrations. Nothing indicated a rubbing between\nthe journal and the stator, so the differential heating could come only from the journal bearing. The\nauthors tested other configurations with different impellers, oil supply temperatures, bearing preloads\nand clearances and lighter couplings, but nothing suppressed the unstable behavior. After numerical"
+    },
+    {
+      "id": "ev:742178038a41d5ea:3:0-206",
+      "doc_id": "742178038a41d5ea",
+      "page": 3,
+      "charspan": [
+        0,
+        206
+      ],
+      "text": "investigations, they found that reducing the L/D ratio of the bearing increases the eccentricity and\nchanges the orbit to an elliptical one. Tests showed that the new bearings cured the instability\nproblem."
+    },
+    {
+      "id": "ev:742178038a41d5ea:3:1068-1511",
+      "doc_id": "742178038a41d5ea",
+      "page": 3,
+      "charspan": [
+        1068,
+        1511
+      ],
+      "text": "In 2011, Lorenz and Murphy [13] investigated a rotor with a large overhung disk. The amplitudes of\nsynchronous vibrations increased very slowly during two hours. After this time interval they became\nexcessive very rapidly thus the machine was coasted down. The authors thoroughly described the\nMorton effect and introduced three different responses:\n- stable vibrations: the amplitude increases and the phase vary but they tend toward constant"
+    },
+    {
+      "id": "ev:742178038a41d5ea:3:1641-1737",
+      "doc_id": "742178038a41d5ea",
+      "page": 3,
+      "charspan": [
+        1641,
+        1737
+      ],
+      "text": "- unstable vibrations: the phase changes constantly and the amplitude increases; the synchronous"
+    },
+    {
+      "id": "ev:742178038a41d5ea:3:2909-3531",
+      "doc_id": "742178038a41d5ea",
+      "page": 3,
+      "charspan": [
+        2909,
+        3531
+      ],
+      "text": "The results presented in [12], [13] and [14] show all the symptoms of instabilities induced by thermal\nunbalance: the instability is first hidden at constant speed and appears only after a certain time, it is\naccompanied by a clear hysteresis of the vibration amplitudes during coast-down and it may disappear\nif operating beyond the critical speed. Other experimental evidences of the Morton effect are\ndiscussed in [2]. Detailed presentations can also be found in three recent review articles [16], [17] and\n[18]. This abundant literature shows that the Morton effect is receiving an increasing attention at this\nmoment."
+    },
+    {
+      "id": "ev:742178038a41d5ea:3:3532-4140",
+      "doc_id": "742178038a41d5ea",
+      "page": 3,
+      "charspan": [
+        3532,
+        4140
+      ],
+      "text": "The goal of the present work is to present the experimental analyses of a rigid (short) and of a flexible\n(long) rotor subject to thermal unbalance effects. The results obtained with the short rotor at 7 krpm\nshowed a strong increase of the synchronous amplitudes but a slight phase change before stabilization.\nThe pronounced hysteresis of the synchronous amplitudes obtained during coast-down shows that\nthermal unbalance is responsible for this result. This corresponds to a “stable” Morton effect. The\nresults obtained for the long rotor at 6.6 krpm showed first the same “stable” Morton effect. However,"
+    },
+    {
+      "id": "ev:742178038a41d5ea:3:607-1067",
+      "doc_id": "742178038a41d5ea",
+      "page": 3,
+      "charspan": [
+        607,
+        1067
+      ],
+      "text": "Schmied et al. [12] published in 2008 an experimental analysis of a turboexpander with overhung disks.\nClose to the critical speed, the rotor showed high amplitude, spiral synchronous vibrations. The\namplitudes remained high and followed a hysteresis when the speed was decreased thus showing that\nthe culprit was a thermal effect. The solution for currying the instability was based on the reduction of\nthe bearing width (as in [10]) and of the oil viscosity."
+    },
+    {
+      "id": "ev:742178038a41d5ea:4:1332-1632",
+      "doc_id": "742178038a41d5ea",
+      "page": 4,
+      "charspan": [
+        1332,
+        1632
+      ],
+      "text": "The 430 mm rotor was balanced in class G1@10krpm but the test rig required repeated dismounting\nof the disks and of the slip ring. Therefore, a quite large residual unbalance was present. Comparisons\nwith theoretical predictions enabled to estimate a residual unbalance of 45 g.mm @150° on the disks."
+    },
+    {
+      "id": "ev:742178038a41d5ea:5:2290-2904",
+      "doc_id": "742178038a41d5ea",
+      "page": 5,
+      "charspan": [
+        2290,
+        2904
+      ],
+      "text": "Figure 3 shows the cascade plot of the X direction vibrations measured in the NDE plane. The 1X and\nthe 2X components are clearly distinguishable together with a 0.5X component. The later appears at 3\nkrpm, attains its maximum amplitude at 5 krpm (the amplitudes of the 0.5X and 1X components are\nequal at this speed) and completely vanishes at 6.5 krpm. The amplitude of the 2X component remains\nsmall. The goal of the experiments was to obtain high amplitude synchronous vibrations. Therefore,\nsystematic tests were performed only at 4 krpm and 7 krpm, outside the zone with noticeable\nsubsynchronous vibrations."
+    },
+    {
+      "id": "ev:742178038a41d5ea:6:1002-1824",
+      "doc_id": "742178038a41d5ea",
+      "page": 6,
+      "charspan": [
+        1002,
+        1824
+      ],
+      "text": "Figure 4 depicts the synchronous amplitudes and phases over a long time interval. The time origin is\nthe moment when the rotation speed of 7 krpm was attained. The synchronous amplitudes increase\nfrom 14 µm in the DE plane, and 19 µm in the NDE plane to values comprised between 26 µm and 30\nµm for the DE plane and between 34 µm and 40 µm for the NDE plane. The amplitudes measured along\nthe Y axis (horizontal) are always larger than X axis (vertical) amplitudes. In the same time, the phases\nof X synchronous amplitudes show an increase of 20° in both the DE and the NDE planes while the Y\nsynchronous phases show an increase of 15°. Rapid variations occur only at the beginning of the test.\nThis is rigorously true for the phases while the amplitudes continue to show a slight increase even after\na long time interval."
+    },
+    {
+      "id": "ev:742178038a41d5ea:7:234-714",
+      "doc_id": "742178038a41d5ea",
+      "page": 7,
+      "charspan": [
+        234,
+        714
+      ],
+      "text": "Figure 6 depicts the circumferentially averaged values and the peak-to-peak temperature differences\nmeasured in the mid-plane of the bearing and on the journal. The rotor temperature difference is quite\nlarge, increasing from 5.5°C to 12.5°C, while the bearing temperature difference decreases from 4°C\nto 2.5°. Similar to the synchronous displacements, the temperature differences show major variations\nduring the first 1400 sec of the test and then become asymptotically stable."
+    },
+    {
+      "id": "ev:742178038a41d5ea:8:164-654",
+      "doc_id": "742178038a41d5ea",
+      "page": 8,
+      "charspan": [
+        164,
+        654
+      ],
+      "text": "The results depicted in Figure 7 show the rotor temperature difference versus the amplitude of\nsynchronous vibrations. The R² coefficient of the linear correlation is 0.91 during the whole test and\n0.99 for the first 1400 seconds. This proves that the two effects are well correlated, i.e. the increase of\nthe synchronous amplitudes is due to the temperature difference of the journal. However, it is possible\nthat different operating conditions will lead to other kind of correlations [7]."
+    },
+    {
+      "id": "ev:742178038a41d5ea:8:764-1146",
+      "doc_id": "742178038a41d5ea",
+      "page": 8,
+      "charspan": [
+        764,
+        1146
+      ],
+      "text": "Phase lag between the hot spot and high spot at 7 krpm\nThe circumferential positions of the journal hot spot and high spot indicate the highest temperature\nand the minimum film thickness, respectively. The time variation of the phase lag between the hot\nspot and the high spot requires special attention for identifying the typical signature of a thermally\ninduced unbalance effect."
+    },
+    {
+      "id": "ev:86d03750e457ff1f:12:1645-3230",
+      "doc_id": "86d03750e457ff1f",
+      "page": 12,
+      "charspan": [
+        1645,
+        3230
+      ],
+      "text": "5. Conclusions\nAn increasing number of wind turbines are equipped with vibration-measurement\nsystems to enable a close monitoring and early detection of developing fault conditions\nin the gearbox. Gearboxes are among the most critical and costly components to replace\nin wind turbines. The current state-of-the-art gearbox fault diagnostics algorithms rely\non upfront definitions of fault signatures by human analysts. The state-of-the-art\ndiagnostics methods have in common that, for each of them, a human analyst has\ninvestigated and designed a particular feature (fault signature) to be extracted from the\nvibration measurements. Each feature has been defined so as to capture a particular\naspect that starts to build up in the time- or frequency domain signals when an incipient\nfault starts to evolve and intensify in an originally healthy component. For instance,\nlocal surface damage on a gear tooth is typically diagnosed based on changes in the\nresidual signal obtained after the gear mesh frequencies and harmonics have been\nremoved. These feature-engineering approaches have multiple disadvantages as dis-\ncussed above. They require time-intensive handcrafting of fault diagnostics features and\ndetailed knowledge of the monitored component. Therefore, they lack scalability with\nthe increasing number of monitored turbines, with different component types and con-\nfigurations present, each of which with its own characteristic frequencies. Fault signa-\ntures defined by human analysts can result in biased and imprecise decision boundaries\nin the fault diagnostics process."
+    },
+    {
+      "id": "ev:86d03750e457ff1f:2:45-3914",
+      "doc_id": "86d03750e457ff1f",
+      "page": 2,
+      "charspan": [
+        45,
+        3914
+      ],
+      "text": "have been proposed to assess the vibration signals from wind turbine gearboxes in the\ntime and frequency domains. Examples include the time-domain monitoring of\nwaveform features such as root mean square deviations, peak-to-peak amplitudes, and\nkurtosis. In the frequency domain, methods such as spectral line analysis, envelope and\nsideband analysis have been proposed [8-11]. Thus, the state-of-the-art vibration\ndiagnostics methods applied for wind turbine (WT) gearboxes in practice rely on the\nextraction of hand-crafted features from the gearbox vibration signals. The features need\nto be defined by a human analyst before they can be extracted. Only after they have been\ndefined and extracted from the vibration measurements, the features may be used to\ninfer information about potential faults in gearbox components based on statistical\nmethods or machine learning models [12-13]. Typical handcrafted features that are in\nuse for WT gearbox fault diagnostics are the position and amplitude of spectral lines\ncorresponding to characteristic frequencies of gearbox components, such as gear mesh\nfrequencies, and other characteristic metrics such as the root mean square deviation and\nkurtosis of parts of the vibration time series [8-11]. However, these state-of-the-art\nvibration diagnostics methods have multiple disadvantages. First, they require a labor-\nintensive upfront conception and handcrafting of feature definitions, which constitutes a\nsignificant time and workforce effort. Second, many state-of-the-art approaches and fea-\nture definitions need a highly detailed knowledge of the gearbox type, manufacturer,\ncomposition and dimensions, its bearing and gear types, gear teeth numbers, and so on.\nThis information needs to be gathered for every single gearbox before the start of the\nmonitoring. As a result, the state-of-the-art fault diagnostics and feature extraction\napproaches can generally not be transferred straightforwardly to new turbine types\nadded to an operator's wind power portfolio. For every new turbine entering the\nportfolio, detailed turbine composition information needs to be collected from the\nmanufacturer and the vibration features need to be reviewed, adapted and extracted.\nThis constitutes a large resource-intensive initial effort that many wind farm operators\nand asset managers are hesistant to make. Third, after a feature definition and extraction\nmethod has been implemented, thousands of characteristic spectral values per turbine\ngearbox need to be stored and monitored, which requires costly storage resources and\ncomputing time in the remote monitoring centers of the turbine operators and asset\nmanagers. Fourth, the state-of-the-art approaches do not analyse the full vibration spec-\ntrum but focus on monitoring only isolated aspects thereof, such as a set of characteristic\nfrequencies, or they focus on global metrics of the vibration time series or spectrum. Un-\nlike the proposed approach, they do not support an automated simultaneous vibration\nmonitoring of the full spectral range. Lastly, features defined by human analysts can\nlead to imprecise decision boundaries and less accurate fault diagnostics predictions\nthan features that have been learnt by the machine learning algorithms themselves [14].\nThe state-of-the-art feature definition and extraction methods may result in lower\ndiagnostics accuracy, more false alarms and false negatives, especially in ambiguous\nboundary cases that require additional inspection and decision making by remote\nmonitoring staff, than fault diagnostics methods which learn and extact the optimal\nfeatures themselves. A reliable feature definition and extraction is essential to the fault\ndiagnostics process. For an illustrative example of how the chosen upfront feature\ndefinitions can affect the fault detection quality, we refer to the study presented by [11]."
+    },
+    {
+      "id": "ev:86d03750e457ff1f:6:1203-2331",
+      "doc_id": "86d03750e457ff1f",
+      "page": 6,
+      "charspan": [
+        1203,
+        2331
+      ],
+      "text": "To demonstrate the fault diagnostics approach and automated feature learning and ex-\ntraction, the following components were selected for this case study in an arbitrary man-\nner from among the set of components monitored in the NREL study [23]: Accelerome-\nter 1 was attached to the ring gear (component 1) at a bottom-facing location in both the\nhealthy and the damaged gearbox to measure radial accelerations. Accelerometer 2 was\nattached to the low-speed shaft bearing (component 2) also to measure radial accelera-\ntions, whereas accelerometer 3 monitored the radial accelerations of the high-speed shaft\ndownwind bearing (component 3). All three components - the ring gear, the low-speed\nshaft bearing and the high-speed shaft bearing - exhibited different degrees of damage\nin the damaged gearbox such as scuffing. In total, readings from six sensors are consid-\nered. The accelerometer measurements at the undamaged gearbox and at the damaged\ngearbox were each taken at 40 kHz sampling frequency under constant load and speed\nof 22.09 rpm low-speed shaft and 1800 rpm high-speed shaft speed for a duration of 10\nminutes."
+    },
+    {
+      "id": "ev:86d03750e457ff1f:6:45-1202",
+      "doc_id": "86d03750e457ff1f",
+      "page": 6,
+      "charspan": [
+        45,
+        1202
+      ],
+      "text": "3. Case study\nThe proposed fault diagnosis approach is demonstrated and tested based on vibration\nmeasurements from multiple gearbox components taken while the gearbox was operat-\ning on a test rig. The proposed approach is demonstrated and its performance tested\nusing accelerometer measurements from the gearboxes of two 750 kW wind turbines\noperated on a WT test rig at the National Renewable Energy Laboratory (NREL). The\ndata were collected by NREL for its Gearbox Condition Monitoring Round Robin study\n[23]. The accelerometer measurements were taken over a ten-minute period from two\nidentical gearboxes of the 750kW wind turbines with one of the gearboxes in a healthy\nunimpaired state and the other gearbox suffering from multiple damaged components\nafter an oil loss event which had caused moderate damage to the gearbox gears and\nbearings. Each of the two gearboxes has a transmission ratio of 1:81.491 and comprises a\nlow-speed planetary stage and two parallel stages. Figure 3 shows a schematic of the\ngearbox. We refer to [23-24] for a detailed description and visualization of the test stand,\ngearbox, monitoring system and measurement setup."
+    },
+    {
+      "id": "ev:86d03750e457ff1f:7:45-1241",
+      "doc_id": "86d03750e457ff1f",
+      "page": 7,
+      "charspan": [
+        45,
+        1241
+      ],
+      "text": "4. Discussion\nTo create the spectrograms that will be input to the CNN for feature extraction, the ac-\ncelerometer measurements were split into four segments per second and a separate\nshort-time Fourier transform (STFT) was computed for each segment. A short-time Fou-\nrier transform enables the frequency analysis of a signal as it changes over time [25-26].\nThe length of four segments per second was selected by investigating the tradeoff be-\ntween time and frequency resolution so as to maintain a high frequency resolution and\nsufficient temporal resolution, as shown in Figure 4. The frequency resolution should be\nsufficient for resolving typical spectral differences arising between healthy and damaged\nstates of the monitored components. The STFTs were computed with an overlap of 0.2\nseconds for adjacent segments. However, the length of the overlap had no significant\neffect on the performance of the subsequent anomaly detection and classification mod-\nels. Given the 40 kHz sampling rate, vibration frequencies of up to the Nyquist fre-\nquency of 20 kHz can be resolved. For the present fault diagnostics case study, we fo-\ncused the analysis on vibration frequencies of up to 1 kHz."
+    },
+    {
+      "id": "ev:86d03750e457ff1f:8:1859-2275",
+      "doc_id": "86d03750e457ff1f",
+      "page": 8,
+      "charspan": [
+        1859,
+        2275
+      ],
+      "text": "ments of the three accelerometers at the healthy and the damaged gearbox components.\nTwo healthy and two damaged instances are shown for each of the three components for\nillustration. As can be seen in the figure, the spectral differences between vibration meas-\nurements from the healthy and the damaged components have been sufficiently resolved\nby the Fourier transforms to enable discriminative feature learning."
+    },
+    {
+      "id": "ev:906bd81774ba8b1a:33:2199-5205",
+      "doc_id": "906bd81774ba8b1a",
+      "page": 33,
+      "charspan": [
+        2199,
+        5205
+      ],
+      "text": "turesnecessitatesdimensionalityreductionsincethesefeatures\nconstitute a multi-dimensional latent space. Moreover, since • Vibration sensors are non-intrusive and can be contact-\nthese features lack interpretability, feature ranking and selec- less, facilitating non-destructive condition monitoring.\ntion become essential to identify the most relevant features. • Real-time acquisition of vibration signals can be con-\nIn the context of signal processing-based features, these tech- ducted in situ, allowing for online local condition moni-\nniques are commonly employed when many features— such toring.\nas Fourier, wavelet, and energy-time-frequency coefficients— • Vibration sensors are cost-effective and widely available,\nare used. Despite their effectiveness in reducing the computa- offering various specifications to suit various require-\ntional burden and improving the efficiency of the ML model, ments.\ndimensionality reduction and feature selection come at the • Vibration waveform responds instantly to changes in\ncost of extra processing, increasing the system’s end-to-end the monitored condition and, therefore, is suitable for\ncomplexityandtimedelay.Analternativesolutionistoutilize continuous and intermittent monitoring applications.\nvarioussignalprocessingtoolstodevelopasmallsetofhighly • Of paramount significance, signal processing techniques\ndistinctive features. Although this typically demands domain can be applied to vibration signals to mitigate corrupting\nknowledge and empirical evaluation, certain signal-processing noise and extract weak condition indications from other\ntools can be particularly useful in this context. Specifically, masking signals.\nSignal decomposition offers a reliable way to engineer a few The Paderborn University (PU) bearing dataset [437] is used\nhighly-discriminative features from decomposed modes [44] to facilitate a real-time VBCM. The dataset includes actual\nthat are closely associated with the inherent structure of the vibration signals from a real system during healthy and faulty\nsignal. The size of the features extracted from these modes operations. The fault types include inner race (IR), outer race\nequals 1×(K×M) [44], where K is the number of decom- (OR), and combined IR and OR defects. Thus, the dataset\nposed modes and M is the number of extracted features for comprises four classes of operational conditions: 1- healthy,\neach mode. In [44], this approach was utilized for vibration- 2- IR faults, 3- OR faults, and 4- combined IR and OR faults.\nbased condition monitoring of rolling bearings using wavelet- The vibration signals of the dataset were acquired at 64,000\nbased decomposition. A comparative analysis shows that the samples per second. Hence, in the signal processing pipeline,\napproach would achieve excellent performance in fault detec- the vibration signals are segmented into non-overlapping seg-\ntion with very few features compared to other approaches. ments of N =12,800 samples so that the resultant segment"
+    },
+    {
+      "id": "ev:906bd81774ba8b1a:33:5786-5847",
+      "doc_id": "906bd81774ba8b1a",
+      "page": 33,
+      "charspan": [
+        5786,
+        5847
+      ],
+      "text": "that may indicate a fault in the equipment. Here, power spec-"
+    },
+    {
+      "id": "ev:906bd81774ba8b1a:33:5848-6279",
+      "doc_id": "906bd81774ba8b1a",
+      "page": 33,
+      "charspan": [
+        5848,
+        6279
+      ],
+      "text": "This section delves into the practical application of signal- tralanalysishelpsidentifytheseoscillationssincetheyappear\nprocessing techniques for feature extraction in signal-based asdominantfrequenciesinthePSD.Accordingly,PSDsofthe\nML systems. By providing actual use cases, the section aims\nto bridge the theoretical foundations of signal processing with 4https://github.com/Western-OC2-Lab/Signal-Processing-for-Machine-Learning"
+    },
+    {
+      "id": "ev:906bd81774ba8b1a:34:190-1606",
+      "doc_id": "906bd81774ba8b1a",
+      "page": 34,
+      "charspan": [
+        190,
+        1606
+      ],
+      "text": "vibration samples are estimated by Welch’s method using the to the duration of the vibration segment. While such a short\nHannwindowandasegmentlengthof512with50%overlap. duration would reduce frequency resolution, it increases the\nTheNumberofFFTpoints(NFFT)issetequalto1024,which numberofestimates.This,inturn,helpstoreducenoise[438]\nis calculated using the conventional method where NFFT is and variance of the PSD estimate, leading to a smoother and\ncommonly set to be equal to 2P, where P is the smallest more reliable estimate of the PSD, as demonstrated in Fig.\npower of 2 that is greater than or equal to the Welsh segment 32, which compares two different estimations of the PSD\nlength(512samples).Thus,thevalueofpissetto10.Fig.31 of a vibration sample. The first estimation is based on a\nshows PSD estimates of four vibration samples that represent short segment length of 512 data points, while the second\nhealthy and abnormal operational conditions in the dataset. It estimationemploysalargersegmentof6400datapoints.After\nis noticeable that a fault alters the PSD characteristics, and PSD estimation, relevant spectral features are extracted from\ndifferent faults have different effects on the PSD. It is worth the PSD to characterize the varying vibration patterns. These\nnoting that the segment length of 512 data points used in features include:\nthe Welsh methods represents a short time duration compared"
+    },
+    {
+      "id": "ev:906bd81774ba8b1a:46:8173-8335",
+      "doc_id": "906bd81774ba8b1a",
+      "page": 46,
+      "charspan": [
+        8173,
+        8335
+      ],
+      "text": "envelopeanalysisforfeatureextractionofpowerplantblowerbearing implementationinxilinxsystemgenerator.” IEEE,52023,pp.1488–\nfailure.” IEEE,52014,pp.2821–2824. 1491."
+    },
+    {
+      "id": "ev:a69b5214a36a9857:6:1058-1203",
+      "doc_id": "a69b5214a36a9857",
+      "page": 6,
+      "charspan": [
+        1058,
+        1203
+      ],
+      "text": "[0114] S3、将处理好的时频图作为数据集进行切分，按照3:1:1划分为训练集、验证集和测试集。训练集\n样本数为300，验证集样本数为100，测试集样本数为100。数据包括正常、内圈故障、滚动体故障、外圈\n故障四种类型数据，其中，三类故障数据又分别包括三种不同故障尺寸，具体如表1所示。"
+    },
+    {
+      "id": "ev:c169b3184c37a610:1:1375-1618",
+      "doc_id": "c169b3184c37a610",
+      "page": 1,
+      "charspan": [
+        1375,
+        1618
+      ],
+      "text": "18. 构建转子实验台：该实验台包括变速驱动电机、轴承、齿轮箱、轴、偏重转盘、调速器，带有各类\n故障齿轮部件的系统机械部分，以及安装在所述轴上的加速度传感器；\n19. 模拟齿轮各类故障：通过调节配重、部件安装位置以及组件的有机组合来进行模拟；\n20. 通过加速度传感器获取齿轮正常情况和各类故障情况的振动信号。\n21. 3.根据权利要求2所述的一种齿轮的故障诊断方法，其特征在于，所述的齿轮各类故障情况的振动信\n号包括：磨损故障齿轮振动信号、点蚀故障齿轮振动信号、断齿故障齿轮振动信号。"
+    },
+    {
+      "id": "ev:c169b3184c37a610:3:1209-1291",
+      "doc_id": "c169b3184c37a610",
+      "page": 3,
+      "charspan": [
+        1209,
+        1291
+      ],
+      "text": "[0025] 构建转子实验台：该实验台包括变速驱动电机、轴承、齿轮箱、轴、偏重转盘、调速器，带有各\n类故障齿轮部件的系统机械部分，以及安装在所述轴上的加速度传感器；"
+    },
+    {
+      "id": "ev:c169b3184c37a610:3:1374-1434",
+      "doc_id": "c169b3184c37a610",
+      "page": 3,
+      "charspan": [
+        1374,
+        1434
+      ],
+      "text": "[0028] 所述的齿轮各类故障情况的振动信号包括：磨损故障齿轮振动信号、点蚀故障齿轮振动信号、断\n齿故障齿轮振动信号。"
+    },
+    {
+      "id": "ev:c169b3184c37a610:5:0-98",
+      "doc_id": "c169b3184c37a610",
+      "page": 5,
+      "charspan": [
+        0,
+        98
+      ],
+      "text": "[0065] 构建转子实验台：该实验台包括有变速驱动电机、轴承、齿轮箱、轴、偏重转盘、调速器；系统\n的机械部分还包括各类存在不同故障的齿轮部件；以及安装在轴上的加速度传感器可以获得齿轮振动信\n号；"
+    },
+    {
+      "id": "ev:c169b3184c37a610:5:176-331",
+      "doc_id": "c169b3184c37a610",
+      "page": 5,
+      "charspan": [
+        176,
+        331
+      ],
+      "text": "[0067] 通过加速度传感器获取齿轮正常情况和各类故障情况的振动信号。如图2所示为具体获取的正常\n齿轮振动信号，如图3所示为具体获取的磨损故障齿轮振动信号，如图4所示为具体获取的点蚀故障齿轮\n振动信号，如图5所示为具体获取的断齿故障齿轮振动信号，图中均以时间(秒)为横坐标，以加速度(m/s\n2 )为纵坐标。"
+    },
+    {
+      "id": "ev:c169b3184c37a610:5:99-175",
+      "doc_id": "c169b3184c37a610",
+      "page": 5,
+      "charspan": [
+        99,
+        175
+      ],
+      "text": "[0066] 模拟齿轮各类故障：通过调节配重、部件安装位置以及组件的有机组合来进行齿轮故障模拟，本\n实施例中，齿轮故障包括磨损故障、点蚀故障、断齿故障；"
+    },
+    {
+      "id": "ev:c169b3184c37a610:6:1364-1567",
+      "doc_id": "c169b3184c37a610",
+      "page": 6,
+      "charspan": [
+        1364,
+        1567
+      ],
+      "text": "[0103] 试验针对正常齿轮、磨损故障齿轮、点蚀故障齿轮和断齿故障齿轮四类模式进行故障位置分类，\n四类模式信号均采样80组数据，共320组，每组数据采样点数为2048个，采样速率为5120hz。上述数据经\n过步骤②分解后获得多个固有旋转分量和一个基准分量，本实施例中，计算由高频至低频的包含主要故\n障特征的前三组固有旋转分量的瞬时幅值和瞬时频率，在此基础上得到瞬时幅值和瞬时频率的样本熵并\n构成特征向量。"
+    },
+    {
+      "id": "ev:ce1b34c82ccf0ae1:11:235-649",
+      "doc_id": "ce1b34c82ccf0ae1",
+      "page": 11,
+      "charspan": [
+        235,
+        649
+      ],
+      "text": "indicated in Fig. 9, while the testing dataset was extracted from the test region 1 and 2 (Fig. 9). For each region, a\nrandom vibration signal for 10 hunting tooth cycles of the planetary gearbox was selected and subsequently\ntransformed into an HDMap to generate one data sample. The study resulted in 100,000 samples from the training\nregion and 1,000 samples from the testing regions for each domains (Table 1)."
+    },
+    {
+      "id": "ev:ce1b34c82ccf0ae1:11:3387-4522",
+      "doc_id": "ce1b34c82ccf0ae1",
+      "page": 11,
+      "charspan": [
+        3387,
+        4522
+      ],
+      "text": "To enable a comparative analysis, we established two baseline models: one based on the HDMap representation and\nanother based on the frequency domain features. For a fair comparison, we obtained the training and testing datasets\nin the frequency domain by employing the resampled vibration signal (Samuel and Pines, 2005), which helps to reduce\nthe effect of the speed change. We have set the input length in frequency domain to encompass three revolutions of\nthe target planet gear, ensuring that the fault-related signals are captured at least three times. We employed a\nconventional convolutional neural network (CNN)-based classification model that was trained solely on the source\ndomain data. The LeNet-based baseline model from (Ha and Youn, 2021) featuring two convolutional layers with\nReLU activation and pooling layers, as well as two fully connected layers, was adopted in our study. In addition, a\nshallow version of the autoencoder from (Akcay, Atapour-Abarghouei and Breckon, 2019) with the ELU activation\nfunction for each layer has been employed. In more detail, an autoencoder with a latent space of 128 was utilized,"
+    },
+    {
+      "id": "ev:ce1b34c82ccf0ae1:14:2134-4076",
+      "doc_id": "ce1b34c82ccf0ae1",
+      "page": 14,
+      "charspan": [
+        2134,
+        4076
+      ],
+      "text": "5.4 Results from the regression model\nAlthough the classification model shows promising results, it is more desirable to predict fault severity in real-world\nconditions to design more effective maintenance strategies. This paper employs two types of faults, as illustrated in\nFig. 7 (d) and (e), to assess fault severity using the regression model. It should be noted that while fault 2 is\nintentionally designed to exhibit more severe tooth wear than fault 1, the vibration characteristics induced by the fault\nmay vary depending on the gearbox's operating and assembly conditions. The test samples used in this experiment are\nobtained from two separate regions, as depicted in Fig. 9. It is worth noting that each region's vibration characteristics\nmay differ due to varying lubricant oil temperatures. As an example, Fig. 11 (a) and (b) depict the scaling parameter\nand its corresponding histogram for the scaled CutPaste and FaultPaste methods under domain C, respectively. The\nevaluation of each health state (normal, fault 1, and fault 2) involves 1000 test samples, each of which is divided into\ntwo parts based on the test region. As shown in Fig. 11 (a), faults 1 and 2 exhibit a distinct transient between the two\ntest regions (i.e., x=1500 and 2500), while also displaying significant variation within each region. While it is common\nfor faults 1 and 2 to have higher values than the normal state in each test region, the health state cannot be effectively\ndistinguished when combining samples from all test regions. In the test data, fault level 1 from test region 1 overlaps\nwith the normal state from test region 2. However, as shown in Fig. 11 (b), the scaling parameter predicted by\nFaultPaste can almost completely differentiate between the normal state and fault level 1 for all test samples. Moreover,\nalthough the model is trained solely with fault signatures obtained from fault level 1 in the source domain, it can still"
+    },
+    {
+      "id": "ev:ce1b34c82ccf0ae1:15:1193-2684",
+      "doc_id": "ce1b34c82ccf0ae1",
+      "page": 15,
+      "charspan": [
+        1193,
+        2684
+      ],
+      "text": "6. Discussion\nOne of the key contributions of this study is the development of two new fault diagnosis methods for planetary\ngearboxes using health data map. The first method, Scaled CutPaste, is completely self-supervised and relies only on\nnormal samples from the target domain. It incorporates the guidance of domain expertise with domain knowledge of\nplanetary gearbox vibration characteristics to simulate fault-related features on normal samples in the target domain.\nThe second method, FaultPaste, improves upon Scaled CutPaste by extracting fault-related features from the source\ndomain and pasting them onto normal samples in the target domain. This results in more realistic synthesized faulty\nsamples and enhances the fault diagnosis performance. Both methods use randomly-distributed scaling factors to\nsimulate faults ranging from negligible to significant levels. The results of the parametric study depicted in Fig. 10\nindicate that both methods can achieve almost perfect classification accuracy when the maximum scaling factor is\nlarger than 30. This implies that a wide variation of the scaling factor can improve the classification model's\ngeneralization, resulting in greater flexibility. The study provides evidence that the results of the parametric study are\nconsistent with both synthesized and real samples in the target domain, which suggests that the method can be\nvalidated solely using synthesized samples and can be reliably implemented in real-world scenarios."
+    },
+    {
+      "id": "ev:ce1b34c82ccf0ae1:16:1089-3905",
+      "doc_id": "ce1b34c82ccf0ae1",
+      "page": 16,
+      "charspan": [
+        1089,
+        3905
+      ],
+      "text": "7. Conclusions\nThe paper introduces a novel method for cross-domain fault diagnosis of planetary gearboxes when only healthy data\nis available in the target domain. The proposed method involves using a health data map (HDMap) to physically\nrepresent the gearbox vibration signal, allowing for a rough visualization of fault-related features. Our method is based\non the assumption that the vibration characteristics and fault-related signatures can be to some extent disentangled in\nthe HDMap representation. The paper presents two novel methods, scaled CutPaste and FaultPaste to synthesize faulty\nsamples in the target domain in a controlled manner with scaling factors. Scaled CutPaste can synthesize faulty\nsamples using only healthy data in the target domain by utilizing prior domain knowledge of fault-related features.\nThe spatial irregularity generated from scaled CutPaste with various severities can help to train a deep learning-based\nfault diagnosis model that can generalize well. FaultPaste, on the other hand, can generate more realistic faulty samples\nby using fault signatures extracted from the source domain. Although FaultPaste requires both normal and faulty data\nfrom the source domain, it outperforms the conventional method even in predicting unseen fault severity in the target\ndomain. It should be noted that the evaluation of the performance of the proposed method only covers detecting a\nlocal fault in a single planet gear tooth. Additionally, the proposed idea assumes that the fault signature pattern is\nminimally influenced by the changes in operating conditions, while accounting for uncertainty through the utilization\nof the scaling factor. Furthermore, the conventional processing steps involved in HDMap technique, such as time\nsynchronous averaging, frequency domain subtraction of regular gear meshing components, and extracting maximum\nvibration amplitude for each gear meshing combination, may result in the loss of crucial information. In future research,\nit would be valuable to expand the proposed method to encompass a broader range of fault types and severity levels.\nAdditionally, exploring more significant domain shift problems, such as changes in gearbox type that can completely\nalter the fault signature pattern even within HDMap, will be the focus of future research endeavors. Moreover,\nexploring end-to-end data synthesis and fault diagnosis methods that incorporate domain knowledge from raw\nvibration signals could be an intriguing avenue to pursue. Additionally, the study discovered that operating conditions,\nsuch as lubricant oil temperature, can affect the fault-related features' variability. Therefore, future research could\ndevelop a more robust fault severity prediction method by integrating domain information that includes the operating\ncondition."
+    },
+    {
+      "id": "ev:ce1b34c82ccf0ae1:4:3615-4664",
+      "doc_id": "ce1b34c82ccf0ae1",
+      "page": 4,
+      "charspan": [
+        3615,
+        4664
+      ],
+      "text": "3 Background\n3.1 Health data map (HDMap)\nA planetary gearbox is comprised of a set of gears including a sun gear, a ring gear, and multiple planet gears that\ninterlock with each other while rotating and produce intricate vibration patterns. The revolving planet gears of a\nplanetary gearbox can cause vibration modulation characteristics that pose challenges for vibration-based fault\ndiagnosis of the gearbox. The vibration modulation characteristics can primarily be attributed to the uneven\ndistribution of load among the planet gears, which results in a higher load on a specific gear during certain meshing\nconditions. To solve this challenge, health data map (HDMap) was proposed as an efficient vibration representation\nmethod that enables fault identification of the planet gear regardless of the uncertain vibration modulation\ncharacteristics (Ha et al., 2018). HDMap aligns the vibration signals of the planetary gearbox in the domains of the\nmeshing teeth pair between the ring and the planet gear of interest, which can be formulated as:"
+    },
+    {
+      "id": "ev:ce1b34c82ccf0ae1:5:323-1610",
+      "doc_id": "ce1b34c82ccf0ae1",
+      "page": 5,
+      "charspan": [
+        323,
+        1610
+      ],
+      "text": "used for rotating machinery. This method involves four steps: 1) encoder-based resampling to align the signal with\ngear rotation, 2) time synchronous averaging (TSA) to reduce random noise, and 3) subtraction of regular gear meshing\ncomponents in the frequency domain, and 4) re-transforming signals to time domain (Samuel and Pines, 2005).\nBecause HDMap encapsulates only vibration amplitudes for each gear meshing combination, it is more robust to the\ndomain shift problem caused by speed changes. Fig. 1 shows an example of the HDMap of a planetary gearbox with\nnormal and faulty planet gears. Fault-related features are not discernible from the raw signal as illustrated in Fig. 1\n(a) and (d). Even though the difference signal can analyze the vibration signal in the planet gear rotation domain with\nreduced noise as seen in Fig. 1 (b) and (e), it is still incapable of detecting any faults. However, it is apparent from\nFig. 1 (f) that the fault can be visually identified in the HDMap as a horizontally intensive feature. From the results,\nit can be observed that fault signatures under the uncertain dynamics characteristics, such as vibration modulation,\nexhibit a localized horizontal line pattern. This suggests that the faulty tooth (i.e., T =26) of the planet gear generates"
+    },
+    {
+      "id": "ev:ce1b34c82ccf0ae1:7:0-602",
+      "doc_id": "ce1b34c82ccf0ae1",
+      "page": 7,
+      "charspan": [
+        0,
+        602
+      ],
+      "text": "features can be observed at arbitrary position in y-axis of the HDMap. Position of center of the horizontal line in x-\naxis of HDMap is determined by the load sharing characteristics of the gears. Because the load sharing characteristics\nare significantly affected by various factors such as the manufacturing and assembly conditions of the gearbox, the\ncenter position of the localized horizontal line in the x-axis of HDMap is unpredictable in real-world applications. To\nsimulate a faulty HDMap solely based on a normal HDMap in the target domain, we propose to apply CutPaste for\nHDMaps as follows:"
+    },
+    {
+      "id": "ev:ddaef5ea68310f1b:1:1294-1524",
+      "doc_id": "ddaef5ea68310f1b",
+      "page": 1,
+      "charspan": [
+        1294,
+        1524
+      ],
+      "text": "19. 上式中，Xa1具体为第一基准参数值或第一实时参数值，Xa2具体为第二基准参数值或第二实时参数\n值，N表示选取的特征频率的数量，Allf BPF N表示第N个特征频率对应的总幅值，Allf BPF\nRioN表示第N个特征频率的幅值比率；\n20. 对设备轴承的故障诊断时，需通过分别计算外圈频率f BPFO 、内圈频率f BPFI 、滚动体频率f BSF\n、保持架频率f FTF\n，进而确定是外圈故障、内圈故障、滚动体故障还是保持架故障，具体计算公式如下："
+    },
+    {
+      "id": "ev:ddaef5ea68310f1b:1:401-554",
+      "doc_id": "ddaef5ea68310f1b",
+      "page": 1,
+      "charspan": [
+        401,
+        554
+      ],
+      "text": "2. 数据采集单元将采集到的转速、加速度、速度信号经信号预处理单元传输至控制单元，控制单元对设\n备的速度、加速度信号进行处理得到设备的包络信号，并根据该转速信号、加速度信号、速度信号和包\n络信号对设备的工作状态进行诊断，若判断设备处于故障状态，报警单元根据不同的故障类型及时向工\n作人员作出不同的报警动作；"
+    },
+    {
+      "id": "ev:ddaef5ea68310f1b:1:555-786",
+      "doc_id": "ddaef5ea68310f1b",
+      "page": 1,
+      "charspan": [
+        555,
+        786
+      ],
+      "text": "3. 对设备的工作状态进行诊断包括：\n4. 根据设备的转速、加速度、速度和包络信号参数计算设备不同运行状态下对应的多个特征频率；\n5. 确定频谱上与所述特征频率最近的多个频率点；\n6. 计算特征频率幅值、特征频率倍频包络幅值、与特征频率最近的多个频率点倍频包络幅值的总幅值，\n以及所述总幅值的幅值比率；\n7. 根据所述总幅值、总幅值的幅值比率确定设备正常运行时的基准参数值、设备运行的实时参数值；\n8. 比较所述基准参数值、实时参数值以实现设备运行状态的自诊断；"
+    },
+    {
+      "id": "ev:ddaef5ea68310f1b:3:899-1010",
+      "doc_id": "ddaef5ea68310f1b",
+      "page": 3,
+      "charspan": [
+        899,
+        1010
+      ],
+      "text": "[0025] 对设备轴承的故障诊断时，需通过分别计算外圈频率f BPFO 、内圈频率f BPFI 、滚动体频率f BSF\n、保持架频率f FTF\n，进而确定是外圈故障、内圈故障、滚动体故障还是保持架故障，具体计算公式如下："
+    },
+    {
+      "id": "ev:ddaef5ea68310f1b:6:1025-1347",
+      "doc_id": "ddaef5ea68310f1b",
+      "page": 6,
+      "charspan": [
+        1025,
+        1347
+      ],
+      "text": "[0092] 作为一选项，本发明诊断方法还可适用于设备转子不对中故障诊断，在设备转子不对中的故障自\n诊断方法中，其特征频率的计算是通过设备的转速、速度信号实现的，即将采集的速度信号进行快速傅\n里叶变换，在得到的频率的速度列上计算特征频率，在速度的包络信号上确定真实特征频率，其他步骤\n与实施例1的诊断方法相同，进而实现设备转子不对中的故障自诊断。需要进一步说明的是，设备转子\n不对中故障诊断诊断过程的示警步骤中，若报警条件成立，且A2X/A1X>70％(即2倍频幅值大于一倍频\n幅值70％)，自诊断变送器(控制器)将发送对应转子不对中类故障类型至用户终端、云端或者人机交互单\n元，以便工作人员能够及时确定设备的故障类型，实现对设备的全方位监测。"
+    },
+    {
+      "id": "ev:ddaef5ea68310f1b:6:5-291",
+      "doc_id": "ddaef5ea68310f1b",
+      "page": 6,
+      "charspan": [
+        5,
+        291
+      ],
+      "text": "[0081] 作为一选项，本发明诊断方法还可适用于设备轴承的故障诊断，在设备轴承的故障自诊断方法中\n，其特征频率的计算是通过设备的转速、加速度信号实现的，即将采集的加速度信号进行快速傅里叶变\n换，在得到的频率的速度列上计算特征频率，在加速度的包络信号上确定真实特征频率，其他步骤与实\n施例1 的诊断方法相同，进而实现设备轴承的自诊断。需要进一步说明的是，轴承故障的自诊断相对复\n杂，需要通过分别计算外圈频率f BPFO 、内圈频率f BPFI 、滚动体频率f BSF 、保持架频率f FTF\n，才能诊断出是外圈故障、内圈故障、滚动体故障、保持架故障，其对应的计算公式如下："
+    },
+    {
+      "id": "ev:ddaef5ea68310f1b:6:570-1024",
+      "doc_id": "ddaef5ea68310f1b",
+      "page": 6,
+      "charspan": [
+        570,
+        1024
+      ],
+      "text": "[0091] 作为一选项，本发明诊断方法还可适用于设备转子不平衡故障诊断，在设备转子不平衡的故障自\n诊断方法中，其特征频率的计算是通过设备的转速、速度信号实现的，即将采集的速度信号进行快速傅\n里叶变换，在得到的频率的速度列上计算特征频率，在速度的包络信号上确定真实特征频率，其他步骤\n与实施例1的诊断方法相同，进而实现设备转子不平衡的故障自诊断。需要进一步说明的是，设备转子\n不平衡故障诊断诊断过程的示警步骤中，若报警条件成立，且A1X/Allfother>50％(1倍频幅值占比达到总\n幅值得50％)，自诊断变送器 (控制器)将发送对应转子不平衡类故障类型至用户终端或者人机交互单元，\n还可将旋转机械设备的故障类型上传至云端，以便工作人员能够及时确定设备的故障类型，更能实现远\n程监控功能。需要进一步说明的是，用户终端包括手机、Pad、工控机等，工控机上可进一步集成本发\n明系统，多个工控机之间还可实现数据的交互与共享；人机交互单元具体为HMI，便于工作人员的现场\n对旋转机械设备的工作状态进行查看与控制。"
+    },
+    {
+      "id": "ev:e5e7eb44bb7767fa:7:818-931",
+      "doc_id": "e5e7eb44bb7767fa",
+      "page": 7,
+      "charspan": [
+        818,
+        931
+      ],
+      "text": "[0124] 通过加速度传感器采集一维振动加速度信号，包括正常轴承、内圈故障、滚动体故障、外圈故障\n的轴承信号以及不同故障直径的信号，确保获得高分辨率的振动数据，涵盖各种复杂工况，还可以涵盖\n不同的故障程度，轻度、中度和重度；"
+    },
+    {
+      "id": "ev:f4ffe7bf8b08e97c:1:258-1765",
+      "doc_id": "f4ffe7bf8b08e97c",
+      "page": 1,
+      "charspan": [
+        258,
+        1765
+      ],
+      "text": "Abstract\nReliable gearbox condition monitoring requires methods that can process high-frequency vibration\nmeasurements while retaining information about sensor locations and drivetrain structure. We investigate a\ntwo-stage framework that combines sparse filtering with graph neural networks for wind turbine gearbox fault\ndetection. Sparse filtering learns compact features from vibration segments, and a knowledge-based graph\nassociates these features with gearbox components, sensors, and health-state entities. A basic graph neural\nnetwork and a gated graph neural network produce a single health prediction, whereas a gated graph sequence\nneural network generates structured sequences that associate a predicted state with component and sensor\ninformation. Experiments use eight accelerometer channels from the National Renewable Energy Laboratory\ngearbox condition-monitoring benchmark. With 100 learned features, the sparse-filtering gated graph neural\nnetwork achieves a reported classification accuracy of 93.74%, compared with 89.28% for its manually\nengineered feature counterpart. The sequence model achieves reported accuracies of 90.73% and 90.36% in\nthe one- and two-fault-signal cases, respectively. These results support the use of learned vibration\nrepresentations within a structured sensor graph. The evidence is restricted to the evaluated benchmark and\noperating condition; independent component localization, transfer across turbines, and deployment latency\nrequire further validation."
+    },
+    {
+      "id": "ev:f4ffe7bf8b08e97c:2:0-631",
+      "doc_id": "f4ffe7bf8b08e97c",
+      "page": 2,
+      "charspan": [
+        0,
+        631
+      ],
+      "text": "An instrumented gearbox is naturally a multivariate system. Accelerometers mounted near different shafts,\nbearings, and gear stages provide related observations of the same drivetrain. Processing each channel\nindependently can overlook these relationships. Concatenating channels allows a conventional classifier to use\nmultiple signals, but does not explicitly describe where the sensors are mounted or how the corresponding\ncomponents are connected. A graph provides a way to encode those relationships alongside the measured data.\nThe resulting model can combine signal features with a representation of the monitored equipment."
+    },
+    {
+      "id": "ev:f4ffe7bf8b08e97c:5:1095-1683",
+      "doc_id": "f4ffe7bf8b08e97c",
+      "page": 5,
+      "charspan": [
+        1095,
+        1683
+      ],
+      "text": "3 Proposed framework\n3.1 Knowledge based graph construction\nThe graph combines equipment structure with sensor information. Its terminology is adapted from the wind-\nenergy ontology of Küçük and Küçük [12]. Component nodes represent the turbine, gearbox, shafts, gears, and\nbearings. Sensor/data nodes represent the monitored channels and their measured information. State nodes\nrepresent candidate health conditions, and meta nodes identify entity or measurement types. Figure 1 illustrates\na small part of this schema and distinguishes structural knowledge from a predicted association."
+    },
+    {
+      "id": "ev:f4ffe7bf8b08e97c:7:941-1530",
+      "doc_id": "f4ffe7bf8b08e97c",
+      "page": 7,
+      "charspan": [
+        941,
+        1530
+      ],
+      "text": "For example, a decoded sequence can connect a gearbox to a ring gear, the ring gear to channel AN3, and AN3\nto a vibration measurement and a predicted damaged state. Such a sequence expresses how the model\norganizes the evidence. A prediction associated with AN3 does not independently prove that the ring gear is\nthe unique damaged component: vibration can propagate through the drivetrain, and the damaged benchmark\ngearbox contains several defects. The sequence must therefore be evaluated against an explicit annotation\nscheme before it can support component-level localization claims."
+    },
+    {
+      "id": "ev:f4ffe7bf8b08e97c:8:1134-1150",
+      "doc_id": "f4ffe7bf8b08e97c",
+      "page": 8,
+      "charspan": [
+        1134,
+        1150
+      ],
+      "text": "AN5 LS-SH radial"
+    },
+    {
+      "id": "ev:f4ffe7bf8b08e97c:8:1169-1185",
+      "doc_id": "f4ffe7bf8b08e97c",
+      "page": 8,
+      "charspan": [
+        1169,
+        1185
+      ],
+      "text": "AN7 HS-SH radial"
+    },
+    {
+      "id": "ev:f4ffe7bf8b08e97c:8:1186-1217",
+      "doc_id": "f4ffe7bf8b08e97c",
+      "page": 8,
+      "charspan": [
+        1186,
+        1217
+      ],
+      "text": "AN8 HS-SH upwind bearing radial"
+    },
+    {
+      "id": "ev:f4ffe7bf8b08e97c:8:1218-1251",
+      "doc_id": "f4ffe7bf8b08e97c",
+      "page": 8,
+      "charspan": [
+        1218,
+        1251
+      ],
+      "text": "AN9 HS-SH downwind bearing radial"
+    }
+  ]
+}

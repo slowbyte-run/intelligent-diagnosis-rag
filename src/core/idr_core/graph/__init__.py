@@ -17,6 +17,7 @@ from idr_core.graph.read import (
     GraphReader,
     aggregate_facts,
 )
+from idr_core.graph.snapshot_reader import SnapshotGraphReader
 from idr_core.graph.store import GraphStore
 
 __all__ = [
@@ -33,5 +34,6 @@ __all__ = [
     "GraphReader",
     "GraphStore",
     "Provenance",
+    "SnapshotGraphReader",
     "aggregate_facts",
 ]

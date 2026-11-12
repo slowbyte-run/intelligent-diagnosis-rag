@@ -63,30 +63,50 @@ uv run --env-file .env idr ask "轴承外圈疲劳剥落有什么征兆" --json 
 
 ## 评估
 
+检索评估默认只读提交进版本库的图谱快照
+(`src/rotating/idr_rotating/graph_snapshot.json`)：不连 Neo4j、不调模型、不读
+PDF、不需要 `.env`，几秒钟跑完；同一份快照两次运行的指标与逐题明细一致。
+
 ```bash
-uv run --env-file .env idr eval
-uv run --env-file .env idr eval --out data/output/reports/m2-baseline.json
+uv run idr eval                                      # 默认路径，只读快照
+uv run idr eval --out data/output/reports/eval-snapshot.json
+uv run idr eval --corpus-dir data/input              # 可选：额外回源 PDF 校验
 ```
 
-金标准集在 `src/rotating/idr_rotating/golden_questions.json`：20 题，事实型 12（含 2 道
-拒答对照）、对比型 4、跨文献型 4；每题绑定规范概念节点 ID 与证据段 ID，跨文献题还要求
-期望证据来自至少两篇文献。题目由实现方起草、用户终审；改题会改变基线，改动请连同报告
-一起提交评审。
+金标准集在 `src/rotating/idr_rotating/golden_questions.json`：50 题，事实型 26
+（含 2 道拒答对照）、对比型 12、跨文献型 12。每题绑定规范概念节点 ID 与证据段
+ID，跨文献题还要求期望证据来自至少两篇文献。金标准集顶层记录它绑定的快照内容
+校验和；与 `--snapshot` 指向的文件不符时评估直接失败并说明原因，不会拿一套题去
+评另一张图。改题、改快照、改绑定都属于评估资产变更，请连同报告一起提交评审。
 
-三项指标（完整定义随报告一起写进 `metric_definitions`）：
+三项指标（完整定义随报告写进 `metric_definitions`）：
 
-- **检索命中率**：可答题中，期望概念全部出现在答案的概念集合、且至少命中一个期望证据段
-  的比例；跨文献题还要求每个期望文献都至少出现一条引用。拒答对照题不进分母。
-- **引用准确率**：答案实际输出的全部引用中，能在源 PDF 所标页逐字找到的比例。校验时按
-  `doc_id`（文件内容哈希）对回 `--corpus-dir` 里的 PDF，重新抽取该页文字再逐字查找，
-  不使用裁判模型；没有输出引用时记 `null`。
-- **拒答正确率**：全部题中，答案路径是否为拒答与题目期望一致的比例；「该答却拒」与
-  「该拒却答」都算错。
+- **检索命中率**：可答题中，至少命中一个期望证据段的比例；跨文献题还要求每个
+  期望文献都至少出现一条引用。拒答对照题不进分母。
+- **引用文本自洽率**：答案实际输出的全部引用中，引文是快照里所引证据段原文的
+  逐字片段、且文献标识与页码与快照记录一致的比例。快照里没有 PDF，这一项**不是**
+  回源 PDF；显式传 `--corpus-dir` 时才额外计算 `citation_pdf_verifiable`，未测时
+  报告写 `null` 并说明原因。
+- **拒答正确率**：全部题中，答案路径是否为拒答与题目期望一致的比例；「该答却拒」
+  与「该拒却答」都算错。
 
-报告默认写到 `data/output/reports/eval-<时间戳>.json`（文件名带随机后缀），`--out`
-可以指定留档路径；报告含三项指标、按题型拆分、逐题的概念/证据/文献覆盖与引用校验失败
-原因。评估过程只读图谱与语料：图谱只走 `GraphReader` 读方法，PDF 只打开读取，唯一的
-写出是报告文件。
+报告还会单列「只挂在概念→证据内部边上、图路径结构上无法引用」的期望证据
+（当前 6 条），并给出排除这些题后的可达口径命中率，避免把它们混进普通漏检。
+报告默认写到 `data/output/reports/eval-snapshot-<时间戳>.json`，带结果摘要
+（`result_digest`），同一快照两次运行摘要相同。
+
+旧的实时图谱路径保留，用于查看当前线上图与快照的差异；线上图在 M2 期间被重抽改写
+（基线记录 67 个概念 / 180 条边，现为 78 / 179），历史数字不能靠它复现：
+
+```bash
+set -a; source .env; set +a
+uv run --env-file .env idr eval --live-graph --corpus-dir data/input
+```
+
+当前快照基线、引用口径的取舍、校验和绑定与两次运行复核，见
+[docs/retrieval-eval.md](docs/retrieval-eval.md)；旧的抽样基线见
+[docs/m2-baseline.md](docs/m2-baseline.md)。两套评估的基线并排、各自能回答什么、
+比较分数的前提，见 [docs/eval-baselines.md](docs/eval-baselines.md)。
 
 ## 阈值校准
 
@@ -103,7 +123,7 @@ uv run --env-file .env idr calibrate --write  # 同时把阈值与校准标记�
 分数分布、当前值为什么是 0.78、以及「单一阈值分不开跨语言证据与拒答对照」的取舍，见
 [docs/retrieval-calibration.md](docs/retrieval-calibration.md)。
 
-当前基线（20 题，阈值 0.78）：检索命中率 14/18、引用准确率 298/298、拒答正确率 18/20。
+20 题校准时的历史基线（阈值 0.78）：检索命中率 14/18、引用准确率 298/298、拒答正确率 18/20。
 
 ## 测试
 
