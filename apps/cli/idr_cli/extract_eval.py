@@ -1,7 +1,9 @@
-"""``idr extract-eval``：在真实语料标注集上评估抽取，不碰图谱与检索。
+"""``idr extract-eval``：在真实语料标注集上重复评估抽取，报分布而不是单点。
 
-输出断言级召回率与精度，并把漏抽、类型不符、端点不符分开计数。标注集是领域
-资产；真实模型调用按文献计，``--limit`` 可以只跑前几篇控制成本。
+单次评估只是一次抽样：同一输入重复抽取，产出会变，召回率与精度也跟着变。
+这个命令默认重复 3 次，报告每次运行的分数、命中的标注断言集合的两两重合度，
+以及召回率与精度的极差。标注集是领域资产；真实模型调用按文献×次数计，
+``--limit`` 控制文献数，``--runs`` 控制重复次数。
 """
 
 from __future__ import annotations
@@ -15,17 +17,22 @@ from typing import Any
 from idr_core.config import Config
 from idr_core.llm import LLMClient
 from idr_rotating.extraction import ExtractionError
+from idr_rotating.extraction_distribution import (
+    EvaluationRun,
+    ExtractionDistribution,
+    measure_extraction_distribution,
+)
 from idr_rotating.extraction_evaluation import (
     DEFAULT_ANNOTATIONS_PATH,
-    AnnotationSetError,
     AnnotationSet,
+    AnnotationSetError,
     ExtractionScore,
     load_annotations,
-    evaluate_extraction,
 )
 from idr_rotating.ontology import load_ontology
+from idr_rotating.variance import MetricSpread
 
-EXTRACTION_REPORT_SCHEMA_VERSION = 1
+EXTRACTION_REPORT_SCHEMA_VERSION = 2
 
 METRIC_DEFINITIONS = {
     "recall": (
@@ -39,6 +46,11 @@ METRIC_DEFINITIONS = {
     "missing": "期望断言未命中，且同名实体或同端点的关系完全没有出现的条数。",
     "type_mismatch": "同名实体或同端点关系出现了，但类型不符的条数。",
     "endpoint_mismatch": "关系类型相同，但头端或尾端与标注不符的条数。",
+    "overlap": (
+        "两次运行各自命中的标注断言集合的 Jaccard 系数；"
+        "衡量两次运行是否抽到了同一批期望断言。"
+    ),
+    "range": "多次运行中该指标的最大值减最小值，即极差。",
 }
 
 
@@ -47,15 +59,20 @@ def run_extract_eval(
     llm: LLMClient,
     annotations_path: Path | None = None,
     limit: int | None = None,
+    runs: int = 3,
     out: Path | None = None,
     model: str = "unknown",
 ) -> int:
-    """加载标注集、逐篇抽取并评分；格式错误与解析失败都给出可读的错误。"""
+    """加载标注集、重复抽取并评分；格式错误与解析失败都给出可读的错误。"""
     ontology = load_ontology()
     try:
         annotations = load_annotations(ontology, annotations_path)
     except AnnotationSetError as error:
         print(f"标注集错误：{error}", file=sys.stderr)
+        return 1
+
+    if runs < 2:
+        print("重复次数至少为 2，否则没有分布可言", file=sys.stderr)
         return 1
 
     if limit is not None:
@@ -65,17 +82,19 @@ def run_extract_eval(
         annotations = annotations.with_documents(annotations.documents()[:limit])
 
     try:
-        score = evaluate_extraction(llm, ontology, annotations)
+        distribution = measure_extraction_distribution(
+            llm, ontology, annotations, runs=runs
+        )
     except ExtractionError as error:
         print(f"抽取失败：{error}", file=sys.stderr)
         return 1
 
-    _print_report(annotations, score, model)
+    _print_report(annotations, distribution, model)
     if out is not None:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(
             json.dumps(
-                _report_dict(annotations, score, model),
+                _report_dict(annotations, distribution, model),
                 ensure_ascii=False,
                 indent=2,
             )
@@ -87,7 +106,7 @@ def run_extract_eval(
 
 
 def _print_report(
-    annotations: AnnotationSet, score: ExtractionScore, model: str
+    annotations: AnnotationSet, distribution: ExtractionDistribution, model: str
 ) -> None:
     print(f"标注集：{annotations.name or DEFAULT_ANNOTATIONS_PATH.name}")
     print(f"模型：{model}")
@@ -98,72 +117,62 @@ def _print_report(
         f"关系 {len(annotations.expected_relations)} 条"
     )
     print("（同文献内同名同类型断言去重后参与评分）")
-    print()
     print(
-        f"期望断言：实体 {score.expected_entities}  "
-        f"关系 {score.expected_relations}  合计 {score.expected_assertions}"
-    )
-    print(
-        f"输出断言：实体 {score.output_entities}  "
-        f"关系 {score.output_relations}  合计 {score.output_assertions}"
-    )
-    print(
-        f"断言级召回率：{_percent(score.recall)}"
-        f"（命中 {score.matched_assertions} / 期望 {score.expected_assertions}）"
-    )
-    print(
-        f"断言级精度：{_percent(score.precision)}"
-        f"（命中 {score.matched_assertions} / 输出 {score.output_assertions}）"
+        f"重复次数：{len(distribution.runs)}"
+        "（单次运行只是一次抽样，不要当能力估计）"
     )
     print()
-    print(
-        f"漏抽：实体 {score.missing_entities}  关系 {score.missing_relations}"
-    )
-    print(
-        f"类型不符：实体 {score.type_mismatch_entities}  "
-        f"关系 {score.type_mismatch_relations}"
-    )
-    print(f"端点不符：关系 {score.endpoint_mismatch_relations}")
-    print(f"精度损失（输出多出的断言）：实体 {score.extra_entities}  关系 {score.extra_relations}")
-    print()
-
-    print("按文献：")
-    for document in score.documents:
-        expected = document.expected_entities + document.expected_relations
-        output = document.output_entities + document.output_relations
-        matched = document.matched_entities + document.matched_relations
-        recall = None if expected == 0 else matched / expected
-        precision = None if output == 0 else matched / output
+    print("每次运行：")
+    for run in distribution.runs:
+        score = run.score
         print(
-            f"  {document.doc_id}  期望 {expected:>3}  输出 {output:>3}  "
-            f"命中 {matched:>3}  召回 {_percent(recall)}  精度 {_percent(precision)}"
+            f"  #{run.run}  期望 {score.expected_assertions:>3}  "
+            f"输出 {score.output_assertions:>3}  "
+            f"命中 {score.matched_assertions:>3}  "
+            f"召回 {_percent(run.recall)}  精度 {_percent(run.precision)}  "
+            f"漏抽 {score.missing_entities + score.missing_relations}  "
+            f"类型不符 "
+            f"{score.type_mismatch_entities + score.type_mismatch_relations}  "
+            f"端点不符 {score.endpoint_mismatch_relations}"
         )
 
-    if score.outcomes:
-        misses = [
-            outcome
-            for outcome in score.outcomes
-            if outcome.status != "matched"
-        ]
-        if misses:
-            print()
-            print(f"未命中断言（{len(misses)} 条，最多显示 20 条）：")
-            for outcome in misses[:20]:
-                print(
-                    f"  [{_status_label(outcome.status)}] {outcome.evidence_id}  "
-                    f"{outcome.label}"
-                    + (f"（{outcome.detail}）" if outcome.detail else "")
-                )
-            if len(misses) > 20:
-                print(f"  ……其余 {len(misses) - 20} 条见报告 JSON")
+    print()
+    print(f"召回率：{_spread_line(distribution.recall)}")
+    print(f"精度：{_spread_line(distribution.precision)}")
+    print(f"命中标注集合两两重合（Jaccard 均值）：{_overlap_text(distribution)}")
+    expected = distribution.runs[0].score.expected_assertions
+    print(
+        f"每次运行都命中的断言：{len(distribution.consistent_hits)}/{expected}"
+        f"（{_percent(_ratio(len(distribution.consistent_hits), expected))}）"
+    )
+    print(
+        f"至少一次命中的断言：{len(distribution.ever_hits)}/{expected}"
+        f"（{_percent(_ratio(len(distribution.ever_hits), expected))}）"
+    )
+    print(
+        "所有运行的命中集合完全一致："
+        f"{'是' if distribution.identical_hits else '否'}"
+    )
 
 
-def _status_label(status: str) -> str:
-    return {
-        "missing": "漏抽",
-        "type_mismatch": "类型不符",
-        "endpoint_mismatch": "端点不符",
-    }.get(status, status)
+def _spread_line(spread: MetricSpread) -> str:
+    if spread.spread is None:
+        return "—（有运行的分数没有分母，无法比较极差）"
+    return (
+        f"最低 {_percent(spread.minimum)}  最高 {_percent(spread.maximum)}  "
+        f"极差 {spread.spread * 100:.1f} 个百分点"
+    )
+
+
+def _overlap_text(distribution: ExtractionDistribution) -> str:
+    mean = distribution.mean_overlap
+    if mean is None:
+        return "—"
+    return f"{mean:.3f}（{len(distribution.pairwise_overlap)} 对）"
+
+
+def _ratio(numerator: int, denominator: int) -> float | None:
+    return None if denominator == 0 else numerator / denominator
 
 
 def _percent(value: float | None) -> str:
@@ -171,12 +180,16 @@ def _percent(value: float | None) -> str:
 
 
 def _report_dict(
-    annotations: AnnotationSet, score: ExtractionScore, model: str
+    annotations: AnnotationSet,
+    distribution: ExtractionDistribution,
+    model: str,
 ) -> dict[str, Any]:
+    expected = distribution.runs[0].score.expected_assertions
     return {
         "schema_version": EXTRACTION_REPORT_SCHEMA_VERSION,
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "model": model,
+        "runs": len(distribution.runs),
         "annotation_set": {
             "name": annotations.name,
             "segments": len(annotations.segments),
@@ -185,26 +198,27 @@ def _report_dict(
             "annotated_relations": len(annotations.expected_relations),
         },
         "metric_definitions": METRIC_DEFINITIONS,
-        "metrics": {
-            "expected_entities": score.expected_entities,
-            "expected_relations": score.expected_relations,
-            "expected_assertions": score.expected_assertions,
-            "output_entities": score.output_entities,
-            "output_relations": score.output_relations,
-            "output_assertions": score.output_assertions,
-            "matched_entities": score.matched_entities,
-            "matched_relations": score.matched_relations,
-            "matched_assertions": score.matched_assertions,
-            "recall": _rounded(score.recall),
-            "precision": _rounded(score.precision),
-            "missing_entities": score.missing_entities,
-            "missing_relations": score.missing_relations,
-            "type_mismatch_entities": score.type_mismatch_entities,
-            "type_mismatch_relations": score.type_mismatch_relations,
-            "endpoint_mismatch_relations": score.endpoint_mismatch_relations,
-            "extra_entities": score.extra_entities,
-            "extra_relations": score.extra_relations,
+        "distribution": {
+            "recall": _spread_dict(distribution.recall),
+            "precision": _spread_dict(distribution.precision),
+            "pairwise_overlap": [
+                _rounded(value) for value in distribution.pairwise_overlap
+            ],
+            "mean_overlap": _rounded(distribution.mean_overlap),
+            "identical_hits": distribution.identical_hits,
+            "expected_assertions": expected,
+            "consistent_hit_assertions": len(distribution.consistent_hits),
+            "ever_hit_assertions": len(distribution.ever_hits),
+            "flaky_hit_assertions": len(distribution.flaky_hits),
         },
+        "run_details": [_run_dict(run) for run in distribution.runs],
+    }
+
+
+def _run_dict(run: EvaluationRun) -> dict[str, Any]:
+    return {
+        "run": run.run,
+        "metrics": _metrics_dict(run.score),
         "by_document": [
             {
                 "doc_id": document.doc_id,
@@ -215,8 +229,9 @@ def _report_dict(
                 "matched_entities": document.matched_entities,
                 "matched_relations": document.matched_relations,
             }
-            for document in score.documents
+            for document in run.score.documents
         ],
+        "hit_assertions": sorted(run.hit_keys),
         "cases": [
             {
                 "kind": outcome.kind,
@@ -225,7 +240,7 @@ def _report_dict(
                 "status": outcome.status,
                 "detail": outcome.detail,
             }
-            for outcome in score.outcomes
+            for outcome in run.score.outcomes
         ],
         "extras": [
             {
@@ -234,8 +249,40 @@ def _report_dict(
                 "label": extra.label,
                 "evidence_ids": list(extra.evidence_ids),
             }
-            for extra in score.extras
+            for extra in run.score.extras
         ],
+    }
+
+
+def _metrics_dict(score: ExtractionScore) -> dict[str, Any]:
+    return {
+        "expected_entities": score.expected_entities,
+        "expected_relations": score.expected_relations,
+        "expected_assertions": score.expected_assertions,
+        "output_entities": score.output_entities,
+        "output_relations": score.output_relations,
+        "output_assertions": score.output_assertions,
+        "matched_entities": score.matched_entities,
+        "matched_relations": score.matched_relations,
+        "matched_assertions": score.matched_assertions,
+        "recall": _rounded(score.recall),
+        "precision": _rounded(score.precision),
+        "missing_entities": score.missing_entities,
+        "missing_relations": score.missing_relations,
+        "type_mismatch_entities": score.type_mismatch_entities,
+        "type_mismatch_relations": score.type_mismatch_relations,
+        "endpoint_mismatch_relations": score.endpoint_mismatch_relations,
+        "extra_entities": score.extra_entities,
+        "extra_relations": score.extra_relations,
+    }
+
+
+def _spread_dict(spread: MetricSpread) -> dict[str, Any]:
+    return {
+        "values": [_rounded(value) for value in spread.values],
+        "min": _rounded(spread.minimum),
+        "max": _rounded(spread.maximum),
+        "range": _rounded(spread.spread),
     }
 
 
