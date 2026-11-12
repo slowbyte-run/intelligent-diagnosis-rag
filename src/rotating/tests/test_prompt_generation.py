@@ -154,7 +154,12 @@ def test_prompt_asks_for_location_and_damage_form_with_allowed_values() -> None:
 
 
 def test_prompt_asks_for_a_verbatim_supporting_quote_per_assertion() -> None:
-    """每条断言都要给支撑片段：输出字段与规则都必须明确要求逐字摘录。"""
+    """要求逐字片段，但不得用「摘不出来」当理由让模型丢掉断言。
+
+    早期版本写了「找不到可逐字摘录的片段时不要输出这条断言」，模型据此把
+    大量证据充分的断言也一起删了：关系从 180 掉到 130、证据边从 905 掉到
+    505、检索命中率从 95.8% 掉到 47.9%。
+    """
     prompt = build_extraction_prompt(load_ontology(), (evidence_segment(),))
 
     assert '"quote"' in prompt
@@ -162,4 +167,6 @@ def test_prompt_asks_for_a_verbatim_supporting_quote_per_assertion() -> None:
     # 片段属于所引证据段、不得改写或拼接，否则校验会拒收。
     assert "不要改写" in prompt
     assert "逐字复制" in prompt
-    assert "不要输出这条断言" in prompt
+    # 摘不出来只是没有锚点，不能因此丢掉断言。
+    assert "断言照常" in prompt
+    assert "不要输出这条断言" not in prompt

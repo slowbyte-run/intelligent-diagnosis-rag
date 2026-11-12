@@ -19,7 +19,7 @@ from dataclasses import dataclass
 
 # 定位规则版本：逐字匹配、首次出现、歧义标记。改动这条规则必须递增，
 # 抽取指纹会随之改变，已入库的文献不会被静默跳过。
-ANCHOR_RULE_VERSION = "2"
+ANCHOR_RULE_VERSION = "3"
 
 
 @dataclass(frozen=True, slots=True)
