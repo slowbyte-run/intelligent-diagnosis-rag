@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from idr_core.anchors import EvidenceAnchor
+from idr_core.models import CharSpan
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,12 +65,19 @@ class AggregatedFact:
 
 @dataclass(frozen=True, slots=True)
 class EvidenceRecord:
-    """证据段在图谱里的定位信息；文献名由调用方按 ``doc_id`` 补上。"""
+    """证据段在图谱里的定位信息；文献名由调用方按 ``doc_id`` 补上。
+
+    ``charspan`` 是证据段在所属页面文字中的字符区间。引用只要展示片段
+    （锚点）时它用不上；要把相邻证据段并进展示上下文，就必须知道每段在
+    页面上的确切位置，才能判断两段是否连续、拼接结果是否仍是页面文字的
+    连续切片。
+    """
 
     id: str
     doc_id: str
     page: int
     text: str
+    charspan: CharSpan
 
 
 class GraphReader(Protocol):
@@ -93,6 +101,14 @@ class GraphReader(Protocol):
         self, evidence_ids: Sequence[str]
     ) -> tuple[EvidenceRecord, ...]:
         """按标识批量取证据段；不存在的标识不出现在结果里。"""
+        ...
+
+    def evidence_by_page(self, doc_id: str, page: int) -> tuple[EvidenceRecord, ...]:
+        """取一篇文献某一页的全部证据段，按页面字符区间升序。
+
+        引用层只有需要并入上下文时才调用它（短锚点），且只用来找同一页上
+        与锚点相邻的证据段；跨页的段不在这里返回，合并也就不会跨页。
+        """
         ...
 
 

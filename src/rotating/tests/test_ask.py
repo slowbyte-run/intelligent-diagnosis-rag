@@ -581,9 +581,14 @@ def test_ask_refuses_more_than_two_anchors_as_out_of_scope() -> None:
 
 
 # 引用锚点：答案引用指向证据段内的支撑片段，而不是整段；缺锚点时退回整段。
+# 片段取 60 字以上：短锚点的展示会并入上下文（见 test_ask_anchor_context.py），
+# 这里要验的是「长片段按区间展示」与「无锚点整段展示」两种边界。
 FRAGMENT_DOC = "doc-a"
-FRAGMENT_TEXT = "外圈剥落会在频谱上出现 BPFO 及其倍频，能量集中在高频段。"
-FRAGMENT_QUOTE = "外圈剥落会在频谱上出现 BPFO 及其倍频"
+FRAGMENT_TEXT = (
+    "外圈剥落会在频谱上出现 BPFO 及其倍频，能量集中在高频段，"
+    "工程上通常再结合包络解调确认，否则容易与内圈故障混淆，不能只看单条谱线。"
+)
+FRAGMENT_QUOTE = FRAGMENT_TEXT.rstrip("。")
 
 
 def deps_with_anchored_one_hop_fact() -> AskDeps:
@@ -622,7 +627,7 @@ def deps_with_anchored_one_hop_fact() -> AskDeps:
 
 
 def test_ask_cites_the_anchor_span_instead_of_the_whole_evidence_segment() -> None:
-    """有锚点时引用展示锚点区间对应的原文，页码与证据段标识不变。"""
+    """长片段有锚点时引用展示锚点区间原文，页码与证据段标识不变。"""
     answer = ask("轴承外圈疲劳剥落有什么征兆", deps=deps_with_anchored_one_hop_fact())
 
     assert answer.path is AnswerPath.GRAPH
@@ -679,10 +684,16 @@ def test_ask_falls_back_to_the_whole_segment_when_no_anchor_is_recorded() -> Non
 
 
 def test_ask_gives_each_assertion_its_own_fragment_from_a_shared_segment() -> None:
-    """同一证据段支撑两条断言时，两条引用各自指向各自的片段。"""
-    text = "外圈剥落会产生 BPFO 特征频率。内圈剥落会产生 BPFI 特征频率。"
-    outer_quote = "外圈剥落会产生 BPFO 特征频率。"
-    inner_quote = "内圈剥落会产生 BPFI 特征频率。"
+    """同一证据段支撑两条断言时，两条引用各自指向各自的（长）片段。"""
+    outer_quote = (
+        "外圈剥落会在频谱上出现 BPFO 及其倍频，能量集中在高频段，"
+        "工程上通常再结合包络解调确认，否则容易与内圈故障混淆，不能只看单条谱线。"
+    )
+    inner_quote = (
+        "内圈剥落会在频谱上出现 BPFI 及其倍频，能量同样集中在高频段，"
+        "但它与外圈剥落的谱线位置不同，现场据此区分内外圈故障。"
+    )
+    text = outer_quote + inner_quote
     graph = FakeGraphStore()
     segment = evidence(FRAGMENT_DOC, page=2, offset=0, text=text)
 

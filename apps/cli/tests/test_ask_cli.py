@@ -11,6 +11,7 @@ import pytest
 from idr_core.documents import DocumentNames, document_id
 from idr_core.graph import Concept, EvidenceAnchor, EvidenceRecord, FactEdge
 from idr_core.llm.rerank import RerankResponse, RerankScore
+from idr_core.models import CharSpan
 from idr_core.vector_store import VectorMatch
 from idr_rotating import AskDeps, RetrievalSettings
 
@@ -62,6 +63,15 @@ class FakeGraphReader:
             if evidence_id in self._evidence
         )
 
+    def evidence_by_page(self, doc_id: str, page: int) -> tuple[EvidenceRecord, ...]:
+        return tuple(
+            segment
+            for segment in sorted(
+                self._evidence.values(), key=lambda item: item.charspan.start
+            )
+            if segment.doc_id == doc_id and segment.page == page
+        )
+
 
 class FakeDocumentNames:
     def __init__(self, names: dict[str, str]) -> None:
@@ -81,6 +91,7 @@ def deps_with_one_fact(
         doc_id=DOC_ID,
         page=4,
         text="外圈剥落会在频谱上出现 BPFO 及其倍频。",
+        charspan=CharSpan(0, 22),
     )
     graph = FakeGraphReader(
         facts=(
@@ -128,7 +139,7 @@ def test_ask_prints_machine_readable_json(
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 0
-    assert payload["schema_version"] == 5
+    assert payload["schema_version"] == 6
     assert payload["question"] == "轴承外圈疲劳剥落有什么征兆"
     assert payload["path"] == "graph"
     assert payload["detail"] is None
@@ -226,7 +237,7 @@ def test_ask_puts_the_refusal_reason_in_json(
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 0
-    assert payload["schema_version"] == 5
+    assert payload["schema_version"] == 6
     assert payload["path"] == "refusal"
     assert payload["refusal_reason"] == "no_concept"
     assert payload["facts"] == []
@@ -328,6 +339,7 @@ def deps_with_vector_only_basis() -> AskDeps:
         doc_id=DOC_ID,
         page=4,
         text="周期性冲击通常来自滚动体缺陷，需要用包络解调确认。",
+        charspan=CharSpan(0, 26),
     )
     return AskDeps(
         graph_store=FakeGraphReader(evidence=(segment,)),
@@ -425,12 +437,14 @@ def deps_with_two_hop_chain() -> AskDeps:
         doc_id=DOC_ID,
         page=3,
         text="滚动轴承常见外圈疲劳剥落。",
+        charspan=CharSpan(0, 13),
     )
     symptom_evidence = EvidenceRecord(
         id=EVIDENCE_ID,
         doc_id=DOC_ID,
         page=4,
         text="外圈剥落会在频谱上出现 BPFO 及其倍频。",
+        charspan=CharSpan(0, 22),
     )
     graph = FakeGraphReader(
         facts=(
@@ -499,24 +513,28 @@ def deps_with_two_fault_modes() -> AskDeps:
             doc_id=DOC_ID,
             page=2,
             text="外圈剥落会出现 BPFO 及其倍频。",
+            charspan=CharSpan(0, 18),
         ),
         EvidenceRecord(
             id=INNER_SYMPTOM_ID,
             doc_id=DOC_ID,
             page=2,
             text="内圈剥落会出现 BPFI 及其倍频。",
+            charspan=CharSpan(30, 48),
         ),
         EvidenceRecord(
             id=OUTER_DETECTION_ID,
             doc_id=DOC_ID,
             page=3,
             text="外圈剥落常用频谱分析确认。",
+            charspan=CharSpan(0, 13),
         ),
         EvidenceRecord(
             id=INNER_DETECTION_ID,
             doc_id=DOC_ID,
             page=3,
             text="内圈剥落也常用频谱分析确认。",
+            charspan=CharSpan(20, 34),
         ),
     )
     graph = FakeGraphReader(
@@ -588,16 +606,24 @@ SHARED_EVIDENCE_ID = "ev:doc-a:2:0-30"
 
 
 def deps_with_two_fragments_from_one_segment() -> AskDeps:
-    """同一证据段支撑两条断言：两条引用各自带自己的锚点。"""
-    text = "外圈剥落会产生 BPFO 特征频率。内圈剥落会产生 BPFI 特征频率。"
-    outer_quote = "外圈剥落会产生 BPFO 特征频率。"
-    inner_quote = "内圈剥落会产生 BPFI 特征频率。"
+    """同一证据段支撑两条断言：两条引用各自带自己的锚点（片段取 60 字以上，
+    短锚点会被并入展示上下文，那是 ask 门面的另一条测试要覆盖的边界）。"""
+    outer_quote = (
+        "外圈剥落会在频谱上出现 BPFO 及其倍频，能量集中在高频段，"
+        "工程上通常再结合包络解调确认，否则容易与内圈故障混淆，不能只看单条谱线。"
+    )
+    inner_quote = (
+        "内圈剥落会在频谱上出现 BPFI 及其倍频，能量同样集中在高频段，"
+        "但它与外圈剥落的谱线位置不同，现场据此区分内外圈故障。"
+    )
+    text = outer_quote + inner_quote
     inner_start = text.index(inner_quote)
     segment = EvidenceRecord(
         id=SHARED_EVIDENCE_ID,
         doc_id=DOC_ID,
         page=2,
         text=text,
+        charspan=CharSpan(0, len(text)),
     )
     outer = Concept(id=OUTER_RACE, name="轴承外圈疲劳剥落", type="fault_mode")
     inner = Concept(
@@ -662,5 +688,8 @@ def test_ask_prints_each_assertions_own_fragment_from_a_shared_segment(
 
     output = capsys.readouterr().out
     assert exit_code == 0
-    assert "依据：论文A.pdf 第 2 页：外圈剥落会产生 BPFO 特征频率。" in output
-    assert "依据：论文A.pdf 第 2 页：内圈剥落会产生 BPFI 特征频率。" in output
+    # 两条引用都来自同一证据段，但各自只打印自己锚定的片段。
+    assert "依据：论文A.pdf 第 2 页：外圈剥落会在频谱上出现 BPFO 及其倍频" in output
+    assert "不能只看单条谱线。" in output
+    assert "依据：论文A.pdf 第 2 页：内圈剥落会在频谱上出现 BPFI 及其倍频" in output
+    assert "现场据此区分内外圈故障。" in output

@@ -56,6 +56,7 @@ from idr_rotating.answer import (
     RefusalReason,
     SharedFact,
 )
+from idr_rotating.citation_context import display_text
 from idr_rotating.citation_selection import select_citation_window
 from idr_rotating.linking import ConceptMatch, link_question
 from idr_rotating.ontology import Ontology, load_ontology
@@ -285,7 +286,11 @@ def _answer_from_graph(
         focus=focus,
         facts=anchored.facts,
         citations=_citations_for(
-            anchored.facts, anchored.segments, deps.document_names, ontology
+            anchored.facts,
+            anchored.segments,
+            deps.document_names,
+            ontology,
+            deps.graph_store,
         ),
         detail=_truncated_detail([(focus.concept.name, anchored.traversal)]),
         truncated=anchored.traversal.truncated,
@@ -354,7 +359,9 @@ def _answer_from_comparison(
         matches=matches,
         focus=None,
         facts=(),
-        citations=_citations_for(facts, segments, deps.document_names, ontology),
+        citations=_citations_for(
+            facts, segments, deps.document_names, ontology, deps.graph_store
+        ),
         detail="".join(detail for detail in details if detail) or None,
         truncated=left_facts.traversal.truncated or right_facts.traversal.truncated,
         comparison=comparison,
@@ -533,6 +540,7 @@ def _citations_for(
     segments: dict[str, EvidenceRecord],
     document_names: DocumentNames | None,
     ontology: Ontology,
+    graph: GraphReader,
 ) -> tuple[Citation, ...]:
     """按结论顺序展开引用；同一 (证据段, 锚点) 只列一次。
 
@@ -543,7 +551,13 @@ def _citations_for(
     没有锚点的旧数据先按断言选句，再进出去重：同一段证据被两条断言引用时，
     两条断言词法重合的句子不同，因此各自成一条引用，不会被并成一条整段引用；
     选不出句子时锚点仍是 ``None``，与以前一样整段引用。
+
+    入库时固化的短锚点，展示文本会并入同页相邻证据段（见 ``citation_context``）：
+    锚点不变，只有 ``Citation.text`` 变长。同页证据段按页缓存，一次提问里同一页
+    最多取一次。查询期选句得到的窗口已经落在句子边界上，不再二次并入上下文——
+    那会把刚收窄的引用又摊回整段。
     """
+    pages: dict[tuple[str, int], tuple[EvidenceRecord, ...]] = {}
     citations: dict[tuple[str, EvidenceAnchor | None], Citation] = {}
     for fact in facts:
         spans = fact.cited_spans()
@@ -552,16 +566,26 @@ def _citations_for(
             spans, assertions, strict=True
         ):
             segment = segments[evidence_id]
-            if anchor is not None and _anchor_fits(segment.text, anchor):
-                usable = anchor
-            elif anchor is None:
+            if anchor is not None:
+                if _anchor_fits(segment.text, anchor):
+                    usable = anchor
+                    # 入库固化的锚点：可能是公式区的碎片，短则并入同页上下文。
+                    text = _displayed_text(segment, usable, graph, pages)
+                else:
+                    # 越界锚点是坏数据：不据此推断句子，退回整段，键也归一化为
+                    # ``None``，否则消费方按原锚点找不到这条引用。
+                    usable = None
+                    text = segment.text
+            else:
                 usable = _selected_anchor(
                     segment, head=head, relation=relation, tail=tail, ontology=ontology
                 )
-            else:
-                # 越界锚点是坏数据：不据此推断句子，退回整段，键也归一化为
-                # ``None``，否则消费方按原锚点找不到这条引用。
-                usable = None
+                # 选句窗口已在句子边界上，不再并入上下文（理由见函数说明）。
+                text = (
+                    segment.text
+                    if usable is None
+                    else segment.text[usable.start : usable.end]
+                )
             key = (evidence_id, usable)
             if key in citations:
                 continue
@@ -574,14 +598,30 @@ def _citations_for(
                     else None
                 ),
                 page=segment.page,
-                text=(
-                    segment.text
-                    if usable is None
-                    else segment.text[usable.start : usable.end]
-                ),
+                text=text,
                 anchor=usable,
             )
     return tuple(citations.values())
+
+
+def _displayed_text(
+    segment: EvidenceRecord,
+    anchor: EvidenceAnchor,
+    graph: GraphReader,
+    pages: dict[tuple[str, int], tuple[EvidenceRecord, ...]],
+) -> str:
+    """入库锚点的展示原文：长锚点取片段，短锚点再并入同页上下文。"""
+
+    def page_segments() -> tuple[EvidenceRecord, ...]:
+        """同页证据段；只有短锚点会真的调用它，长锚点不查图。"""
+        key = (segment.doc_id, segment.page)
+        known = pages.get(key)
+        if known is None:
+            known = graph.evidence_by_page(*key)
+            pages[key] = known
+        return known
+
+    return display_text(segment, anchor, page_segments)
 
 
 def _assertion_terms(
