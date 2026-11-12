@@ -1,9 +1,15 @@
-"""引用回源校验：打开源 PDF 的第 N 页，核对引文是否逐字出现在这一页。
+"""引用校验的两种口径：回源 PDF，或回冻结的快照。
 
-不信任图谱里存的证据文本，也不信任页码字段：文献按内容哈希对回 ``data/input``
-里的文件（与入库时的 ``doc_id`` 规则同源），再从 PDF 的文字层重新取该页文字。
-因此引用准确率的分母是**实际输出的引用条数**，分子是能在源 PDF 上原样找到的
-条数——它不是裁判模型的打分。
+**回源 PDF**（:class:`SourcePdfVerifier`）打开源 PDF 的第 N 页，核对引文是否
+逐字出现在这一页。不信任图谱里存的证据文本，也不信任页码字段：文献按内容哈希
+对回 ``data/input`` 里的文件（与入库时的 ``doc_id`` 规则同源），再从 PDF 的
+文字层重新取该页文字。因此引用准确率的分母是**实际输出的引用条数**，分子是
+能在源 PDF 上原样找到的条数——它不是裁判模型的打分。
+
+**回源快照**（:class:`SnapshotCitationVerifier`）只核对引文是不是快照里所引
+证据段原文的逐字片段、文献标识与页码是否与快照记录一致。快照不含 PDF，因此
+它回答的是「引用拼装与冻结图谱是否自洽」，**不能**替代 PDF 回源；检索评估
+（#32）默认只读快照，两项数字分开报告，口径见 ``docs/retrieval-eval.md``。
 
 页面文字按 (文件, 页码) 缓存在内存里，一次评估只解析真正被引用到的页，而不是
 整篇文献。
@@ -21,6 +27,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from idr_core.documents import document_id
+from idr_core.graph.snapshot import GraphSnapshot
 from idr_core.parsing.pdf import page_text
 
 
@@ -101,3 +108,63 @@ class SourcePdfVerifier:
                     continue
             self._paths = paths
         return self._paths
+
+
+class SnapshotCitationVerifier:
+    """按冻结快照校验引用：逐字片段 + 文献标识 + 页码。
+
+    它检查的是答案组装引用时有没有「凭空造句」或把引文挂到别的证据段/别的
+    页上，而不是证据段本身是否忠实于 PDF——后者需要源 PDF，见
+    :class:`SourcePdfVerifier`。快照之外的证据段一律判失败，不退回整段猜。
+    """
+
+    def __init__(self, snapshot: GraphSnapshot) -> None:
+        self._evidence = {record.id: record for record in snapshot.evidence}
+
+    def verify(self, citation: Mapping[str, object]) -> CitationCheck:
+        """核对一条引用；任何一步对不上都返回失败原因，不中断整轮评估。"""
+        doc_id = str(citation.get("doc_id", ""))
+        evidence_id = str(citation.get("evidence_id", ""))
+        text = str(citation.get("text", ""))
+        if not doc_id:
+            return CitationCheck(ok=False, reason="引用缺少文献标识")
+        if not evidence_id:
+            return CitationCheck(ok=False, reason="引用缺少证据段标识")
+        if not text:
+            return CitationCheck(ok=False, reason="引文为空，无法核对")
+
+        record = self._evidence.get(evidence_id)
+        if record is None:
+            return CitationCheck(
+                ok=False,
+                reason=f"引用的证据段不在图谱快照里（闭包外或标识错误）：{evidence_id}",
+            )
+
+        page_value = citation.get("page")
+        if not isinstance(page_value, (int, str)):
+            return CitationCheck(ok=False, reason="引用缺少可用的页码")
+        try:
+            page = int(page_value)
+        except ValueError:
+            return CitationCheck(ok=False, reason="引用缺少可用的页码")
+        if page != record.page:
+            return CitationCheck(
+                ok=False,
+                reason=f"引用页码 {page} 与快照记录的第 {record.page} 页不一致",
+            )
+        if doc_id != record.doc_id:
+            return CitationCheck(
+                ok=False,
+                reason="引用的文献标识与快照记录不一致",
+            )
+
+        if text not in record.text:
+            return CitationCheck(
+                ok=False,
+                reason="引文不是快照中该证据段的逐字片段（引用拼装与图谱原文不一致）",
+            )
+        return CitationCheck(
+            ok=True,
+            reason="引文与快照中该证据段的原文逐字一致",
+            offset=record.text.find(text),
+        )

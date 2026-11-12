@@ -1,14 +1,19 @@
 """金标准集与三项指标：把「检索策略变好还是变坏」变成可重复的数字。
 
-金标准集是领域资产（``golden_questions.json``），每题绑定期望命中的概念节点与
-期望证据段 ID；评分因此是机械的：
+金标准集是领域资产（``golden_questions.json``）。schema_version 2 起，它记录
+自己绑定的图谱快照内容校验和（``snapshot.checksum``）：检索评估在打分前核对
+实际快照，不符即失败——题与图错配时继续跑只会悄悄错分。评分本身仍是机械的：
 
 - **检索命中率**（``retrieval_hit_rate``）：可答题（``expect_refusal=false``）中，
-  期望概念全部出现在答案的概念集合、且至少命中一个期望证据段的比例；跨文献题
-  还要求每个期望文献都至少出现一条引用。分母是可答题数，拒答对照题不参与。
+  至少命中一个期望证据段的比例；跨文献题还要求每个期望文献都至少出现一条引用。
+  分母是可答题数，拒答对照题不参与。期望概念覆盖作为独立诊断项保留，不参与
+  命中判定——概念是某一次抽取的产物，抽取有采样方差。
 - **引用准确率**（``citation_accuracy``）：答案实际输出的全部引用中，回源 PDF
   后能在所标页逐字找到的比例（micro，分母是引用条数）。回源由
   :class:`SourcePdfVerifier` 完成，不用裁判模型；没有输出引用时为 ``None``。
+  快照路径没有 PDF，改用 :class:`SnapshotCitationVerifier` 核对「引文是否为
+  快照原文的逐字片段」，报告里叫 ``citation_text_consistency``，不与本项混用
+  （见 ``snapshot_eval`` 与 ``docs/retrieval-eval.md``）。
 - **拒答正确率**（``refusal_correctness``）：全部题中，答案路径是否为拒答与
   ``expect_refusal`` 一致的比例。它同时惩罚「该答却拒」和「该拒却答」。
 
@@ -31,9 +36,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from idr_core.graph.snapshot import GraphSnapshot
 from idr_rotating.citation_check import CitationCheck
 
-GOLDEN_SCHEMA_VERSION = 1
+# 金标准集的格式代际：2 起记录它绑定的图谱快照校验和。旧版（1）没有绑定，
+# 无法判断这批评分对应哪张图，加载期直接拒绝并提示补哪一项。
+GOLDEN_SCHEMA_VERSION = 2
 EVALUATION_SCHEMA_VERSION = 1
 QUESTION_CLASSES = ("factual", "comparative", "cross_document")
 REFUSAL_REASONS = ("no_concept", "no_evidence")
@@ -41,12 +49,13 @@ DEFAULT_GOLDEN_PATH = Path(__file__).with_name("golden_questions.json")
 
 METRIC_DEFINITIONS = {
     "retrieval_hit_rate": (
-        "可答题中，期望概念全部出现在答案概念集合、至少命中一个期望证据段；"
-        "跨文献题还要求每个期望文献至少一条引用的比例。分母是可答题数。"
+        "可答题中，至少命中一个期望证据段、且跨文献题每个期望文献至少一条引用"
+        "的比例；分母是可答题数。概念覆盖单独报告，不参与命中判定。"
     ),
     "citation_accuracy": (
         "答案实际输出的全部引用中，能在源 PDF 所标页逐字找到的比例（micro）；"
-        "没有输出引用时为 null。回源由 PDF 重新抽取，不用裁判模型。"
+        "没有输出引用时为 null。回源由 PDF 重新抽取，不用裁判模型。这是实时"
+        "图谱路径（--live-graph）的口径；快照路径另见 citation_text_consistency。"
     ),
     "refusal_correctness": (
         "全部题中，答案路径是否为拒答与 expect_refusal 一致的比例；"
@@ -56,6 +65,8 @@ METRIC_DEFINITIONS = {
 
 _EVIDENCE_ID_PATTERN = re.compile(r"^ev:([0-9a-f]{16}):")
 _CONCEPT_ID_PATTERN = re.compile(r"^concept:[a-z][a-z0-9_]*$")
+_SNAPSHOT_CHECKSUM_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
+_SNAPSHOT_BINDING_FIELDS = frozenset({"checksum"})
 _KNOWN_QUESTION_FIELDS = frozenset(
     {
         "id",
@@ -74,8 +85,30 @@ class GoldenSetError(ValueError):
     """金标准集格式错误：让出题错误在加载阶段失败，而不是评出一组假数字。"""
 
 
+class SnapshotBindingError(GoldenSetError):
+    """金标准集与图谱快照不是同一次导出。
+
+    评分的前提是题目与图对应；两者不匹配时继续跑只会悄悄错分，因此评估入口
+    直接失败，并说明是哪两个校验和对不上、下一步该改哪一项。
+    """
+
+
 class EvaluationError(ValueError):
     """答案形态不符合评估契约（例如 ``schema_version`` 不匹配）。"""
+
+
+@dataclass(frozen=True, slots=True)
+class GoldenSet:
+    """一份金标准集：题目 + 它绑定的图谱快照内容校验和。
+
+    校验和是快照**内容**的 SHA-256（见 :mod:`idr_core.graph.snapshot`），
+    换排版不变、改一个字的证据原文就变。评估入口拿实际快照校验和与它比对，
+    不符即失败；加载本身不比对文件，因为导出快照时金标准集可能暂时落后。
+    """
+
+    path: Path
+    snapshot_checksum: str
+    questions: tuple[GoldenQuestion, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,8 +193,12 @@ def document_of_evidence(evidence_id: str) -> str:
     return match.group(1)
 
 
-def load_golden_set(path: Path | None = None) -> tuple[GoldenQuestion, ...]:
-    """读取并校验金标准集；任何结构错误都在这里失败，不进入评分。"""
+def load_golden_set(path: Path | None = None) -> GoldenSet:
+    """读取并校验金标准集；任何结构错误都在这里失败，不进入评分。
+
+    返回的 :class:`GoldenSet` 同时带上它绑定的快照校验和；两者是否相符由
+    评估入口用 :func:`check_snapshot_binding` 核对。
+    """
     target = DEFAULT_GOLDEN_PATH if path is None else Path(path)
     try:
         payload = json.loads(target.read_text(encoding="utf-8"))
@@ -175,8 +212,12 @@ def load_golden_set(path: Path | None = None) -> tuple[GoldenQuestion, ...]:
     version = payload.get("schema_version")
     if version != GOLDEN_SCHEMA_VERSION:
         raise GoldenSetError(
-            f"金标准集 schema_version 不支持：{version!r}（本工具支持 {GOLDEN_SCHEMA_VERSION}）"
+            f"金标准集 schema_version 不支持：{version!r}"
+            f"（本工具支持 {GOLDEN_SCHEMA_VERSION}）；"
+            "schema_version 1 的旧格式没有记录绑定的快照校验和，"
+            "请在顶层补上 snapshot.checksum 后升级为 2"
         )
+    snapshot_checksum = _snapshot_checksum(payload.get("snapshot"))
     entries = payload.get("questions")
     if not isinstance(entries, list) or not entries:
         raise GoldenSetError("金标准集缺少非空的 questions 数组")
@@ -189,7 +230,54 @@ def load_golden_set(path: Path | None = None) -> tuple[GoldenQuestion, ...]:
         if question.id in seen:
             raise GoldenSetError(f"金标准集里题目 ID 重复：{question.id}")
         seen.add(question.id)
-    return questions
+    return GoldenSet(
+        path=target,
+        snapshot_checksum=snapshot_checksum,
+        questions=questions,
+    )
+
+
+def _snapshot_checksum(value: object) -> str:
+    """解析顶部 ``snapshot`` 绑定；缺少或格式不对都在加载期失败。"""
+    if not isinstance(value, Mapping):
+        raise GoldenSetError(
+            "金标准集缺少 snapshot 对象；每份金标准集必须记录它评的是哪一份"
+            "图谱快照（snapshot.checksum），否则分数无法归因"
+        )
+    unknown = set(value) - _SNAPSHOT_BINDING_FIELDS
+    if unknown:
+        raise GoldenSetError(f"金标准集的 snapshot 有未知字段：{sorted(unknown)}")
+    checksum = value.get("checksum")
+    if not isinstance(checksum, str) or not _SNAPSHOT_CHECKSUM_PATTERN.fullmatch(
+        checksum
+    ):
+        raise GoldenSetError(
+            "金标准集的 snapshot.checksum（图谱快照内容校验和）必须是 "
+            f"'sha256:<64 位小写十六进制>'，收到 {checksum!r}"
+        )
+    return checksum
+
+
+def check_snapshot_binding(
+    golden: GoldenSet, snapshot: GraphSnapshot, *, snapshot_path: Path
+) -> None:
+    """核对快照内容校验和与金标准集的绑定；不符时失败并说明原因。
+
+    比较的是快照内容校验和，与文件路径、排版无关：同一份图复制到哪里都算
+    同一张图，重新导出后哪怕文件名不变也不再是同一张图。
+    """
+    actual = snapshot.checksum
+    if actual == golden.snapshot_checksum:
+        return
+    raise SnapshotBindingError(
+        "金标准集与图谱快照不是同一次导出："
+        f"{golden.path} 绑定 {golden.snapshot_checksum}，"
+        f"而 {snapshot_path} 的内容校验和是 {actual}。"
+        "这通常意味着图谱重新导出过，或者 --snapshot 指错了文件；"
+        "拿一套题去评另一张图，分数无法归因，因此评估不继续。"
+        "确认要换图时，重新导出快照并把金标准集的 snapshot.checksum "
+        f"更新为 {actual}，作为一次显式的评估资产改动提交。"
+    )
 
 
 def _question_from_entry(entry: object, index: int) -> GoldenQuestion:

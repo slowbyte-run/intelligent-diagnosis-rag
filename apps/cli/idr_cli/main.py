@@ -11,7 +11,7 @@ from idr_core.llm import LLMClient
 from idr_cli.ask import DEFAULT_SOURCE_DIR, build_ask_deps, run_ask
 from idr_cli.calibrate import run_calibrate
 from idr_cli.doctor import run_doctor
-from idr_cli.eval import run_eval
+from idr_cli.eval import run_eval, run_snapshot_eval
 from idr_cli.extract_eval import build_extract_eval_llm, run_extract_eval
 from idr_cli.ingest import build_deps, run_ingest
 from idr_cli.recall import DEFAULT_VARIANTS, run_recall
@@ -74,7 +74,8 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"语料目录，用于把文档标识对回文献名，默认 {DEFAULT_SOURCE_DIR}",
     )
     eval_command = commands.add_parser(
-        "eval", help="跑金标准集，输出检索命中率、引用准确率与拒答正确率"
+        "eval",
+        help="跑金标准集：默认只读图谱快照，输出检索与回答的三项指标",
     )
     eval_command.add_argument(
         "--golden",
@@ -86,13 +87,34 @@ def build_parser() -> argparse.ArgumentParser:
         "--out",
         type=Path,
         default=None,
-        help="评估报告输出文件，默认 data/output/reports/eval-<时间戳>.json",
+        help="评估报告输出文件，默认 data/output/reports/eval-snapshot-<时间戳>.json",
+    )
+    eval_command.add_argument(
+        "--snapshot",
+        type=Path,
+        default=None,
+        help=(
+            "图谱快照文件，默认使用领域包内的 graph_snapshot.json；"
+            "快照内容校验和必须与金标准集记录的 snapshot.checksum 一致"
+        ),
     )
     eval_command.add_argument(
         "--corpus-dir",
         type=Path,
-        default=DEFAULT_SOURCE_DIR,
-        help=f"源 PDF 目录，用于引用回源校验，默认 {DEFAULT_SOURCE_DIR}",
+        default=None,
+        help=(
+            "源 PDF 目录，仅用于可选的引用回源 PDF 校验；"
+            "快照评估默认不打开 PDF，回源数字会显式标为未校验。"
+            "旧路径（--live-graph）默认 data/input"
+        ),
+    )
+    eval_command.add_argument(
+        "--live-graph",
+        action="store_true",
+        help=(
+            "走旧的实时图谱路径（Neo4j + PDF），用于复核历史 50 题基线；"
+            "默认只读快照，不需要图数据库与网络"
+        ),
     )
     calibrate_command = commands.add_parser(
         "calibrate",
@@ -317,15 +339,28 @@ def main(
         )
 
     if arguments.command == "eval":
+        if not arguments.live_graph:
+            # 默认路径只读快照：不加载配置，因此不需要 Neo4j、.env 或网络。
+            return run_snapshot_eval(
+                golden_path=arguments.golden,
+                snapshot_path=arguments.snapshot,
+                out_path=arguments.out,
+                corpus_dir=arguments.corpus_dir,
+            )
+        corpus_dir = (
+            DEFAULT_SOURCE_DIR
+            if arguments.corpus_dir is None
+            else Path(arguments.corpus_dir)
+        )
         try:
             config = load_config()
-            eval_deps = ask_deps_factory(config, Path(arguments.corpus_dir))
+            eval_deps = ask_deps_factory(config, corpus_dir)
         except ConfigError as error:
             print(f"配置错误：{error}", file=sys.stderr)
             return 1
         return run_eval(
             deps=eval_deps,
-            corpus_dir=Path(arguments.corpus_dir),
+            corpus_dir=corpus_dir,
             golden_path=arguments.golden,
             out_path=arguments.out,
         )

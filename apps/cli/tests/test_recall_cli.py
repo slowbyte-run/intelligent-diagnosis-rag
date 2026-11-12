@@ -80,7 +80,8 @@ class FakeVectorReader:
 
 def write_golden(path: Path) -> Path:
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
+        "snapshot": {"checksum": "sha256:" + "0" * 64},
         "questions": [
             {
                 "id": "T-1",

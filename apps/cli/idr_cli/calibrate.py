@@ -111,7 +111,7 @@ def run_calibrate(
 ) -> int:
     """采样、扫描、留档；``--write`` 时把推荐阈值写回检索配置。"""
     try:
-        questions = load_golden_set(golden_path)
+        questions = load_golden_set(golden_path).questions
         settings = deps.retrieval_settings or load_retrieval_settings(settings_path)
     except (GoldenSetError, RetrievalSettingsError) as error:
         print(f"校准配置错误：{error}", file=sys.stderr)

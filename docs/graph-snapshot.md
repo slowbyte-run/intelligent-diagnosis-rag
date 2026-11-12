@@ -116,22 +116,25 @@ uv run idr snapshot --out /tmp/s.json     # 或指定位置
 - 读侧加载即校验：`idr_core.graph.snapshot.load_snapshot(path)` 先核校验和，再解析；
   任何字段缺失、拼错或版本不认识都报 `SnapshotError`，不退回默认值。
 
-## 读侧（#32）要做什么
+## 读侧（#32 已实现）
 
-快照本身只是数据；把它接成 `GraphReader` 仍待 #32 实现（本票不做）：
+`idr_core.graph.snapshot.SnapshotGraphReader` 把快照适配成既有的 `GraphReader`
+读端口，`ask` 的调用方式一行不改。行为与在线端口一致：
 
 - `facts_from(concept_id, relation_types)`：按 `head_id` 精确匹配、按 `relation` 过滤，
   返回未聚合的 `FactEdge`（并行边原样返回，交给 `aggregate_facts`）。
 - `concepts_by_ids` / `evidence_by_ids`：按标识过滤；查不到的标识不出现在结果里，
-  与线上端口一致，不要为缺失项编造记录。
+  与线上端口一致，不为缺失项编造记录。
 - `evidence_by_page(doc_id, page)`：返回快照内该页的证据段，按 `charspan.start` 升序。
   **快照不含闭包外的同页邻居**；短锚点的展示上下文因此可能比线上短。退回的展示文本
-  仍是页面文字的连续切片，不会拼出页面里不存在的句子；引用准确率的度量口径需要
-  #32 显式说明（见 `eval-split-context.md` 里指出的矛盾）。
+  仍是页面文字的连续切片，不会拼出页面里不存在的句子。
 - 加载时校验 `format`/`schema_version`/`checksum`；金标准集记录的校验和与文件不符时
   评估直接失败并说明原因。
-- 不要用快照驱动向量兜底：pgvector 表与嵌入不在快照里，检索评估要显式决定图路径
-  与兜底路径的关系。
+- 不用快照驱动向量兜底：pgvector 表与嵌入不在快照里。检索评估只注入
+  `graph_store`，`ask` 因此保持「图路径失败即拒答」。
+
+引用准确率在快照路径下拆成「文本自洽」与「PDF 可回源」两个数，理由与口径见
+`docs/retrieval-eval.md`；评估命令、校验和绑定与当前基线也在那一页。
 
 ## 已知边界
 
