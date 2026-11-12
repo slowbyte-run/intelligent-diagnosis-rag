@@ -54,7 +54,7 @@ def run_snapshot(
     """导出快照并打印摘要；配置或闭包不完整时返回 1。"""
     target = DEFAULT_SNAPSHOT_PATH if out_path is None else Path(out_path)
     try:
-        questions = load_golden_set(golden_path)
+        questions = load_golden_set(golden_path).questions
         target.parent.mkdir(parents=True, exist_ok=True)
         snapshot = write_export(graph, questions, path=target)
     except GoldenSetError as error:

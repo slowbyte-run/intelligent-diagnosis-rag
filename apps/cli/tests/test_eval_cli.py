@@ -131,7 +131,8 @@ def corpus_with_pdf(directory: Path) -> tuple[Path, str, str, str]:
 
 def write_golden(path: Path, evidence_id: str) -> Path:
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
+        "snapshot": {"checksum": "sha256:" + "0" * 64},
         "questions": [
             {
                 "id": "T-01",
@@ -219,6 +220,7 @@ def test_main_dispatches_eval_subcommand(
     exit_code = main(
         [
             "eval",
+            "--live-graph",
             "--golden",
             str(golden),
             "--corpus-dir",

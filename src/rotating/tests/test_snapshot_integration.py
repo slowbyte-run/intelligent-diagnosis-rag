@@ -49,7 +49,7 @@ def graph() -> Iterator[Neo4jGraphStore]:
 def test_exporting_the_same_graph_twice_is_byte_identical(
     graph: Neo4jGraphStore,
 ) -> None:
-    questions = load_golden_set()
+    questions = load_golden_set().questions
 
     first = export_snapshot(graph, questions)
     second = export_snapshot(graph, questions)
@@ -62,7 +62,7 @@ def test_committed_snapshot_is_the_current_export_of_the_live_graph(
     graph: Neo4jGraphStore,
 ) -> None:
     """仓库里的快照必须与线上图谱当次导出一致：资产过期时先红，而不是悄悄错分。"""
-    questions = load_golden_set()
+    questions = load_golden_set().questions
 
     exported = export_snapshot(graph, questions)
     committed = load_snapshot(DEFAULT_SNAPSHOT_PATH)
@@ -72,7 +72,7 @@ def test_committed_snapshot_is_the_current_export_of_the_live_graph(
 
 
 def test_every_golden_binding_resolves_inside_the_committed_snapshot() -> None:
-    questions = load_golden_set()
+    questions = load_golden_set().questions
     snapshot = load_snapshot(DEFAULT_SNAPSHOT_PATH)
     concept_ids = {concept.id for concept in snapshot.concepts}
     evidence_ids = {record.id for record in snapshot.evidence}

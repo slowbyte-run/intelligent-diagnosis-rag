@@ -114,7 +114,8 @@ def always_ok(citation: dict[str, Any]) -> CitationCheck:
 
 def write_golden(path: Path, question: dict[str, Any]) -> Path:
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
+        "snapshot": {"checksum": "sha256:" + "0" * 64},
         "questions": [question],
     }
     path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
@@ -134,7 +135,7 @@ def valid_question(**overrides: object) -> dict[str, Any]:
 
 
 def test_shipped_golden_set_has_fifty_questions_across_three_classes() -> None:
-    questions = load_golden_set()
+    questions = load_golden_set().questions
 
     assert len(questions) == 50
     assert len({question.id for question in questions}) == 50
@@ -157,7 +158,7 @@ def test_shipped_golden_set_binds_only_ontology_concept_ids() -> None:
         for instance in instances
     }
 
-    for question in load_golden_set():
+    for question in load_golden_set().questions:
         unknown = set(question.expected_concepts) - known
         assert not unknown, f"{question.id} 绑定了本体里不存在的概念：{sorted(unknown)}"
 
@@ -172,7 +173,7 @@ def test_shipped_golden_set_binds_evidence_from_the_local_corpus() -> None:
         document_id(path.read_bytes()) for path in corpus_dir.glob("*.pdf")
     }
 
-    for question in load_golden_set():
+    for question in load_golden_set().questions:
         for evidence_id in question.expected_evidence_ids:
             doc_id = evidence_id.split(":")[1]
             assert doc_id in known_documents, (
@@ -189,7 +190,8 @@ def test_load_golden_set_rejects_unknown_class(tmp_path: Path) -> None:
 
 def test_load_golden_set_rejects_duplicate_ids(tmp_path: Path) -> None:
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
+        "snapshot": {"checksum": "sha256:" + "0" * 64},
         "questions": [valid_question(), valid_question()],
     }
     path = tmp_path / "golden.json"
