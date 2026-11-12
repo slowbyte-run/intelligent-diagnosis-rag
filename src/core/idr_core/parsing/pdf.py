@@ -9,6 +9,21 @@ from idr_core.models import BBox, CharSpan
 from idr_core.parsing import ParsedDocument, ParsedLine, ParsedPage
 
 
+def page_text(path: Path, number: int) -> str:
+    """读取源 PDF 第 ``number`` 页的文字层，页码从 1 开始。
+
+    回源校验要的是「文献现在这一页写着什么」，不是解析时留下的副本：调用方
+    拿它逐字核对引文，因此这里不读缓存、不读图谱。页码越界抛 ``IndexError``；
+    扫描件没有文字层时返回空字符串，是否算失败由调用方判定。
+    """
+    with pdfplumber.open(path) as pdf:
+        if number < 1 or number > len(pdf.pages):
+            raise IndexError(
+                f"{path.name} 只有 {len(pdf.pages)} 页，调用方声称第 {number} 页"
+            )
+        return pdf.pages[number - 1].extract_text() or ""
+
+
 class PdfTextParser:
     """把 PDF 解析成按页的文字、行级版面坐标与字符区间。
 

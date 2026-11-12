@@ -1,11 +1,20 @@
-"""设备领域包：本体、抽取、切分、入库门面与批次报告。"""
+"""设备领域包：本体、抽取、切分、入库与问答门面。"""
 
+from idr_rotating.answer import (
+    Answer,
+    AnswerPath,
+    Citation,
+    Fact,
+    RefusalReason,
+)
+from idr_rotating.ask import AskDeps, ask
 from idr_rotating.document import DocumentType
 from idr_rotating.ingest import (
     IngestDeps,
     IngestError,
     ingest,
 )
+from idr_rotating.linking import ConceptMatch, LinkKind
 from idr_rotating.ontology import OntologyError
 from idr_rotating.pending import (
     PendingExample,
@@ -13,6 +22,11 @@ from idr_rotating.pending import (
     PendingObservation,
     PendingReview,
     RejectionReason,
+)
+from idr_rotating.retrieval import (
+    RetrievalSettings,
+    RetrievalSettingsError,
+    load_retrieval_settings,
 )
 from idr_rotating.report import (
     DocumentOutcome,
@@ -24,20 +38,32 @@ from idr_rotating.report import (
 )
 
 __all__ = [
+    "Answer",
+    "AnswerPath",
+    "AskDeps",
+    "Citation",
+    "ConceptMatch",
     "DocumentOutcome",
     "DocumentReport",
     "DocumentType",
+    "Fact",
     "IngestDeps",
     "IngestError",
     "IngestReport",
+    "LinkKind",
     "ModelCallRecord",
     "OntologyError",
     "PendingExample",
     "PendingKind",
     "PendingObservation",
     "PendingReview",
+    "RefusalReason",
     "RejectionReason",
+    "RetrievalSettings",
+    "RetrievalSettingsError",
     "RunMetadata",
+    "ask",
     "ingest",
+    "load_retrieval_settings",
     "write_report",
 ]

@@ -1,0 +1,212 @@
+"""答案的值对象：检索路径、命中概念、结论与引用。
+
+答案分两层：``facts`` 是图谱上的结论（带关系、置信度与证据段标识），
+``citations`` 是这些证据段的出处（文献名、页码、原文）。一条事实的证据用
+``evidence_ids`` 指向引用层，同一段证据被多条结论引用时只出现一次。
+
+``path`` 明确回答「这条答案是怎么来的」——图命中、向量兜底还是拒答。图命中的
+结论还带 ``Fact.path``：从结论起点走到终点的每一步及其证据，答案因此能说明
+「怎么走到的」，而不只是给出终点。向量兜底没有图上的结论，``facts`` 为空，
+证据段直接进 ``citations``；这类引用带重排分数 ``score``（图路径为 ``None``，
+顺序由关系类型决定）。每条答案还带着本次产生的模型调用记录，成本核算不需要
+另开一条统计通道。
+
+本层只表达事实，不设阈值：判定什么时候拒答是检索编排的事，答案只把结果如实
+标注。``truncated`` 表示结果集撞到上界被截断，``detail`` 里写明原因。
+
+拒答有两种原因，由 :class:`RefusalReason` 区分：``no_concept`` 是问题里的概念
+没被识别出来，``no_evidence`` 是识别了概念却没有证据支撑。这个区分是给用户的
+行动指引——前者该换个问法，后者该补语料。两种拒答都不允许携带 ``facts`` 或
+``citations``：值对象在构造时就拒绝这种自相矛盾的答案，而不是靠调用点自觉。
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import StrEnum
+from typing import Any
+
+from idr_core.graph import Concept
+from idr_core.llm import ModelCall
+from idr_rotating.linking import ConceptMatch
+from idr_rotating.traversal import PathStep
+
+
+class AnswerPath(StrEnum):
+    """本次回答走过的检索路径。"""
+
+    # 图命中：沿本体关系取到带证据的事实。
+    GRAPH = "graph"
+    # 向量兜底：图没有命中时按语义召回证据段并重排（#16）。
+    VECTOR = "vector"
+    # 拒答：图与向量两条路都没有给出可用依据。
+    REFUSAL = "refusal"
+
+
+class RefusalReason(StrEnum):
+    """拒答原因：问题没被理解，还是理解了但没有依据。
+
+    两者的行动含义不同：``NO_CONCEPT`` 说明问题里的说法没有落到本体概念上，
+    用户换一种问法（或维护者补别名）就可能答得出来；``NO_EVIDENCE`` 说明概念
+    已经识别，是图谱与文献里没有可用的证据，需要补语料或补抽取。
+    """
+
+    # 问题里没有任何片段链接到本体概念。
+    NO_CONCEPT = "no_concept"
+    # 链接到了概念，但没有带证据的事实，向量兜底也没有候选过阈值。
+    NO_EVIDENCE = "no_evidence"
+
+
+@dataclass(frozen=True, slots=True)
+class Citation:
+    """一条结论的出处；``document`` 缺省表示按标识查不到文献名。
+
+    ``score`` 只有向量兜底路径有值：它是这条证据段的重排分数，也是它排在这个
+    位置的原因；图路径的引用没有分数，顺序由关系类型决定。
+    """
+
+    evidence_id: str
+    doc_id: str
+    document: str | None
+    page: int
+    text: str
+    score: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class Fact:
+    """图上的一条结论：头概念沿某类关系指向尾概念，证据可回溯。
+
+    ``path`` 是完整的图路径（至少一步；多跳时不止一步），``relation`` 是末跳的
+    关系，``head`` / ``tail`` 是路径的起点与终点。``evidence_ids`` 汇总路径上
+    每一步的证据，因此每条结论的每一跳都能回到引用层核对。
+    """
+
+    relation: str
+    head: Concept
+    tail: Concept
+    confidence: float
+    evidence_ids: tuple[str, ...]
+    # 向量兜底的事实没有图路径，因此允许为空；图命中路径的结论一定非空。
+    path: tuple[PathStep, ...] = ()
+
+    @property
+    def trail(self) -> tuple[Concept, ...]:
+        """结论走过的概念链；没有图路径时退化为两端概念。"""
+        if not self.path:
+            return (self.head, self.tail)
+        return (self.head, *(step.tail for step in self.path))
+
+
+@dataclass(frozen=True, slots=True)
+class Answer:
+    """一次提问的结果。空答案也是显式的：``path`` 说明为什么没答。"""
+
+    question: str
+    path: AnswerPath
+    matches: tuple[ConceptMatch, ...]
+    focus: ConceptMatch | None
+    facts: tuple[Fact, ...]
+    citations: tuple[Citation, ...]
+    # 空答案时说明缺在哪一步（未命中概念、概念不在图谱、没有带证据的事实）；
+    # 截断时说明结果集撞到了哪个上界。
+    detail: str | None = None
+    # 结果集超过上界被截断；截断不是错误，但必须让调用方看得见。
+    truncated: bool = False
+    # 本次回答产生的模型调用（向量兜底的嵌入与重排）；图路径为空。
+    model_calls: tuple[ModelCall, ...] = ()
+    # 拒答原因；非拒答路径必须为 None。拒绝与原因一一对应，不靠调用方记得填。
+    refusal_reason: RefusalReason | None = None
+
+    def __post_init__(self) -> None:
+        """拒答必须说明原因，且不得携带任何结论或引用。"""
+        refusing = self.path is AnswerPath.REFUSAL
+        if refusing != (self.refusal_reason is not None):
+            raise ValueError(
+                "拒答路径必须且只能带拒答原因："
+                f"{self.path.value} / {self.refusal_reason}"
+            )
+        if refusing and (self.facts or self.citations):
+            raise ValueError(
+                "拒答答案不能包含结论或引用：拒答是「没有依据」，"
+                "带结论或引用会让它变成低置信度答案"
+            )
+
+
+# 2：结论增加图路径、引用增加重排分数，答案增加模型调用记录与截断标记；
+# 3：答案增加 refusal_reason（拒答原因）。
+# 字段只增不改，评估按版本号读。
+ANSWER_SCHEMA_VERSION = 3
+
+
+def answer_to_dict(answer: Answer) -> dict[str, Any]:
+    """答案的 JSON 形态；字段名即评估与接口层的契约，改动要升 schema 版本。"""
+    return {
+        "schema_version": ANSWER_SCHEMA_VERSION,
+        "question": answer.question,
+        "path": answer.path.value,
+        "refusal_reason": (
+            answer.refusal_reason.value
+            if answer.refusal_reason is not None
+            else None
+        ),
+        "detail": answer.detail,
+        "truncated": answer.truncated,
+        "focus": _match_to_dict(answer.focus),
+        "matches": [_match_to_dict(match) for match in answer.matches],
+        "facts": [
+            {
+                "relation": fact.relation,
+                "head": _concept_to_dict(fact.head),
+                "tail": _concept_to_dict(fact.tail),
+                "confidence": fact.confidence,
+                "evidence_ids": list(fact.evidence_ids),
+                "path": [_step_to_dict(step) for step in fact.path],
+            }
+            for fact in answer.facts
+        ],
+        "citations": [
+            {
+                "evidence_id": citation.evidence_id,
+                "doc_id": citation.doc_id,
+                "document": citation.document,
+                "page": citation.page,
+                "text": citation.text,
+                "score": citation.score,
+            }
+            for citation in answer.citations
+        ],
+        "model_calls": [
+            {
+                "model": call.model,
+                "input_tokens": call.input_tokens,
+                "output_tokens": call.output_tokens,
+                "elapsed_seconds": call.elapsed_seconds,
+            }
+            for call in answer.model_calls
+        ],
+    }
+
+
+def _match_to_dict(match: ConceptMatch | None) -> dict[str, Any] | None:
+    if match is None:
+        return None
+    return {
+        "concept": _concept_to_dict(match.concept),
+        "alias": match.alias,
+        "kind": match.kind.value,
+    }
+
+
+def _concept_to_dict(concept: Concept) -> dict[str, str]:
+    return {"id": concept.id, "name": concept.name, "type": concept.type}
+
+
+def _step_to_dict(step: PathStep) -> dict[str, Any]:
+    return {
+        "relation": step.relation,
+        "head": _concept_to_dict(step.head),
+        "tail": _concept_to_dict(step.tail),
+        "confidence": step.confidence,
+        "evidence_ids": list(step.evidence_ids),
+    }

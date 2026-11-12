@@ -9,9 +9,12 @@ from pathlib import Path
 
 from idr_core.embedding import EMBEDDING_DIM
 from idr_core.graph import (
+    Concept,
     ConceptEvidenceLink,
     ConceptNode,
     ConceptRelation,
+    EvidenceRecord,
+    FactEdge,
     GraphBatch,
 )
 from idr_core.llm import LLMResponse, ModelDescriptor
@@ -267,7 +270,8 @@ class FakeGraphStore:
     - 跨文献共享的概念节点没有 ``doc_id``，不会被删；
     - 同一对概念在不同文献里的断言各自保留一条并行边。
 
-    ``batches`` 保留原始批次，供只关心中间产物的既有测试读取。
+    ``batches`` 保留原始批次，供只关心中间产物的既有测试读取。读方法按
+    ``GraphReader`` 端口返回未聚合的并行边，聚合由调用方统一做。
     """
 
     def __init__(self) -> None:
@@ -311,6 +315,46 @@ class FakeGraphStore:
             for link in self.evidence_links
             if link.concept_id == concept_id
         }
+
+    def facts_from(
+        self, concept_id: str, relation_types: Sequence[str]
+    ) -> tuple[FactEdge, ...]:
+        """该点的并行边，按写入顺序返回；关系类型统一成小写本体标识。"""
+        wanted = {relation.lower() for relation in relation_types}
+        return tuple(
+            FactEdge(
+                head_id=relation.head_id,
+                relation=relation.type.lower(),
+                tail_id=relation.tail_id,
+                evidence_ids=relation.provenance.evidence_ids,
+                confidence=relation.provenance.confidence,
+                doc_id=relation.provenance.doc_id,
+            )
+            for relation in self.relations
+            if relation.head_id == concept_id
+            and relation.type.lower() in wanted
+        )
+
+    def concepts_by_ids(self, concept_ids: Sequence[str]) -> tuple[Concept, ...]:
+        return tuple(
+            Concept(id=node.id, name=node.name, type=node.type)
+            for node in (self.concepts.get(concept_id) for concept_id in concept_ids)
+            if node is not None
+        )
+
+    def evidence_by_ids(
+        self, evidence_ids: Sequence[str]
+    ) -> tuple[EvidenceRecord, ...]:
+        return tuple(
+            EvidenceRecord(
+                id=segment.id,
+                doc_id=segment.doc_id,
+                page=segment.page,
+                text=segment.text,
+            )
+            for segment in (self.evidence.get(evidence_id) for evidence_id in evidence_ids)
+            if segment is not None
+        )
 
 
 class FakeStateStore:

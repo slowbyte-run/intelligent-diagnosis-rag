@@ -1,0 +1,771 @@
+{
+  "schema_version": 1,
+  "description": "M2 金标准问题（50 条），绑定实时图谱里的规范概念节点与证据段。出题依据：先查 Neo4j 里真实存在事实边与证据段的 (概念, 关系, 概念) 三元组，再按现场工程师的问法改写；不凭想象出题。语料与图谱在 M2 期间冻结，证据段 ID 因此可以长期绑定。第二批扩到 50 条并经用户终审：F-10 因期望证据与「模态测试」对不上而撤下，由 F-11 替换；P-01、X-02、X-03 按评审意见换了证据（见各题 note）。",
+  "classes": {
+    "factual": "事实型：单一主概念，问它的征兆、检测手段、原因、部件或故障模式。可走一跳（#14）或两跳（#15）。",
+    "comparative": "对比型：同时问两个易混淆概念，答案必须覆盖两侧并给出可区分的依据。",
+    "cross_document": "跨文献型：期望答案必须至少引用两个不同文献（证据段 ID 的前缀是 doc_id）；评分时要求每个期望文献都至少出现一条引用。"
+  },
+  "fields": {
+    "id": "题目编号。F=事实型，R=拒答对照，P=对比型，X=跨文献型；编号保持稳定，改动请新增而不是复用。",
+    "class": "factual / comparative / cross_document；拒答对照题的问法是事实型，所以归 factual，并用 expect_refusal 标注期望行为。",
+    "question": "给 ask 门面的原句，就是最终用户会问的说法。",
+    "expected_concepts": "期望出现在答案概念集合里的节点 ID（focus 与各条事实的头尾）。全部出现才算概念覆盖；留空表示期望拒答。",
+    "expected_evidence_ids": "期望被引用的证据段 ID。事实型/对比型：至少命中一个；跨文献型：每个期望文献都至少要命中一个。留空表示期望拒答。",
+    "expect_refusal": "true 表示这道题在冻结语料里答不出来，正确行为是明确拒答（R-01/R-02）。默认 false。",
+    "expected_refusal_reason": "仅拒答对照题使用：no_concept（问题里的概念没识别出来）或 no_evidence（识别了但图谱/文献没有依据）。当前只作评审参考，不参与打分；#17 的拒答原因判定接进来后再启用。",
+    "note": "出题理由、证据原文要点，以及自评的弱点。"
+  },
+  "questions": [
+    {
+      "id": "F-01",
+      "class": "factual",
+      "question": "离心泵包含哪些部件？",
+      "expected_concepts": [
+        "concept:centrifugal_pump",
+        "concept:impeller",
+        "concept:rolling_bearing",
+        "concept:coupling",
+        "concept:shaft"
+      ],
+      "expected_evidence_ids": [
+        "ev:72362dcee50f1d63:6:529-989",
+        "ev:72362dcee50f1d63:5:299-671",
+        "ev:72362dcee50f1d63:5:672-743"
+      ],
+      "note": "来源是 arxiv:2212.14732 的水泵试验台描述（叶轮直径、轴承、联轴器、轴）。证据是试验台介绍而非教科书式部件清单，答案可能不完整（该文献没有把四个部件写在同一句里）。需要两跳白名单里的 has_component（#15）才能命中。"
+    },
+    {
+      "id": "F-02",
+      "class": "factual",
+      "question": "离心泵有哪些故障模式？",
+      "expected_concepts": [
+        "concept:centrifugal_pump",
+        "concept:rolling_bearing",
+        "concept:bearing_outer_race_fatigue_spalling",
+        "concept:bearing_inner_race_fatigue_spalling"
+      ],
+      "expected_evidence_ids": [
+        "ev:72362dcee50f1d63:6:529-989",
+        "ev:03261576178dbe8a:4:336-462",
+        "ev:ddaef5ea68310f1b:6:5-291"
+      ],
+      "note": "需要两跳：离心泵→滚动轴承→故障模式；图谱里没有设备直接连故障模式的边，设备问题必须经过部件中转。答案还会带出轴、联轴器、叶轮的故障（不对中、轴弯曲、轴裂纹），期望只绑定最能核对的这一组。两跳结果可能撞 20 条上界，报告里 truncated=true 时概念缺失不一定是检索错了。"
+    },
+    {
+      "id": "F-03",
+      "class": "factual",
+      "question": "齿轮副有哪些典型故障模式？",
+      "expected_concepts": [
+        "concept:gear_pair",
+        "concept:gear_tooth_breakage",
+        "concept:gear_tooth_macropitting",
+        "concept:gear_tooth_abrasive_wear"
+      ],
+      "expected_evidence_ids": [
+        "ev:c169b3184c37a610:3:1374-1434",
+        "ev:c169b3184c37a610:5:99-175"
+      ],
+      "note": "专利 CN105352726A 明确列出磨损、点蚀、断齿三类故障齿轮。图谱里还有齿面胶合，但只有 1 篇文献、1 段证据，未列入最低期望。"
+    },
+    {
+      "id": "F-04",
+      "class": "factual",
+      "question": "轴承外圈疲劳剥落有什么征兆？",
+      "expected_concepts": [
+        "concept:bearing_outer_race_fatigue_spalling",
+        "concept:bpfo_harmonics"
+      ],
+      "expected_evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:20:2270-2302",
+        "ev:ddaef5ea68310f1b:6:5-291"
+      ],
+      "note": "英文综述给出外圈故障特征频率公式，中文专利给出 BPFO 及其倍频的包络解调做法。这是本批最扎实的事实型题之一。"
+    },
+    {
+      "id": "F-05",
+      "class": "factual",
+      "question": "转子不平衡由什么引起？",
+      "expected_concepts": [
+        "concept:rotor_unbalance",
+        "concept:thermal_expansion"
+      ],
+      "expected_evidence_ids": [
+        "ev:742178038a41d5ea:1:2183-3008",
+        "ev:742178038a41d5ea:20:1722-2304"
+      ],
+      "note": "图谱里只有 3 条 has_cause 边，这是证据最多的一条（10 段）。自评：论文讲的是热不平衡（热引起转子弯曲），图谱归到「热膨胀」，术语不完全等价；这道题测的是 has_cause 关系有没有被检索到，不是因果结论的科学性。原「内圈剥落用什么手段确认」一题因证据只是通用信号处理段而撤下。"
+    },
+    {
+      "id": "F-06",
+      "class": "factual",
+      "question": "滚动体疲劳剥落有什么征兆？",
+      "expected_concepts": [
+        "concept:bearing_rolling_element_fatigue_spalling",
+        "concept:bsf_harmonics"
+      ],
+      "expected_evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:20:2346-2398"
+      ],
+      "note": "英文综述给出滚动体故障特征频率公式（BSF），单篇文献、单段证据，因此只要求命中这一段。"
+    },
+    {
+      "id": "F-07",
+      "class": "factual",
+      "question": "转子不平衡有什么征兆？",
+      "expected_concepts": [
+        "concept:rotor_unbalance",
+        "concept:one_x_vibration_high",
+        "concept:vibration_level_rise"
+      ],
+      "expected_evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:570-1024",
+        "ev:001544229fcbe87d:3:1431-1671",
+        "ev:742178038a41d5ea:2:2580-3732"
+      ],
+      "note": "3 篇文献都支持「1× 转频突出」：中文专利直接写报警条件，全矢谱专利写 1 倍频振动强度大，英文热不平衡论文写同步振动幅值上升。证据面广，是事实型的主干题。"
+    },
+    {
+      "id": "F-08",
+      "class": "factual",
+      "question": "转子不对中有什么征兆？",
+      "expected_concepts": [
+        "concept:rotor_misalignment",
+        "concept:two_x_vibration_high",
+        "concept:axial_vibration_high",
+        "concept:orbit_change"
+      ],
+      "expected_evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:1025-1347",
+        "ev:66f9a7c0b49899ca:1:1327-1653",
+        "ev:001544229fcbe87d:3:874-1029"
+      ],
+      "note": "2× 转频（中文专利 A2X/A1X 判据）、轴向振动偏大（基础松动专利的鉴别段）、轴心轨迹异常（全矢谱专利的联轴器不对中段）三条征兆各有文献。"
+    },
+    {
+      "id": "F-09",
+      "class": "factual",
+      "question": "基础松动有什么征兆？",
+      "expected_concepts": [
+        "concept:foundation_looseness",
+        "concept:one_x_vibration_high",
+        "concept:axial_vibration_high"
+      ],
+      "expected_evidence_ids": [
+        "ev:001544229fcbe87d:4:341-479",
+        "ev:66f9a7c0b49899ca:1:1327-1653"
+      ],
+      "note": "全矢谱专利的表格给出「基础松动 1X 较大、椭圆较扁」；基础松动专利把轴承座轴向振动大列为待鉴别现象，并说明地脚螺丝振值测法。自评：表格段同时覆盖不平衡/基础松动/转子弯曲，单看这一句不容易读出「征兆」，属于可争议的出题。"
+    },
+    {
+      "id": "F-11",
+      "class": "factual",
+      "question": "转子不平衡可以用哪些方法检测？",
+      "expected_concepts": [
+        "concept:rotor_unbalance",
+        "concept:fft_spectrum_analysis",
+        "concept:field_balancing"
+      ],
+      "expected_evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:570-1024",
+        "ev:742178038a41d5ea:5:2290-2904",
+        "ev:742178038a41d5ea:13:1241-1606"
+      ],
+      "note": "替换已撤下的 F-10。三条期望证据都直接讲「怎么检测不平衡」：ddaef 专利写对速度信号做 FFT、在包络信号上取真实特征频率并按 1 倍频幅值占比报警；热不平衡论文的级联谱给出 1X/2X/0.5X 分量；同篇第 13 页写现场动平衡把同步振幅压下去。自评：ddaef 段同时覆盖包络解调，但期望只绑频谱分析与现场动平衡两个检测概念，包络解调边未列入。"
+    },
+    {
+      "id": "F-12",
+      "class": "factual",
+      "question": "轴有哪些故障模式？",
+      "expected_concepts": [
+        "concept:shaft",
+        "concept:rotor_misalignment",
+        "concept:shaft_bow",
+        "concept:shaft_crack"
+      ],
+      "expected_evidence_ids": [
+        "ev:66f9a7c0b49899ca:1:1327-1653",
+        "ev:ddaef5ea68310f1b:6:1025-1347"
+      ],
+      "note": "图谱里轴的一跳故障模式只有三个：不对中（72362、4a8dc）、轴弯曲（66f9、742178、4a8dc）、轴裂纹（4a8dc）。期望取 66f9 的轴向振动鉴别段与 ddaef 的不对中特征频率段，都是段落级；轴裂纹只有 4a8dc 一条 1232 字的整段证据（占该页正文的 87%），不列入期望，只在概念覆盖上要求。自评：轴裂纹的期望证据缺位，本题测的是关系覆盖而不是三条证据都好看。"
+    },
+    {
+      "id": "F-13",
+      "class": "factual",
+      "question": "齿轮箱包含哪些部件？",
+      "expected_concepts": [
+        "concept:gearbox",
+        "concept:gear_pair",
+        "concept:rolling_bearing",
+        "concept:shaft"
+      ],
+      "expected_evidence_ids": [
+        "ev:1be1ecd65c1482c8:3:2297-3020",
+        "ev:86d03750e457ff1f:6:45-1202"
+      ],
+      "note": "齿轮箱→齿轮副在 6 篇文献都有并行边，→滚动轴承 2 篇，→轴 1 篇。期望取 1be1 的试验台描述（齿轮箱/齿轮副）与 86d0 的风电齿轮箱案例段（轴承），都是段落级；轴的证据是 f4ff 的图谱构建方法段，不能直接证明「轴是齿轮箱部件」，故不列入期望。自评：第三个部件只有弱证据。"
+    },
+    {
+      "id": "F-14",
+      "class": "factual",
+      "question": "离心风机包含哪些部件？",
+      "expected_concepts": [
+        "concept:centrifugal_fan",
+        "concept:rolling_bearing",
+        "concept:rotor"
+      ],
+      "expected_evidence_ids": [
+        "ev:906bd81774ba8b1a:46:8173-8335",
+        "ev:66f9a7c0b49899ca:3:1432-1911"
+      ],
+      "note": "离心风机→滚动轴承的证据是 906bd 第 46 页关于电厂风机轴承包络分析的一句（162 字），→转子来自 66f9 的悬臂风机结构段（479 字）与 0015 的全矢谱案例。期望取前两段。自评：轴承那条只有一句话，证据强度一般；离心风机没有任何故障模式边，本题只测部件构成。"
+    },
+    {
+      "id": "F-15",
+      "class": "factual",
+      "question": "转子碰摩有什么征兆？",
+      "expected_concepts": [
+        "concept:rotor_rub",
+        "concept:one_x_vibration_high",
+        "concept:orbit_change",
+        "concept:temperature_rise"
+      ],
+      "expected_evidence_ids": [
+        "ev:001544229fcbe87d:4:341-479",
+        "ev:742178038a41d5ea:19:0-440"
+      ],
+      "note": "转子碰摩的一跳征兆只有三条：1× 突出（0015 表格、742178）、轴心轨迹异常（同两篇）、温升异常（742178）。期望取 0015 的鉴别表（把「动静摩擦」与不平衡/基础松动并列）与 742178 的温度-振幅段。自评：742178 讲的是热不平衡语境下的轻微接触，不是典型碰摩故障案例，因果方向要小心。"
+    },
+    {
+      "id": "F-16",
+      "class": "factual",
+      "question": "轴弯曲有什么征兆？",
+      "expected_concepts": [
+        "concept:shaft_bow",
+        "concept:axial_vibration_high",
+        "concept:one_x_vibration_high"
+      ],
+      "expected_evidence_ids": [
+        "ev:66f9a7c0b49899ca:1:1327-1653",
+        "ev:001544229fcbe87d:4:341-479"
+      ],
+      "note": "轴弯曲→轴向振动偏大、→1× 突出。66f9 的鉴别段明确写「轴弯曲后轴颈承力中心沿轴向周期性变化引起轴承座轴向偏转」，0015 的表给出「转子弯曲 1X、轴向较大、轨迹接近圆、升速中振幅会降到最小值」。两条都是段落级。自评：两段都来自中文专利，缺英文文献旁证。"
+    },
+    {
+      "id": "F-17",
+      "class": "factual",
+      "question": "齿面点蚀有什么征兆？",
+      "expected_concepts": [
+        "concept:gear_tooth_macropitting",
+        "concept:speed_frequency_sidebands",
+        "concept:vibration_level_rise"
+      ],
+      "expected_evidence_ids": [
+        "ev:1be1ecd65c1482c8:5:294-1283"
+      ],
+      "note": "齿面点蚀→转频边带、→振动烈度升高，两条边都只有 1be1 一篇文献，证据是第 5 页 989 字的结果段（FFT 图上故障边带随故障程度增长）。自评：单篇、单段，且这段同时被 F-18 复用，区分力有限；这段占该页正文的 72%，是段落而不是整页，但颗粒度仍偏粗。"
+    },
+    {
+      "id": "F-18",
+      "class": "factual",
+      "question": "断齿有什么征兆？",
+      "expected_concepts": [
+        "concept:gear_tooth_breakage",
+        "concept:speed_frequency_sidebands",
+        "concept:vibration_level_rise"
+      ],
+      "expected_evidence_ids": [
+        "ev:1be1ecd65c1482c8:5:294-1283"
+      ],
+      "note": "断齿→转频边带、→振动烈度升高同样只有 1be1 一篇文献；期望证据与 F-17 相同。自评：与 F-17 共用同一段证据，两题只能测概念绑定是否不同；且 1be1 的故障类目是 chipped/missing，与中文「断齿」并非严格等价。"
+    },
+    {
+      "id": "F-19",
+      "class": "factual",
+      "question": "轴弯曲由什么引起？",
+      "expected_concepts": [
+        "concept:shaft_bow",
+        "concept:thermal_expansion"
+      ],
+      "expected_evidence_ids": [
+        "ev:742178038a41d5ea:1:2183-3008",
+        "ev:742178038a41d5ea:2:0-713"
+      ],
+      "note": "图谱只有 3 条 has_cause 边，轴弯曲→热膨胀是证据最多的一条（742178 两段：热源分析与 1987 年Schmied 的轴承受热描述）。自评：论文讲的是热不平衡如何让转子产生同步振动，把「轴弯曲」归因到热膨胀是图谱的近似，术语不完全等价。"
+    },
+    {
+      "id": "F-20",
+      "class": "factual",
+      "question": "压缩机包含哪些部件？",
+      "expected_concepts": [
+        "concept:compressor",
+        "concept:impeller",
+        "concept:shaft"
+      ],
+      "expected_evidence_ids": [
+        "ev:742178038a41d5ea:2:2580-3732",
+        "ev:742178038a41d5ea:2:3733-4813"
+      ],
+      "note": "压缩机→叶轮、→轴都来自 742178 一篇文献（同两段讲离心压缩机的大悬臂叶轮与轴系）。自评：单篇文献，且这两段是文献综述里的压缩机案例，不是教科书式部件清单。"
+    },
+    {
+      "id": "F-21",
+      "class": "factual",
+      "question": "轴承磨粒磨损用什么方法检测？",
+      "expected_concepts": [
+        "concept:bearing_abrasive_wear",
+        "concept:oil_analysis"
+      ],
+      "expected_evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:19:3961-4466"
+      ],
+      "note": "轴承磨粒磨损→油液分析，证据是 4a8dc 第 19 页「Oil and Lubricant Sensor」段：颗粒污染监测可提示轴承/齿轮箱磨损。自评：单篇单段，且这段讲的是传感器选型，不是磨粒磨损的专门检测流程。"
+    },
+    {
+      "id": "F-22",
+      "class": "factual",
+      "question": "轴承外圈剥落用什么方法检测？",
+      "expected_concepts": [
+        "concept:bearing_outer_race_fatigue_spalling",
+        "concept:envelope_demodulation",
+        "concept:fft_spectrum_analysis"
+      ],
+      "expected_evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:5-291",
+        "ev:906bd81774ba8b1a:33:5848-6279"
+      ],
+      "note": "外圈剥落→包络解调/频谱分析，两篇文献：ddaef 专利明确「FFT + 包络信号取真实特征频率，按 BPFO/BPFI/BSF/FTF 判型」；906bd 综述讲频谱/PSD 识别故障振荡。两段都够段落级。自评：906bd 那段是双栏 OCR 交错文本，可读性差；与 X-02 的问法重叠，只是一个事实型、一个跨文献型。"
+    },
+    {
+      "id": "F-23",
+      "class": "factual",
+      "question": "保持架断裂有什么征兆？",
+      "expected_concepts": [
+        "concept:bearing_cage_fracture",
+        "concept:ftf_harmonics"
+      ],
+      "expected_evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:5-291"
+      ],
+      "note": "保持架断裂→保持架故障频率（FTF），只有 ddaef 一条 286 字段落，明确列出 FTF 并说按四个特征频率判型。自评：单篇单段，证据只说明「算 FTF 能判保持架故障」，没有给出 FTF 的时域/包络表现。"
+    },
+    {
+      "id": "F-24",
+      "class": "factual",
+      "question": "联轴器有哪些故障模式？",
+      "expected_concepts": [
+        "concept:coupling",
+        "concept:rotor_misalignment"
+      ],
+      "expected_evidence_ids": [
+        "ev:66f9a7c0b49899ca:1:1327-1653",
+        "ev:72362dcee50f1d63:5:744-1060"
+      ],
+      "note": "联轴器→不对中，两篇文献：66f9 的轴向振动鉴别段（不对中的检测方法是查联轴器平直度与同心度）与72362 的试验台不对中设置段。自评：图谱里联轴器只有「转子不对中」一条故障模式出边；「联接松动」节点存在，但没有从联轴器连过来的边，所以本题只测不对中。"
+    },
+    {
+      "id": "F-25",
+      "class": "factual",
+      "question": "轴承粘着磨损用什么方法检测？",
+      "expected_concepts": [
+        "concept:bearing_adhesive_wear",
+        "concept:fft_spectrum_analysis"
+      ],
+      "expected_evidence_ids": [
+        "ev:86d03750e457ff1f:7:45-1241"
+      ],
+      "note": "轴承粘着磨损→频谱分析，只有 86d0 一篇、一段 1196 字的讨论段（用频谱图训练 CNN 做故障诊断）。自评：这段的「粘着磨损」标签来自自动特征学习案例，检测手段与故障类型的对应关系比较松。"
+    },
+    {
+      "id": "R-01",
+      "class": "factual",
+      "question": "汽轮机有什么故障模式？",
+      "expected_concepts": [],
+      "expected_evidence_ids": [],
+      "expect_refusal": true,
+      "expected_refusal_reason": "no_evidence",
+      "note": "汽轮机在本体与图谱里都有节点（concept:steam_turbine），但 20 篇文献没有为它抽出任何事实边。正确行为是明确拒答，而不是拿相邻设备的内容冒充。"
+    },
+    {
+      "id": "R-02",
+      "class": "factual",
+      "question": "冷却塔的布水器堵塞如何判断？",
+      "expected_concepts": [],
+      "expected_evidence_ids": [],
+      "expect_refusal": true,
+      "expected_refusal_reason": "no_concept",
+      "note": "问题里没有任何本体别名（冷却塔、布水器、堵塞都不在词表里），是本体的域外问题。用来验证「没识别出概念」也要明确拒答，且向量兜底不能靠语义相似硬答。"
+    },
+    {
+      "id": "P-01",
+      "class": "comparative",
+      "question": "轴承外圈剥落和轴承内圈剥落怎么区分？",
+      "expected_concepts": [
+        "concept:bearing_outer_race_fatigue_spalling",
+        "concept:bearing_inner_race_fatigue_spalling",
+        "concept:bpfo_harmonics",
+        "concept:bpfi_harmonics"
+      ],
+      "expected_evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:20:2091-2269",
+        "ev:4a8dc5af5de2cfe4:20:2446-2660"
+      ],
+      "note": "最标准的鉴别题：外圈缺陷频率 BPFO 与内圈缺陷频率 BPFI 的公式在同一页相邻两段，各自可核对。评审指出原来的期望段（2270-2302 / 2313-2345）只是 32 字的公式碎片，单看碎片核对不出公式全貌；现改为同页「Fault frequency is given by」引入段（2091-2269）与符号说明段（2446-2660），两条都是段落级。自评：OCR 把公式行切成了 9–52 字的碎片，而图谱的 INDICATED_BY 边只绑了这两条碎片，所以更好的期望段在现有边证据下取不到——这是边证据粒度问题，报告中单列。"
+    },
+    {
+      "id": "P-02",
+      "class": "comparative",
+      "question": "转子不平衡和转子不对中怎么区分？",
+      "expected_concepts": [
+        "concept:rotor_unbalance",
+        "concept:rotor_misalignment",
+        "concept:one_x_vibration_high",
+        "concept:two_x_vibration_high"
+      ],
+      "expected_evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:570-1024",
+        "ev:ddaef5ea68310f1b:6:1025-1347"
+      ],
+      "note": "同一份中文专利相邻两段分别写不平衡（1×）与不对中（2×、A2X/A1X）的报警判据，是现有语料里区分力最强的一对。"
+    },
+    {
+      "id": "P-03",
+      "class": "comparative",
+      "question": "基础松动和转子不平衡怎么区分？",
+      "expected_concepts": [
+        "concept:foundation_looseness",
+        "concept:rotor_unbalance",
+        "concept:one_x_vibration_high"
+      ],
+      "expected_evidence_ids": [
+        "ev:001544229fcbe87d:4:341-479",
+        "ev:001544229fcbe87d:3:1431-1671"
+      ],
+      "note": "全矢谱专利的鉴别表格（基础松动 1X 较大、矢振比不同）加同篇的不平衡案例。自评：表格是竖线分隔的 OCR 文本，人读都费劲；而且两行都在同一段里，评分只要求引用到该段，不要求模型解释差异。"
+    },
+    {
+      "id": "P-04",
+      "class": "comparative",
+      "question": "轴承外圈剥落和滚动体剥落怎么区分？",
+      "expected_concepts": [
+        "concept:bearing_outer_race_fatigue_spalling",
+        "concept:bearing_rolling_element_fatigue_spalling",
+        "concept:bpfo_harmonics",
+        "concept:bsf_harmonics"
+      ],
+      "expected_evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:20:2270-2302",
+        "ev:4a8dc5af5de2cfe4:20:2346-2398"
+      ],
+      "note": "两段公式在同一页，特征频率不同是机械可核对的区分依据。"
+    },
+    {
+      "id": "P-05",
+      "class": "comparative",
+      "question": "转子不平衡和结构共振怎么区分？",
+      "expected_concepts": [
+        "concept:rotor_unbalance",
+        "concept:structural_resonance",
+        "concept:one_x_vibration_high",
+        "concept:axial_vibration_high"
+      ],
+      "expected_evidence_ids": [
+        "ev:001544229fcbe87d:3:1431-1671",
+        "ev:742178038a41d5ea:20:1722-2304"
+      ],
+      "note": "不平衡与结构共振是图谱里唯一有 CONFUSED_WITH 出边、且方向支持从「不平衡」出发的易混对之一：0015 的案例段直接写「1 倍频大，可能是基础共振或不平衡，无法具体判别」；742178 第 20 页写热不平衡在临界转速附近被触发。两段都用于「怎么区分」的边界条件。自评：两段都没有给出可直接照做的判别阈值。"
+    },
+    {
+      "id": "P-06",
+      "class": "comparative",
+      "question": "基础松动和轴弯曲怎么区分？",
+      "expected_concepts": [
+        "concept:foundation_looseness",
+        "concept:shaft_bow",
+        "concept:one_x_vibration_high",
+        "concept:axial_vibration_high"
+      ],
+      "expected_evidence_ids": [
+        "ev:66f9a7c0b49899ca:1:1327-1653",
+        "ev:001544229fcbe87d:4:341-479"
+      ],
+      "note": "基础松动与轴弯曲：66f9 的鉴别段把轴弯曲、基础刚度不足、不对中、轴向共振并列为轴承座轴向振动大的原因，并分别给出检测动作（查轴颈跳动 vs 测地脚螺丝差别振动）；0015 的表把基础松动与转子弯曲并列。两段都够段落级。自评：两段都来自中文专利，且表格是竖线分隔的 OCR 文本。"
+    },
+    {
+      "id": "P-07",
+      "class": "comparative",
+      "question": "基础松动和转子不对中怎么区分？",
+      "expected_concepts": [
+        "concept:foundation_looseness",
+        "concept:rotor_misalignment",
+        "concept:axial_vibration_high"
+      ],
+      "expected_evidence_ids": [
+        "ev:66f9a7c0b49899ca:1:1327-1653"
+      ],
+      "note": "基础松动与不对中：66f9 的同一条鉴别段同时给出「不对中→查联轴器平直度/同心度」与「基础刚度不足→测地脚螺丝差别振动」，是现有语料里唯一把两者放在同一段对照的文字。自评：期望证据只有一段；「基础松动」节点的易混边方向不支持从不对中出发，检索引擎只答不对中一侧（见基线）。"
+    },
+    {
+      "id": "P-08",
+      "class": "comparative",
+      "question": "轴承内圈剥落和滚动体疲劳剥落怎么区分？",
+      "expected_concepts": [
+        "concept:bearing_inner_race_fatigue_spalling",
+        "concept:bearing_rolling_element_fatigue_spalling",
+        "concept:bpfi_harmonics",
+        "concept:bsf_harmonics"
+      ],
+      "expected_evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:5-291"
+      ],
+      "note": "内圈剥落与滚动体剥落：ddaef 段明确要求分别算 BPFI 与 BSF 才能判型，是机械可核对的区分依据。自评：两条公式本身在 4a8dc 上仍是 32 字碎片，不列入期望；期望只绑 ddaef 的判型段，区分力靠概念绑定而非原文对照。"
+    },
+    {
+      "id": "P-09",
+      "class": "comparative",
+      "question": "保持架断裂和滚动体疲劳剥落怎么区分？",
+      "expected_concepts": [
+        "concept:bearing_cage_fracture",
+        "concept:bearing_rolling_element_fatigue_spalling",
+        "concept:ftf_harmonics",
+        "concept:bsf_harmonics"
+      ],
+      "expected_evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:5-291"
+      ],
+      "note": "保持架断裂与滚动体剥落：同一 ddaef 段要求分别算 FTF 与 BSF。自评：与 P-08 共用同一段证据，区分只体现在期望概念上；保持架故障在 1be1 里没有独立证据。"
+    },
+    {
+      "id": "P-10",
+      "class": "comparative",
+      "question": "齿面点蚀和齿面磨粒磨损怎么区分？",
+      "expected_concepts": [
+        "concept:gear_tooth_macropitting",
+        "concept:gear_tooth_abrasive_wear",
+        "concept:speed_frequency_sidebands",
+        "concept:vibration_level_rise"
+      ],
+      "expected_evidence_ids": [
+        "ev:c169b3184c37a610:6:1364-1567",
+        "ev:1be1ecd65c1482c8:5:294-1283"
+      ],
+      "note": "齿面点蚀与齿面磨粒磨损：c169 专利把磨损、点蚀、断齿列为三类故障齿轮并给出四类模式的分类实验；1be1 用时域/频域特征区分不同齿面状态。两段可作为「不同故障类型被分别建模」的依据。自评：语料没有直接写「点蚀与磨粒磨损在振动特征上如何区分」，本题的问法比证据强；且磨粒磨损节点只有入边、没有出边，检索引擎会直接拒答（见基线）。"
+    },
+    {
+      "id": "P-11",
+      "class": "comparative",
+      "question": "轴承磨粒磨损和轴承粘着磨损怎么区分？",
+      "expected_concepts": [
+        "concept:bearing_abrasive_wear",
+        "concept:bearing_adhesive_wear",
+        "concept:oil_analysis",
+        "concept:fft_spectrum_analysis"
+      ],
+      "expected_evidence_ids": [
+        "ev:4a8dc5af5de2cfe4:19:3961-4466",
+        "ev:86d03750e457ff1f:7:45-1241"
+      ],
+      "note": "轴承磨粒磨损与粘着磨损：4a8dc 的油液传感器段把颗粒污染与磨损联系起来；86d0 的案例用频谱图诊断轴承粘着磨损。两者可对照「油液 vs 振动」两条检测路线。自评：两段都不是在讲两者的鉴别；而且两个别名同为 4 字，实体链接会判歧义直接拒答（见基线）。"
+    },
+    {
+      "id": "P-12",
+      "class": "comparative",
+      "question": "轴弯曲和转子不平衡怎么区分？",
+      "expected_concepts": [
+        "concept:shaft_bow",
+        "concept:rotor_unbalance",
+        "concept:one_x_vibration_high",
+        "concept:axial_vibration_high"
+      ],
+      "expected_evidence_ids": [
+        "ev:001544229fcbe87d:4:341-479",
+        "ev:66f9a7c0b49899ca:1:1327-1653"
+      ],
+      "note": "轴弯曲与不平衡：0015 的鉴别表把「不平衡」与「转子弯曲」两行并列（1X/矢振比/轴向振动/轴心轨迹/振幅随转速变化），是最直接的区分依据；66f9 的鉴别段补充轴弯曲的轴向特征。自评：检索引擎以不平衡为起点，取不到轴弯曲节点（见基线）；表格是 OCR 文本，可读性差。"
+    },
+    {
+      "id": "X-01",
+      "class": "cross_document",
+      "question": "转子不平衡的征兆在不同文献里分别是怎么描述的？",
+      "expected_concepts": [
+        "concept:rotor_unbalance",
+        "concept:one_x_vibration_high"
+      ],
+      "expected_evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:570-1024",
+        "ev:001544229fcbe87d:3:1431-1671",
+        "ev:742178038a41d5ea:1:355-1461"
+      ],
+      "note": "三篇文献（中文专利、全矢谱专利、英文热不平衡论文）分别支撑 1× 转频突出现象。要求三篇都出现，用来度量「同一结论的多文献证据是否被完整取回」。"
+    },
+    {
+      "id": "X-02",
+      "class": "cross_document",
+      "question": "轴承外圈剥落的检测手段在不同文献里有哪些？",
+      "expected_concepts": [
+        "concept:bearing_outer_race_fatigue_spalling",
+        "concept:fft_spectrum_analysis"
+      ],
+      "expected_evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:5-291",
+        "ev:906bd81774ba8b1a:33:5848-6279"
+      ],
+      "note": "原第三个文献（arxiv:2212 第 5 页）是用锤子敲外圈制造裂纹，原文还写「这个数据集无法只检测内圈或外圈」，属于故障制造方式而不是检测手段，评审要求撤下。现只保留两篇真正讲检测的文献：中文专利（FFT + 包络，按 BPFO/BPFI/BSF/FTF 判型）与英文综述（频谱/PSD 识别故障振荡）。两篇已满足跨文献要求，不再凑第三篇。"
+    },
+    {
+      "id": "X-03",
+      "class": "cross_document",
+      "question": "断齿的检测手段在不同文献中如何记载？",
+      "expected_concepts": [
+        "concept:gear_tooth_breakage",
+        "concept:fft_spectrum_analysis",
+        "concept:time_waveform_analysis"
+      ],
+      "expected_evidence_ids": [
+        "ev:1be1ecd65c1482c8:6:493-1493",
+        "ev:4f88106f26629c63:4:1549-2086"
+      ],
+      "note": "评审指出原期望颗粒度太粗（1be1 的 989 字结果段、4f881 的 3478 字整页摘要），现换成两段更紧的段落：1be1 的 4.2 特征提取段（19 个时域/频域特征）与 4f881 的 chipped tooth 实验段（50% 缺齿）。**映射 caveat**：图谱把「chipped tooth」映射到断齿，严格说 50% 缺齿不等于断齿，只能算近似；而这两段都未被 DETECTED_BY 边绑定（边只绑了 4:68-81、5:294-1283、8:2-1455 与 4f881 整页 1:445-3923），所以当前检索引不到它们，本题在基线上会失败——属于图谱边证据粒度问题，报告中单列。"
+    },
+    {
+      "id": "X-04",
+      "class": "cross_document",
+      "question": "结构共振的征兆在不同文献中是否一致？",
+      "expected_concepts": [
+        "concept:structural_resonance",
+        "concept:axial_vibration_high",
+        "concept:orbit_change"
+      ],
+      "expected_evidence_ids": [
+        "ev:66f9a7c0b49899ca:1:1327-1653",
+        "ev:289961f5bd82f302:7:182-330"
+      ],
+      "note": "一篇把轴向振动偏大归因到轴承座共振，一篇用轴心轨迹图分析共振行为。两段都在讲共振，但「征兆是否一致」需要读者自己比对；评分只机械查两条引用是否都在。"
+    },
+    {
+      "id": "X-05",
+      "class": "cross_document",
+      "question": "转子不对中的检测手段在不同文献中分别有哪些？",
+      "expected_concepts": [
+        "concept:rotor_misalignment",
+        "concept:fft_spectrum_analysis",
+        "concept:shaft_orbit_analysis"
+      ],
+      "expected_evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:1025-1347",
+        "ev:001544229fcbe87d:3:874-1029"
+      ],
+      "note": "转子不对中的检测手段：ddaef 写不对中用 FFT 算特征频率并看 2 倍频幅值占比；0015 用全矢谱/轴心轨迹。两篇文献、两种手段，都是段落级。自评：2899 的指南型证据只有 50–60 字碎片，未列入期望。"
+    },
+    {
+      "id": "X-06",
+      "class": "cross_document",
+      "question": "基础松动的征兆在不同文献中分别是怎么描述的？",
+      "expected_concepts": [
+        "concept:foundation_looseness",
+        "concept:one_x_vibration_high",
+        "concept:axial_vibration_high"
+      ],
+      "expected_evidence_ids": [
+        "ev:66f9a7c0b49899ca:1:1327-1653",
+        "ev:001544229fcbe87d:4:341-479",
+        "ev:4a8dc5af5de2cfe4:21:606-762"
+      ],
+      "note": "基础松动的征兆：66f9 的鉴别段（轴向振动大、查地脚螺丝差别振动）、0015 的表（1X 较大、椭圆较扁）、4a8dc 的 soft foot 表（2 倍频也可能出现）。三篇文献。自评：4a8dc 的 soft foot 与「基础松动」是近似映射，不是严格同义。"
+    },
+    {
+      "id": "X-07",
+      "class": "cross_document",
+      "question": "轴弯曲的征兆在不同文献中分别是怎么描述的？",
+      "expected_concepts": [
+        "concept:shaft_bow",
+        "concept:axial_vibration_high",
+        "concept:one_x_vibration_high"
+      ],
+      "expected_evidence_ids": [
+        "ev:66f9a7c0b49899ca:1:1327-1653",
+        "ev:001544229fcbe87d:4:341-479"
+      ],
+      "note": "轴弯曲的征兆：66f9 的鉴别段（轴弯曲→轴颈承力中心轴向周期变化→轴承座轴向偏转）与 0015 的表（转子弯曲 1X、轴向较大、升速中振幅会降到最小）。两篇文献。自评：两段都出自中文专利，缺英文旁证；与 X-06 共用同一对证据，只能靠期望概念区分。"
+    },
+    {
+      "id": "X-08",
+      "class": "cross_document",
+      "question": "转子碰摩的征兆在不同文献中分别是怎么描述的？",
+      "expected_concepts": [
+        "concept:rotor_rub",
+        "concept:one_x_vibration_high",
+        "concept:orbit_change",
+        "concept:temperature_rise"
+      ],
+      "expected_evidence_ids": [
+        "ev:001544229fcbe87d:4:341-479",
+        "ev:742178038a41d5ea:19:0-440"
+      ],
+      "note": "转子碰摩的征兆：0015 的表给出「动静摩擦 1X 伴高次谐波、轨迹有尖角」，742178 给出碰摩导致的温升与相位变化。两篇文献。自评：742178 的碰摩是热不平衡语境下的轻微接触，不是典型碰摩故障案例。"
+    },
+    {
+      "id": "X-09",
+      "class": "cross_document",
+      "question": "齿面点蚀的检测手段在不同文献中如何记载？",
+      "expected_concepts": [
+        "concept:gear_tooth_macropitting",
+        "concept:fft_spectrum_analysis"
+      ],
+      "expected_evidence_ids": [
+        "ev:1be1ecd65c1482c8:5:294-1283",
+        "ev:86d03750e457ff1f:12:1645-3230"
+      ],
+      "note": "齿面点蚀的检测手段：1be1 用时域+频域特征（19 个特征）做分类并讨论 FFT 图上的边带；86d0 用频谱图 + 自动特征学习诊断风电齿轮箱。两篇文献。自评：86d0 的故障标签是粘着磨损/点蚀混合案例，点蚀归因不够精确。"
+    },
+    {
+      "id": "X-10",
+      "class": "cross_document",
+      "question": "齿轮副的故障模式在不同文献中分别有哪些记载？",
+      "expected_concepts": [
+        "concept:gear_pair",
+        "concept:gear_tooth_breakage",
+        "concept:gear_tooth_macropitting",
+        "concept:gear_tooth_abrasive_wear"
+      ],
+      "expected_evidence_ids": [
+        "ev:4f88106f26629c63:4:1549-2086",
+        "ev:86d03750e457ff1f:12:1645-3230",
+        "ev:1be1ecd65c1482c8:6:493-1493"
+      ],
+      "note": "齿轮副的故障模式：4f881 的 chipped tooth 实验段、86d0 的齿面点蚀结论段、1be1 的特征提取段分别对应断齿/点蚀/磨粒磨损，三篇文献。自评：4f881 的「chipped tooth」与断齿只是近似（50% 缺齿）；三篇文献的故障标签并不完全对齐。"
+    },
+    {
+      "id": "X-11",
+      "class": "cross_document",
+      "question": "轴承内圈剥落的检测手段在不同文献中如何记载？",
+      "expected_concepts": [
+        "concept:bearing_inner_race_fatigue_spalling",
+        "concept:envelope_demodulation",
+        "concept:fft_spectrum_analysis"
+      ],
+      "expected_evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:5-291",
+        "ev:906bd81774ba8b1a:33:5848-6279"
+      ],
+      "note": "轴承内圈剥落的检测手段：ddaef 的 FFT+包络判型段与 906bd 的频谱/PSD 特征提取段，两篇文献。自评：与 X-02 共用同样的两段证据，只是期望概念换成内圈；906bd 段是双栏 OCR 交错文本。"
+    },
+    {
+      "id": "X-12",
+      "class": "cross_document",
+      "question": "转子不对中的征兆在不同文献中分别是怎么描述的？",
+      "expected_concepts": [
+        "concept:rotor_misalignment",
+        "concept:two_x_vibration_high",
+        "concept:axial_vibration_high",
+        "concept:orbit_change"
+      ],
+      "expected_evidence_ids": [
+        "ev:ddaef5ea68310f1b:6:1025-1347",
+        "ev:66f9a7c0b49899ca:1:1327-1653",
+        "ev:001544229fcbe87d:3:874-1029"
+      ],
+      "note": "转子不对中的征兆：ddaef 的 2 倍频判据、66f9 的轴向振动鉴别、0015 的轴心轨迹段，三篇文献。自评：66f9 那段主要讲轴向振动大的原因排查，不是不对中的专章；「是否一致」需要读者自行比对，评分只机械查三条引用。"
+    }
+  ]
+}

@@ -7,13 +7,27 @@ from idr_core.graph.models import (
     GraphBatch,
     Provenance,
 )
+from idr_core.graph.read import (
+    AggregatedFact,
+    Concept,
+    EvidenceRecord,
+    FactEdge,
+    GraphReader,
+    aggregate_facts,
+)
 from idr_core.graph.store import GraphStore
 
 __all__ = [
+    "AggregatedFact",
+    "Concept",
     "ConceptEvidenceLink",
     "ConceptNode",
     "ConceptRelation",
+    "EvidenceRecord",
+    "FactEdge",
     "GraphBatch",
+    "GraphReader",
     "GraphStore",
     "Provenance",
+    "aggregate_facts",
 ]

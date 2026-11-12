@@ -1,10 +1,13 @@
 """向量存储端口。
 
-证据段向量以证据段标识关联，维度由 ADR-0002 固定为 1024。
+证据段向量以证据段标识关联，维度由 ADR-0002 固定为 1024。读写分成两个端口：
+入库只需要写，检索只需要按向量取近邻；``PgVectorStore`` 同时实现两者。
 """
 
 from collections.abc import Sequence
 from typing import Protocol
+
+from idr_core.vector_store.read import VectorMatch, VectorReader
 
 
 class VectorDimensionError(ValueError):
@@ -17,3 +20,11 @@ class VectorStore(Protocol):
     ) -> None: ...
 
     def get_evidence_vector(self, evidence_id: str) -> list[float] | None: ...
+
+
+__all__ = [
+    "VectorDimensionError",
+    "VectorMatch",
+    "VectorReader",
+    "VectorStore",
+]
