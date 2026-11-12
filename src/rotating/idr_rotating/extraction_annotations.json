@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "name": "旋转设备抽取标注集（基线）",
-  "description": "取自真实语料的冻结证据段与手写期望断言：3 篇中文专利（11 段）与 3 篇英文论文（10 段）。证据段原文与 ID 来自已入库图谱，未重新解析 PDF；标注按本体规范名书写。评分口径见 idr_rotating.extraction_evaluation。",
+  "description": "取自真实语料的冻结证据段与手写期望断言：3 篇中文专利（11 段）与 3 篇英文论文（10 段）。证据段原文与 ID 来自已入库图谱，未重新解析 PDF。标注混合了本体规范名与原文自由词：129 条期望实体里只有 33 条是本体规范名，英文文献按原文英文术语标注、未归一为本体规范名；这部分在评分中同时表现为漏抽与精度损失，见 docs/extraction-evaluation.md 第五节。评分口径见 idr_rotating.extraction_evaluation。",
   "segments": [
     {
       "id": "ev:c169b3184c37a610:1:12-262",

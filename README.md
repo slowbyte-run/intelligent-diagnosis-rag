@@ -95,7 +95,8 @@ ID，跨文献题还要求期望证据来自至少两篇文献。金标准集顶
 报告默认写到 `data/output/reports/eval-snapshot-<时间戳>.json`，带结果摘要
 （`result_digest`），同一快照两次运行摘要相同。
 
-旧的实时图谱路径保留，用于复核历史 50 题基线或确认快照确实是线上图的导出：
+旧的实时图谱路径保留，用于查看当前线上图与快照的差异；线上图在 M2 期间被重抽改写
+（基线记录 67 个概念 / 180 条边，现为 78 / 179），历史数字不能靠它复现：
 
 ```bash
 set -a; source .env; set +a
@@ -104,7 +105,8 @@ uv run --env-file .env idr eval --live-graph --corpus-dir data/input
 
 当前快照基线、引用口径的取舍、校验和绑定与两次运行复核，见
 [docs/retrieval-eval.md](docs/retrieval-eval.md)；旧的抽样基线见
-[docs/m2-baseline.md](docs/m2-baseline.md)。
+[docs/m2-baseline.md](docs/m2-baseline.md)。两套评估的基线并排、各自能回答什么、
+比较分数的前提，见 [docs/eval-baselines.md](docs/eval-baselines.md)。
 
 ## 阈值校准
 

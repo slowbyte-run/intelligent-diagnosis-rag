@@ -2,6 +2,8 @@
 
 对应 issue #32（父规格 #30）。上游是 #31 导出的图谱快照
 `src/rotating/idr_rotating/graph_snapshot.json` 与 `docs/graph-snapshot.md`。
+两套评估的基线并排、各自能回答什么、比较分数的前提，见
+[`docs/eval-baselines.md`](eval-baselines.md)。
 
 ## 一句话
 
@@ -39,7 +41,7 @@ uv run idr eval --snapshot /path/to/graph_snapshot.json --golden /path/to/golden
 # 可选：额外做回源 PDF 校验（见下文「引用准确率拆成两个数」）
 uv run idr eval --corpus-dir data/input
 
-# 旧路径：实时图谱 + PDF，用来复核历史基线或确认快照确实是线上图的导出
+# 旧路径：实时图谱 + PDF，用来看当前线上图与快照的差异（历史数字已不能复现，见下文）
 set -a; source .env; set +a
 uv run --env-file .env idr eval --live-graph --corpus-dir data/input \
   --out data/output/reports/eval-live.json
@@ -200,8 +202,11 @@ answer = ask(question, deps=AskDeps(graph_store=reader))
   回源 PDF 口径；本表是固定快照、无向量兜底的**可重复**口径，引用数 843 来自
   图路径引用的实际输出。数值接近不代表可以逐项对比，引用那一栏尤其不是同一个
   度量；
-- 旧基线与旧报告原样保留，用 `idr eval --live-graph` 可复核；`data/` 下的旧报告
-  不入库，但 `docs/m2-baseline.md` 记录了当时的运行条件与失败分析。
+- 旧基线**不能复核**：线上图已经被重抽改写（基线记录 67 个概念 / 180 条边，现在
+  是 78 / 179），`idr eval --live-graph` 读的是现在的图，重跑得到的是另一张图的
+  分数。旧基线只能作为记录存在，`docs/m2-baseline.md` 保留了当时的运行条件与失败
+  分析；
+- 两套评估的基线并排、可比性规则与标注 caveat 见 `docs/eval-baselines.md`。
 
 ## 两次运行一致性的复核
 
